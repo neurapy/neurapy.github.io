@@ -1,13 +1,55 @@
-# PINNfluence Visualization Py-Code
+# PINNfluence ICML Demo
 
-Run `make install`.
-Find Data generation scripts in `src/`.
-Convert `raw_data/` into by webdemo accepted data in `webdemo/data`.
-Run the webapp.
+## How to run
+
+Serve only the static webdemo:
+
+```bash
+make install
+make webdemo
+```
+
+Then open <http://127.0.0.1:8080/>.
+
+## Generate Data from raw_data
+
+The app serves pre-generated static assets from `webdemo/data/`.
+
+Build or refresh the demo bundle from the repo root:
+
+```bash
+uv run python src/build_static_demo_data.py \
+  --matrix-mode all \
+  --k-max 200 \
+  --field-points 60000 \
+  --overwrite \
+  --skip-incomplete
+```
+
+Verify the generated assets:
+
+```bash
+uv run python src/verify_static_demo_data.py --samples 5
+```
+
+## No Raw Data?
+
+Expected in `($"PROJECT_ROOT")/raw_data/` are your folders like `allen_cahn_float64`, which have to contain:
+```path
+..._influence_scores/
+..._validation/
+..._full.pt
+```
+
+Have fun on ICML
 
 ---
+---
+---
 
-# Was muss ich machen? 
+# Notes
+
+## Was muss ich machen? 
 
 1. Richtige Arrays runter laden und in data/
 2. Visualisieren um zu schauen, dass alles stimmt. Lokale Demo schreiben.
@@ -17,7 +59,7 @@ Run the webapp.
   - Python Backend + Javascript Frontend
 
 
-## 1. Daten:
+### 1. Daten:
 Was brauche ich?
 
 Probleme:
@@ -34,7 +76,7 @@ Probleme:
 > Zusätzlich dann noch sowas wie Navier stokes etc. 
 
 Ich brauche train_x und candidate_point key in den files
-### Allen-Cahn
+#### Allen-Cahn
 
 `allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft_influence_scores`
 `allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft_validation`
@@ -45,14 +87,14 @@ Ich brauche train_x und candidate_point key in den files
 
 ---
 
-## Webdemo
+### Webdemo
 
 Der nächste Schritt ist, dass ich mir genau überlege, was ich alles brauche. Ich habe bereits eine gute Base. 
 Es sollte eine JS Webdemo werden. Das gibt mir die meisten Freiheiten.
 Der hintergrund sollte precomputed sein. Darüber sollten die Trainingspunkte markiert sein. Ich sollte darauf klicken können und in einer anderen Grafik ändern sich die Influences. SLider für Top K. Etc. 
 
 
-## Aleks Hinweise
+### Aleks Hinweise
 
 ```
 bin noch dabei die repo aufzuräumen aber aknn dir heute schonmal ne "dreckige" version geben

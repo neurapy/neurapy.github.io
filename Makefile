@@ -3,12 +3,13 @@
 UV ?= uv
 TAPLO ?= RUST_LOG=error $(UV) run taplo
 
-.PHONY: help install run format lint typecheck test check clean
+.PHONY: help install webdemo format lint typecheck test check clean
 
 help:
 	@printf '%s\n' \
 		'Available targets:' \
 		'  install    Install dependencies and git hooks' \
+		'  webdemo    Serve the static webdemo on http://127.0.0.1:8080/' \
 		'  format     Format Python and TOML files' \
 		'  lint       Lint Python files with Ruff' \
 		'  typecheck  Run Pyright' \
@@ -20,6 +21,8 @@ install:
 	$(UV) sync --all-groups
 	$(UV) run pre-commit install
 
+webdemo:
+	$(UV) run python src/start_webdemo_server.py
 
 format:
 	$(UV) run ruff format .
