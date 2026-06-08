@@ -30,6 +30,7 @@ class WebDemoRequestHandler(SimpleHTTPRequestHandler):
         ".i16": "application/octet-stream",
         ".js": "text/javascript",
         ".json": "application/json",
+        ".mjs": "text/javascript",
         ".u8": "application/octet-stream",
         ".u32": "application/octet-stream",
     }

@@ -1,3 +1,10 @@
+import {
+  containsViewportPoint,
+  plotViewport,
+  projectPointToViewport,
+  unprojectPointFromViewport,
+} from "./plotGeometry.mjs";
+
 const DTYPE_CTORS = {
   float32: Float32Array,
   uint32: Uint32Array,
@@ -6,6 +13,7 @@ const DTYPE_CTORS = {
 };
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
+const DEFAULT_PLOT_BOUNDS = { minX: 0, maxX: 1, minY: 0, maxY: 1 };
 
 const state = {
   indexUrl: new URL("data/index.json", window.location.href),
@@ -184,23 +192,6 @@ function prepareCanvas(canvas) {
   return { ctx, width: rect.width, height: rect.height };
 }
 
-function projectPoint(x, y, bounds, width, height, padding = 28) {
-  const spanX = bounds.maxX - bounds.minX || 1;
-  const spanY = bounds.maxY - bounds.minY || 1;
-  return [
-    padding + ((x - bounds.minX) / spanX) * (width - padding * 2),
-    height - padding - ((y - bounds.minY) / spanY) * (height - padding * 2),
-  ];
-}
-
-function unprojectPoint(sx, sy, bounds, width, height, padding = 28) {
-  const spanX = bounds.maxX - bounds.minX || 1;
-  const spanY = bounds.maxY - bounds.minY || 1;
-  const nx = clamp01((sx - padding) / Math.max(1, width - padding * 2));
-  const ny = clamp01((height - padding - sy) / Math.max(1, height - padding * 2));
-  return [bounds.minX + nx * spanX, bounds.minY + ny * spanY];
-}
-
 function quantile(values, q, mask = null) {
   const clean = [];
   for (let i = 0; i < values.length; i += 1) {
@@ -286,14 +277,14 @@ function clearCanvas(ctx, width, height) {
   ctx.fillRect(0, 0, width, height);
 }
 
-function drawAxes(ctx, width, height) {
+function drawAxes(ctx, viewport) {
   ctx.strokeStyle = "#d8dee8";
   ctx.lineWidth = 1;
-  ctx.strokeRect(28, 28, Math.max(1, width - 56), Math.max(1, height - 56));
+  ctx.strokeRect(viewport.x, viewport.y, Math.max(1, viewport.width), Math.max(1, viewport.height));
 }
 
-function adaptivePointSize(width, height, count, mode) {
-  const drawableArea = Math.max(1, (width - 56) * (height - 56));
+function adaptivePointSize(viewport, count, mode) {
+  const drawableArea = Math.max(1, viewport.width * viewport.height);
   const spacing = Math.sqrt(drawableArea / Math.max(1, count));
   if (mode === "field") {
     return Math.max(3.5, Math.min(10, spacing * 1.2));
@@ -312,12 +303,13 @@ function drawPointCloud({
 }) {
   const { ctx, width, height } = prepareCanvas(canvas);
   clearCanvas(ctx, width, height);
-  drawAxes(ctx, width, height);
+  const bounds = points?.length ? getBounds(points, dim) : DEFAULT_PLOT_BOUNDS;
+  const viewport = plotViewport(bounds, width, height);
+  drawAxes(ctx, viewport);
   if (!points || !points.length) return null;
 
-  const bounds = getBounds(points, dim);
   const count = points.length / dim;
-  const pointSize = adaptivePointSize(width, height, count, mode);
+  const pointSize = adaptivePointSize(viewport, count, mode);
   const halfPoint = pointSize / 2;
   const range = valueRange(values ?? new Float32Array(count), mode === "diverging");
   if (titleRangeEl) {
@@ -328,7 +320,7 @@ function drawPointCloud({
   for (let i = 0; i < count; i += 1) {
     const x = points[i * dim];
     const y = points[i * dim + 1] ?? 0;
-    const [sx, sy] = projectPoint(x, y, bounds, width, height);
+    const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
     screen[i * 2] = sx;
     screen[i * 2 + 1] = sy;
     const value = values ? values[i] : 0;
@@ -483,8 +475,9 @@ function drawRasterField({ canvas, fieldId, titleRangeEl = null }) {
   const mask = state.fieldRasterMask;
   const { ctx, width, height } = prepareCanvas(canvas);
   clearCanvas(ctx, width, height);
+  const viewport = plotViewport(bounds ?? DEFAULT_PLOT_BOUNDS, width, height);
   if (!meta || !bounds || !values) {
-    drawAxes(ctx, width, height);
+    drawAxes(ctx, viewport);
     return false;
   }
 
@@ -494,12 +487,12 @@ function drawRasterField({ canvas, fieldId, titleRangeEl = null }) {
   }
   const imageCanvas = rasterImageCanvas(values, mask, meta.width, meta.height, range);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(imageCanvas, 28, 28, Math.max(1, width - 56), Math.max(1, height - 56));
-  drawAxes(ctx, width, height);
+  ctx.drawImage(imageCanvas, viewport.x, viewport.y, viewport.width, viewport.height);
+  drawAxes(ctx, viewport);
 
   const sample = sampleRasterAtCoord(fieldId, state.selectedCoord);
   if (sample) {
-    const [sx, sy] = projectPoint(sample.x, sample.y, bounds, width, height);
+    const [sx, sy] = projectPointToViewport(sample.x, sample.y, bounds, viewport);
     ctx.beginPath();
     ctx.arc(sx, sy, 7, 0, Math.PI * 2);
     ctx.fillStyle = "#f0b429";
@@ -549,18 +542,24 @@ async function drawInfluencePlot() {
   const { indices, values } = topRow(top, rowIndex, state.k);
   const { ctx, width, height } = prepareCanvas(dom.influenceCanvas);
   clearCanvas(ctx, width, height);
-  drawAxes(ctx, width, height);
 
   const candidate = state.arrays.candidate_points;
   const train = state.arrays.train_points;
   const dim = state.manifest.arrays.train_points.shape[1];
   const bounds = getBounds(candidate, state.manifest.arrays.candidate_points.shape[1]);
+  const viewport = plotViewport(bounds, width, height);
+  drawAxes(ctx, viewport);
   const nTrain = train.length / dim;
 
   ctx.globalAlpha = 0.16;
   ctx.fillStyle = "#647282";
   for (let i = 0; i < nTrain; i += 1) {
-    const [sx, sy] = projectPoint(train[i * dim], train[i * dim + 1] ?? 0, bounds, width, height);
+    const [sx, sy] = projectPointToViewport(
+      train[i * dim],
+      train[i * dim + 1] ?? 0,
+      bounds,
+      viewport,
+    );
     ctx.fillRect(sx - 1, sy - 1, 2, 2);
   }
   ctx.globalAlpha = 1;
@@ -573,12 +572,11 @@ async function drawInfluencePlot() {
   for (let i = values.length - 1; i >= 0; i -= 1) {
     const trainIndex = indices[i];
     const value = values[i];
-    const [sx, sy] = projectPoint(
+    const [sx, sy] = projectPointToViewport(
       train[trainIndex * dim],
       train[trainIndex * dim + 1] ?? 0,
       bounds,
-      width,
-      height,
+      viewport,
     );
     const radius = 4 + 9 * Math.sqrt(Math.abs(value) / (maxAbs || 1));
     ctx.beginPath();
@@ -593,7 +591,7 @@ async function drawInfluencePlot() {
   const rowPoints = matrixRowPoints(matrix);
   const rowDim = matrixRowDim(matrix);
   const [x, y] = pointAt(rowPoints, rowIndex, rowDim);
-  const [sx, sy] = projectPoint(x, y, bounds, width, height);
+  const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
   ctx.beginPath();
   ctx.arc(sx, sy, 8, 0, Math.PI * 2);
   ctx.fillStyle = "#f0b429";
@@ -645,7 +643,7 @@ function drawMainPlot() {
   } else {
     const { ctx, width, height } = prepareCanvas(dom.mainCanvas);
     clearCanvas(ctx, width, height);
-    drawAxes(ctx, width, height);
+    drawAxes(ctx, plotViewport(DEFAULT_PLOT_BOUNDS, width, height));
     dom.mainRange.textContent = "";
   }
   updateStats();
@@ -710,13 +708,11 @@ function clickDomainCoord(event) {
   const rect = dom.mainCanvas.getBoundingClientRect();
   const bounds = state.mainPlotBounds;
   if (!bounds) return null;
-  return unprojectPoint(
-    event.clientX - rect.left,
-    event.clientY - rect.top,
-    bounds,
-    rect.width,
-    rect.height,
-  );
+  const sx = event.clientX - rect.left;
+  const sy = event.clientY - rect.top;
+  const viewport = plotViewport(bounds, rect.width, rect.height);
+  if (!containsViewportPoint(sx, sy, viewport)) return null;
+  return unprojectPointFromViewport(sx, sy, bounds, viewport);
 }
 
 function setActiveButton(container, attr, value) {

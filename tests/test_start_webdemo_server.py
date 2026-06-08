@@ -59,6 +59,16 @@ def test_server_serves_webdemo_index() -> None:
     assert b"PINNfluence Demo" in body
 
 
+def test_server_serves_mjs_modules_as_javascript() -> None:
+    with running_webdemo_server() as base_url:
+        with urlopen(f"{base_url}/plotGeometry.mjs", timeout=5) as response:
+            content_type = response.headers.get_content_type()
+            body = response.read()
+
+    assert content_type == "text/javascript"
+    assert b"plotViewport" in body
+
+
 def test_server_disables_directory_listing() -> None:
     with running_webdemo_server() as base_url:
         with pytest.raises(HTTPError) as exc_info:

@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 UV ?= uv
+NODE ?= node
 TAPLO ?= RUST_LOG=error $(UV) run taplo
 
 .PHONY: help install webdemo format lint typecheck test check clean
@@ -36,6 +37,7 @@ typecheck:
 
 test:
 	$(UV) run pytest
+	$(NODE) --test tests/webdemo_plot_geometry.test.mjs
 
 check:
 	$(UV) run ruff format --check .
@@ -43,6 +45,7 @@ check:
 	$(UV) run ruff check .
 	$(UV) run --all-groups pyright
 	$(UV) run pytest
+	$(NODE) --test tests/webdemo_plot_geometry.test.mjs
 
 clean:
 	rm -rf .coverage .coverage.* .mypy_cache .pytest_cache .pyright .ruff_cache build coverage.xml dist htmlcov wheels
