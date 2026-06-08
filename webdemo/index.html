@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PINNfluence Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>PINNfluence</h1>
+          <p id="runMeta" class="muted">Loading static data</p>
+        </div>
+        <div class="topbar-controls">
+          <label>
+            <span>Run</span>
+            <select id="runSelect"></select>
+          </label>
+          <button id="resetButton" class="icon-button" title="Reset selection" aria-label="Reset selection">
+            ↺
+          </button>
+        </div>
+      </header>
+
+      <section id="message" class="message" hidden></section>
+
+      <section class="workspace">
+        <aside class="control-panel">
+          <div class="control-group">
+            <label>
+              <span>Field</span>
+              <select id="fieldSelect"></select>
+            </label>
+            <div class="segmented" id="fieldKindButtons" role="group" aria-label="Field kind">
+              <button data-kind="prediction" class="active">Prediction</button>
+              <button data-kind="loss">Loss</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>
+              <span>Influence</span>
+              <select id="matrixSelect"></select>
+            </label>
+            <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
+              <button data-sign="abs" class="active">|·|</button>
+              <button data-sign="pos">+</button>
+              <button data-sign="neg">−</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>
+              <span>Top k</span>
+              <output id="kOutput">25</output>
+              <input id="kSlider" type="range" min="1" max="200" value="25" />
+            </label>
+          </div>
+
+          <div class="control-group">
+            <label>
+              <span>Global</span>
+              <select id="summarySelect">
+                <option value="mean_abs">Mean |influence|</option>
+                <option value="mean_signed">Mean signed</option>
+                <option value="max_abs">Max |influence|</option>
+                <option value="positive_mass">Positive mass</option>
+                <option value="negative_mass">Negative mass</option>
+              </select>
+            </label>
+          </div>
+
+          <dl class="stats">
+            <div>
+              <dt>Point</dt>
+              <dd id="selectedPoint">-</dd>
+            </div>
+            <div>
+              <dt>Value</dt>
+              <dd id="selectedValue">-</dd>
+            </div>
+            <div>
+              <dt>Training Points</dt>
+              <dd id="trainCount">-</dd>
+            </div>
+            <div>
+              <dt>Candidate Points</dt>
+              <dd id="candidateCount">-</dd>
+            </div>
+          </dl>
+        </aside>
+
+        <section class="plot-grid">
+          <article class="plot-panel primary">
+            <div class="plot-header">
+              <h2 id="mainTitle">Field</h2>
+              <span id="mainRange" class="muted"></span>
+            </div>
+            <canvas id="mainCanvas"></canvas>
+          </article>
+
+          <article class="plot-panel">
+            <div class="plot-header">
+              <h2>Local Influence</h2>
+              <span id="influenceRange" class="muted"></span>
+            </div>
+            <canvas id="influenceCanvas"></canvas>
+          </article>
+
+          <article class="plot-panel">
+            <div class="plot-header">
+              <h2>Global Training Influence</h2>
+              <span id="globalRange" class="muted"></span>
+            </div>
+            <canvas id="globalCanvas"></canvas>
+          </article>
+        </section>
+      </section>
+    </main>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
