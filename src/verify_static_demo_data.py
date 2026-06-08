@@ -80,6 +80,31 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
         values = read_array(base, field["array"])
         assert values.shape[0] == n_display
 
+    field_raster = manifest.get("field_raster")
+    if field_raster:
+        height = int(field_raster["height"])
+        width = int(field_raster["width"])
+        shape = [height, width]
+        if field_raster.get("shape") != shape:
+            raise AssertionError(
+                f"field_raster shape metadata {field_raster.get('shape')} != {shape}"
+            )
+        mask = read_array(base, field_raster["mask"])
+        if list(mask.shape) != shape:
+            raise AssertionError(f"field_raster mask shape {list(mask.shape)} != {shape}")
+        if mask.size != height * width:
+            raise AssertionError(f"field_raster mask length {mask.size} != {height} * {width}")
+        for field_id, field in manifest["fields"].items():
+            if "raster" not in field:
+                continue
+            raster = read_array(base, field["raster"])
+            if list(raster.shape) != shape:
+                raise AssertionError(f"{field_id}: raster shape {list(raster.shape)} != {shape}")
+            if raster.size != height * width:
+                raise AssertionError(
+                    f"{field_id}: raster length {raster.size} != {height} * {width}"
+                )
+
     for matrix in manifest["influence_matrices"]:
         row_source = matrix.get(
             "row_source",

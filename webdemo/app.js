@@ -14,11 +14,14 @@ const state = {
   manifestUrl: null,
   arrays: {},
   fields: {},
+  fieldRasters: {},
+  fieldRasterMask: null,
   topCache: new Map(),
   summaryCache: new Map(),
   selectedDisplayIndex: 0,
   selectedCandidateIndex: 0,
   selectedTrainIndex: 0,
+  selectedCoord: null,
   selectedField: null,
   selectedKind: "prediction",
   selectedMatrixId: null,
@@ -26,6 +29,7 @@ const state = {
   selectedSummary: "mean_abs",
   k: 25,
   screenPoints: null,
+  mainPlotBounds: null,
 };
 
 const dom = {
@@ -192,9 +196,18 @@ function projectPoint(x, y, bounds, width, height, padding = 28) {
   ];
 }
 
-function quantile(values, q) {
+function unprojectPoint(sx, sy, bounds, width, height, padding = 28) {
+  const spanX = bounds.maxX - bounds.minX || 1;
+  const spanY = bounds.maxY - bounds.minY || 1;
+  const nx = clamp01((sx - padding) / Math.max(1, width - padding * 2));
+  const ny = clamp01((height - padding - sy) / Math.max(1, height - padding * 2));
+  return [bounds.minX + nx * spanX, bounds.minY + ny * spanY];
+}
+
+function quantile(values, q, mask = null) {
   const clean = [];
   for (let i = 0; i < values.length; i += 1) {
+    if (mask && !mask[i]) continue;
     const value = values[i];
     if (Number.isFinite(value)) clean.push(value);
   }
@@ -204,18 +217,19 @@ function quantile(values, q) {
   return clean[pos];
 }
 
-function valueRange(values, symmetric = false) {
+function valueRange(values, symmetric = false, mask = null) {
   if (!values || !values.length) return { min: 0, max: 1 };
   if (symmetric) {
     let maxAbs = 0;
     for (let i = 0; i < values.length; i += 1) {
+      if (mask && !mask[i]) continue;
       const value = values[i];
       if (Number.isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
     }
     return { min: -maxAbs || -1, max: maxAbs || 1 };
   }
-  let min = quantile(values, 0.02);
-  let max = quantile(values, 0.98);
+  let min = quantile(values, 0.02, mask);
+  let max = quantile(values, 0.98, mask);
   if (min === max) {
     min -= 1;
     max += 1;
@@ -235,7 +249,7 @@ function rgb(r, g, b) {
   return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 }
 
-function sequentialColor(value, min, max) {
+function sequentialRgb(value, min, max) {
   const t = clamp01((value - min) / (max - min || 1));
   const stops = [
     [39, 58, 94],
@@ -247,11 +261,16 @@ function sequentialColor(value, min, max) {
   const scaled = t * (stops.length - 1);
   const idx = Math.min(stops.length - 2, Math.floor(scaled));
   const local = scaled - idx;
-  return rgb(
+  return [
     lerp(stops[idx][0], stops[idx + 1][0], local),
     lerp(stops[idx][1], stops[idx + 1][1], local),
     lerp(stops[idx][2], stops[idx + 1][2], local),
-  );
+  ];
+}
+
+function sequentialColor(value, min, max) {
+  const [r, g, b] = sequentialRgb(value, min, max);
+  return rgb(r, g, b);
 }
 
 function divergingColor(value, maxAbs) {
@@ -337,6 +356,162 @@ function drawPointCloud({
     ctx.stroke();
   }
   return screen;
+}
+
+function currentRasterMeta() {
+  const meta = state.manifest?.field_raster;
+  if (!meta || !meta.width || !meta.height || !meta.bounds) return null;
+  return meta;
+}
+
+function rasterBounds(meta) {
+  if (!meta?.bounds) return null;
+  const axes = meta.axes ?? state.manifest?.axes ?? ["x", "y"];
+  const xBounds = meta.bounds?.[axes[0]] ?? meta.bounds?.x;
+  const yBounds = meta.bounds?.[axes[1]] ?? meta.bounds?.y;
+  if (!xBounds || !yBounds) return null;
+  return {
+    minX: xBounds[0],
+    maxX: xBounds[1],
+    minY: yBounds[0],
+    maxY: yBounds[1],
+  };
+}
+
+function hasRasterForField(fieldId) {
+  const meta = currentRasterMeta();
+  const field = fieldById(fieldId);
+  const values = state.fieldRasters[fieldId];
+  const expected = (meta?.height ?? 0) * (meta?.width ?? 0);
+  if (!meta || !field?.raster || !values || values.length !== expected) return false;
+  return !state.fieldRasterMask || state.fieldRasterMask.length === expected;
+}
+
+function rasterPixelCenter(meta, row, col) {
+  const bounds = rasterBounds(meta);
+  const dx = (bounds.maxX - bounds.minX) / meta.width;
+  const dy = (bounds.maxY - bounds.minY) / meta.height;
+  return [
+    bounds.minX + (col + 0.5) * dx,
+    bounds.maxY - (row + 0.5) * dy,
+  ];
+}
+
+function nearestValidRasterIndex(row, col, width, height, mask) {
+  const clampedRow = clampIndex(row, height);
+  const clampedCol = clampIndex(col, width);
+  const direct = clampedRow * width + clampedCol;
+  if (!mask || mask[direct]) return direct;
+
+  let best = -1;
+  let bestDist = Infinity;
+  const maxRadius = Math.max(width, height);
+  for (let radius = 1; radius <= maxRadius; radius += 1) {
+    const rMin = Math.max(0, clampedRow - radius);
+    const rMax = Math.min(height - 1, clampedRow + radius);
+    const cMin = Math.max(0, clampedCol - radius);
+    const cMax = Math.min(width - 1, clampedCol + radius);
+    for (let r = rMin; r <= rMax; r += 1) {
+      for (const c of [cMin, cMax]) {
+        const idx = r * width + c;
+        if (!mask[idx]) continue;
+        const dist = (r - clampedRow) ** 2 + (c - clampedCol) ** 2;
+        if (dist < bestDist) {
+          best = idx;
+          bestDist = dist;
+        }
+      }
+    }
+    for (let c = cMin + 1; c < cMax; c += 1) {
+      for (const r of [rMin, rMax]) {
+        const idx = r * width + c;
+        if (!mask[idx]) continue;
+        const dist = (r - clampedRow) ** 2 + (c - clampedCol) ** 2;
+        if (dist < bestDist) {
+          best = idx;
+          bestDist = dist;
+        }
+      }
+    }
+    if (best >= 0) return best;
+  }
+  return direct;
+}
+
+function sampleRasterAtCoord(fieldId, coord) {
+  if (!coord || !hasRasterForField(fieldId)) return null;
+  const meta = currentRasterMeta();
+  const bounds = rasterBounds(meta);
+  if (!bounds) return null;
+  const values = state.fieldRasters[fieldId];
+  const mask = state.fieldRasterMask;
+  const nx = clamp01((coord[0] - bounds.minX) / (bounds.maxX - bounds.minX || 1));
+  const ny = clamp01((bounds.maxY - coord[1]) / (bounds.maxY - bounds.minY || 1));
+  const col = Math.round(nx * meta.width - 0.5);
+  const row = Math.round(ny * meta.height - 0.5);
+  const index = nearestValidRasterIndex(row, col, meta.width, meta.height, mask);
+  const sampleRow = Math.floor(index / meta.width);
+  const sampleCol = index % meta.width;
+  const [x, y] = rasterPixelCenter(meta, sampleRow, sampleCol);
+  return { index, row: sampleRow, col: sampleCol, x, y, value: values[index] };
+}
+
+function rasterImageCanvas(values, mask, width, height, range) {
+  const imageCanvas = document.createElement("canvas");
+  imageCanvas.width = width;
+  imageCanvas.height = height;
+  const imageCtx = imageCanvas.getContext("2d");
+  const image = imageCtx.createImageData(width, height);
+  for (let i = 0; i < values.length; i += 1) {
+    const offset = i * 4;
+    const value = values[i];
+    if ((mask && !mask[i]) || !Number.isFinite(value)) {
+      image.data[offset + 3] = 0;
+      continue;
+    }
+    const [r, g, b] = sequentialRgb(value, range.min, range.max);
+    image.data[offset] = Math.round(r);
+    image.data[offset + 1] = Math.round(g);
+    image.data[offset + 2] = Math.round(b);
+    image.data[offset + 3] = 255;
+  }
+  imageCtx.putImageData(image, 0, 0);
+  return imageCanvas;
+}
+
+function drawRasterField({ canvas, fieldId, titleRangeEl = null }) {
+  const meta = currentRasterMeta();
+  const bounds = rasterBounds(meta);
+  const values = state.fieldRasters[fieldId];
+  const mask = state.fieldRasterMask;
+  const { ctx, width, height } = prepareCanvas(canvas);
+  clearCanvas(ctx, width, height);
+  if (!meta || !bounds || !values) {
+    drawAxes(ctx, width, height);
+    return false;
+  }
+
+  const range = valueRange(values, false, mask);
+  if (titleRangeEl) {
+    titleRangeEl.textContent = `${formatNumber(range.min)} … ${formatNumber(range.max)}`;
+  }
+  const imageCanvas = rasterImageCanvas(values, mask, meta.width, meta.height, range);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(imageCanvas, 28, 28, Math.max(1, width - 56), Math.max(1, height - 56));
+  drawAxes(ctx, width, height);
+
+  const sample = sampleRasterAtCoord(fieldId, state.selectedCoord);
+  if (sample) {
+    const [sx, sy] = projectPoint(sample.x, sample.y, bounds, width, height);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#f0b429";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#17202a";
+    ctx.stroke();
+  }
+  return true;
 }
 
 async function loadTop(matrix, sign) {
@@ -454,8 +629,11 @@ function updateStats() {
   const dim = state.manifest.arrays.display_points?.shape?.[1] ?? state.manifest.arrays.candidate_points.shape[1];
   const [x, y] = pointAt(points, state.selectedDisplayIndex, dim);
   const values = state.fields[state.selectedField];
-  const value = values?.[state.selectedDisplayIndex];
-  dom.selectedPoint.textContent = `(${formatNumber(x)}, ${formatNumber(y)})`;
+  const rasterSample = sampleRasterAtCoord(state.selectedField, state.selectedCoord);
+  const value = rasterSample ? rasterSample.value : values?.[state.selectedDisplayIndex];
+  const displayX = rasterSample ? rasterSample.x : x;
+  const displayY = rasterSample ? rasterSample.y : y;
+  dom.selectedPoint.textContent = `(${formatNumber(displayX)}, ${formatNumber(displayY)})`;
   dom.selectedValue.textContent = formatNumber(value);
   dom.trainCount.textContent = state.manifest.n_train.toLocaleString();
   dom.candidateCount.textContent = `${(state.manifest.n_display ?? state.manifest.n_candidate).toLocaleString()} display / ${state.manifest.n_candidate.toLocaleString()} influence`;
@@ -465,15 +643,30 @@ function drawMainPlot() {
   const values = state.fields[state.selectedField];
   const field = fieldById(state.selectedField);
   dom.mainTitle.textContent = field?.label ?? "Field";
-  state.screenPoints = drawPointCloud({
-    canvas: dom.mainCanvas,
-    points: state.arrays.display_points ?? state.arrays.candidate_points,
-    dim: state.manifest.arrays.display_points?.shape?.[1] ?? state.manifest.arrays.candidate_points.shape[1],
-    values,
-    selectedIndex: state.selectedDisplayIndex,
-    mode: "field",
-    titleRangeEl: dom.mainRange,
-  });
+  if (hasRasterForField(state.selectedField)) {
+    state.screenPoints = null;
+    state.mainPlotBounds = rasterBounds(currentRasterMeta());
+    drawRasterField({
+      canvas: dom.mainCanvas,
+      fieldId: state.selectedField,
+      titleRangeEl: dom.mainRange,
+    });
+  } else {
+    const points = state.arrays.display_points ?? state.arrays.candidate_points;
+    const dim =
+      state.manifest.arrays.display_points?.shape?.[1] ??
+      state.manifest.arrays.candidate_points.shape[1];
+    state.mainPlotBounds = getBounds(points, dim);
+    state.screenPoints = drawPointCloud({
+      canvas: dom.mainCanvas,
+      points,
+      dim,
+      values,
+      selectedIndex: state.selectedDisplayIndex,
+      mode: "field",
+      titleRangeEl: dom.mainRange,
+    });
+  }
   updateStats();
 }
 
@@ -501,12 +694,63 @@ function nearestDisplayPoint(clientX, clientY) {
   return best;
 }
 
+function nearestPointIndexByCoord(points, dim, x, y) {
+  if (!points || !points.length || !dim) return 0;
+  let best = 0;
+  let bestDist = Infinity;
+  const count = points.length / dim;
+  for (let i = 0; i < count; i += 1) {
+    const dx = points[i * dim] - x;
+    const dy = (points[i * dim + 1] ?? 0) - y;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  }
+  return best;
+}
+
 function setSelectedDisplayPoint(displayIndex) {
   state.selectedDisplayIndex = displayIndex;
   const candidateMap = state.arrays.display_to_candidate;
   const trainMap = state.arrays.display_to_train;
   state.selectedCandidateIndex = candidateMap ? candidateMap[displayIndex] : displayIndex;
   state.selectedTrainIndex = trainMap ? trainMap[displayIndex] : displayIndex;
+  const points = state.arrays.display_points ?? state.arrays.candidate_points;
+  const dim =
+    state.manifest.arrays.display_points?.shape?.[1] ??
+    state.manifest.arrays.candidate_points.shape[1];
+  state.selectedCoord = pointAt(points, state.selectedDisplayIndex, dim);
+}
+
+function setSelectedFromCoord(x, y) {
+  const display = state.arrays.display_points ?? state.arrays.candidate_points;
+  const displayDim =
+    state.manifest.arrays.display_points?.shape?.[1] ??
+    state.manifest.arrays.candidate_points.shape[1];
+  const candidate = state.arrays.candidate_points;
+  const candidateDim = state.manifest.arrays.candidate_points.shape[1];
+  const train = state.arrays.train_points;
+  const trainDim = state.manifest.arrays.train_points.shape[1];
+
+  state.selectedCoord = [x, y];
+  state.selectedDisplayIndex = nearestPointIndexByCoord(display, displayDim, x, y);
+  state.selectedCandidateIndex = nearestPointIndexByCoord(candidate, candidateDim, x, y);
+  state.selectedTrainIndex = nearestPointIndexByCoord(train, trainDim, x, y);
+}
+
+function clickDomainCoord(event) {
+  const rect = dom.mainCanvas.getBoundingClientRect();
+  const bounds = state.mainPlotBounds;
+  if (!bounds) return null;
+  return unprojectPoint(
+    event.clientX - rect.left,
+    event.clientY - rect.top,
+    bounds,
+    rect.width,
+    rect.height,
+  );
 }
 
 function setActiveButton(container, attr, value) {
@@ -563,6 +807,15 @@ async function loadRun(manifestPath) {
   state.summaryCache.clear();
   state.manifestUrl = new URL(manifestPath, state.indexUrl);
   state.manifest = await fetchJson(state.manifestUrl);
+  state.fieldRasterMask = null;
+  if (state.manifest.field_raster?.mask) {
+    try {
+      state.fieldRasterMask = await fetchArray(state.manifest.field_raster.mask, state.manifestUrl);
+    } catch (error) {
+      console.warn("Raster mask failed to load; falling back to point fields.", error);
+      state.fieldRasterMask = null;
+    }
+  }
   state.arrays = {
     candidate_points: await fetchArray(state.manifest.arrays.candidate_points, state.manifestUrl),
     display_points: await fetchArray(
@@ -581,8 +834,16 @@ async function loadRun(manifestPath) {
   };
 
   state.fields = {};
+  state.fieldRasters = {};
   for (const [id, field] of Object.entries(state.manifest.fields)) {
     state.fields[id] = await fetchArray(field.array, state.manifestUrl);
+    if (field.raster && state.manifest.field_raster && state.fieldRasterMask) {
+      try {
+        state.fieldRasters[id] = await fetchArray(field.raster, state.manifestUrl);
+      } catch (error) {
+        console.warn(`${id} raster failed to load; falling back to point field.`, error);
+      }
+    }
   }
 
   setSelectedDisplayPoint(0);
@@ -676,7 +937,12 @@ dom.resetButton.addEventListener("click", async () => {
 });
 
 dom.mainCanvas.addEventListener("click", async (event) => {
-  setSelectedDisplayPoint(nearestDisplayPoint(event.clientX, event.clientY));
+  const coord = clickDomainCoord(event);
+  if (coord) {
+    setSelectedFromCoord(coord[0], coord[1]);
+  } else {
+    setSelectedDisplayPoint(nearestDisplayPoint(event.clientX, event.clientY));
+  }
   await redrawAll();
 });
 

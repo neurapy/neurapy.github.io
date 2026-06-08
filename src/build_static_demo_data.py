@@ -42,6 +42,9 @@ DTYPES = {
     "int16": np.int16,
 }
 
+SCHEMA_VERSION = 3
+DEFAULT_RASTER_MAX_RESOLUTION = 512
+
 
 @dataclass
 class RunPaths:
@@ -51,6 +54,16 @@ class RunPaths:
     checkpoint: Path | None
     influence_dir: Path | None
     validation_dir: Path | None
+
+
+@dataclass
+class RasterGrid:
+    points: np.ndarray
+    mask: np.ndarray
+    width: int
+    height: int
+    bounds: dict[str, list[float]]
+    axes: list[str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,6 +82,12 @@ def parse_args() -> argparse.Namespace:
         default=60_000,
         type=int,
         help="Number of precomputed display points for prediction/loss fields. Use 0 to reuse influence candidate points.",
+    )
+    parser.add_argument(
+        "--raster-max-resolution",
+        default=DEFAULT_RASTER_MAX_RESOLUTION,
+        type=int,
+        help="Maximum pixel resolution of the longer axis for 2D prediction/loss rasters.",
     )
     parser.add_argument(
         "--matrix-mode",
@@ -333,16 +352,146 @@ def term_label(problem: str, term: str) -> str:
     return loss_term_names.get(problem, {}).get(term, term.replace("_", " "))
 
 
-def infer_bounds(points: np.ndarray) -> dict[str, list[float]]:
+def axis_names(dim: int) -> list[str]:
     axes = ["x", "y", "z", "w"]
+    return [axes[idx] if idx < len(axes) else f"x{idx}" for idx in range(dim)]
+
+
+def bounds_dict_from_arrays(
+    mins: np.ndarray,
+    maxs: np.ndarray,
+    axes: list[str] | None = None,
+) -> dict[str, list[float]]:
+    axes = axes or axis_names(len(mins))
+    return {
+        axes[dim]: [
+            float(mins[dim]),
+            float(maxs[dim]),
+        ]
+        for dim in range(len(mins))
+    }
+
+
+def infer_bounds(points: np.ndarray) -> dict[str, list[float]]:
+    axes = axis_names(points.shape[1])
     bounds = {}
     for dim in range(points.shape[1]):
         values = points[:, dim]
-        bounds[axes[dim] if dim < len(axes) else f"x{dim}"] = [
+        bounds[axes[dim]] = [
             float(np.nanmin(values)),
             float(np.nanmax(values)),
         ]
     return bounds
+
+
+def infer_min_max(points: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
+    points = np.asarray(points, dtype=np.float64)
+    if points.ndim != 2 or points.shape[1] == 0 or len(points) == 0:
+        return None
+    mins = np.nanmin(points, axis=0)
+    maxs = np.nanmax(points, axis=0)
+    if not np.all(np.isfinite(mins)) or not np.all(np.isfinite(maxs)):
+        return None
+    return mins, maxs
+
+
+def geom_min_max(geom: Any, fallback_points: np.ndarray) -> tuple[np.ndarray, np.ndarray] | None:
+    try:
+        if hasattr(geom, "timedomain") and hasattr(geom, "geometry"):
+            x_min, x_max = geom.geometry.bbox
+            t_min, t_max = geom.timedomain.bbox
+            mins = np.concatenate(
+                [
+                    np.asarray(x_min, dtype=np.float64).reshape(-1),
+                    np.asarray(t_min, dtype=np.float64).reshape(-1),
+                ]
+            )
+            maxs = np.concatenate(
+                [
+                    np.asarray(x_max, dtype=np.float64).reshape(-1),
+                    np.asarray(t_max, dtype=np.float64).reshape(-1),
+                ]
+            )
+        else:
+            mins, maxs = geom.bbox
+            mins = np.asarray(mins, dtype=np.float64).reshape(-1)
+            maxs = np.asarray(maxs, dtype=np.float64).reshape(-1)
+        if len(mins) and len(mins) == len(maxs) and np.all(np.isfinite(mins + maxs)):
+            return mins, maxs
+    except Exception:
+        pass
+    return infer_min_max(fallback_points)
+
+
+def raster_dimensions(
+    mins: np.ndarray,
+    maxs: np.ndarray,
+    max_axis_resolution: int = DEFAULT_RASTER_MAX_RESOLUTION,
+) -> tuple[int, int]:
+    if max_axis_resolution < 1:
+        raise ValueError("max_axis_resolution must be >= 1")
+    span_x = float(maxs[0] - mins[0])
+    span_y = float(maxs[1] - mins[1])
+    if span_x <= 0 or span_y <= 0:
+        raise ValueError(f"Raster bounds must have positive spans, got {span_x=} {span_y=}")
+    if span_x >= span_y:
+        width = max_axis_resolution
+        height = max(1, int(round(max_axis_resolution * span_y / span_x)))
+    else:
+        height = max_axis_resolution
+        width = max(1, int(round(max_axis_resolution * span_x / span_y)))
+    return width, height
+
+
+def raster_points_from_bounds(
+    mins: np.ndarray,
+    maxs: np.ndarray,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    dx = float(maxs[0] - mins[0]) / width
+    dy = float(maxs[1] - mins[1]) / height
+    x_centers = mins[0] + (np.arange(width, dtype=np.float64) + 0.5) * dx
+    y_centers = maxs[1] - (np.arange(height, dtype=np.float64) + 0.5) * dy
+    xx, yy = np.meshgrid(x_centers, y_centers)
+    return np.stack([xx.ravel(), yy.ravel()], axis=1)
+
+
+def raster_domain_mask(geom: Any, points: np.ndarray, height: int, width: int) -> np.ndarray:
+    if geom is None or not hasattr(geom, "inside"):
+        return np.ones((height, width), dtype=np.uint8)
+    try:
+        mask = np.asarray(geom.inside(points), dtype=bool).reshape(-1)
+        if mask.shape[0] != points.shape[0]:
+            raise ValueError("inside() returned an unexpected mask shape")
+        return mask.astype(np.uint8).reshape(height, width)
+    except Exception:
+        return np.ones((height, width), dtype=np.uint8)
+
+
+def make_raster_grid(
+    geom: Any,
+    fallback_points: np.ndarray,
+    max_axis_resolution: int = DEFAULT_RASTER_MAX_RESOLUTION,
+) -> RasterGrid | None:
+    min_max = geom_min_max(geom, fallback_points)
+    if min_max is None:
+        return None
+    mins, maxs = min_max
+    if len(mins) != 2:
+        return None
+    width, height = raster_dimensions(mins, maxs, max_axis_resolution)
+    points = raster_points_from_bounds(mins, maxs, width, height)
+    mask = raster_domain_mask(geom, points, height, width)
+    axes = axis_names(2)
+    return RasterGrid(
+        points=points,
+        mask=mask,
+        width=width,
+        height=height,
+        bounds=bounds_dict_from_arrays(mins, maxs, axes),
+        axes=axes,
+    )
 
 
 def sample_display_points(data: Any, n_points: int, fallback: np.ndarray) -> np.ndarray:
@@ -701,6 +850,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     model = data = None
     train_points = None
     fields: dict[str, np.ndarray] = {}
+    raster_grid: RasterGrid | None = None
+    raster_fields: dict[str, np.ndarray] = {}
 
     if run.checkpoint is not None:
         checkpoint_info = load_checkpoint_info(run.checkpoint)
@@ -758,6 +909,25 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                 num_bcs=num_bcs,
                 float64=params["float64"],
             )
+            try:
+                raster_grid = make_raster_grid(
+                    data.geom,
+                    display_points if len(display_points) else candidate_points,
+                    args.raster_max_resolution,
+                )
+                if raster_grid is not None:
+                    raster_fields = predict_fields(
+                        model=model,
+                        data=data,
+                        points=raster_grid.points,
+                        num_pdes=num_pdes,
+                        num_bcs=num_bcs,
+                        float64=params["float64"],
+                    )
+            except Exception as exc:
+                raster_grid = None
+                raster_fields = {}
+                errors.append(f"Field raster precomputation failed: {exc}")
         except Exception as exc:
             errors.append(f"Field precomputation failed: {exc}")
 
@@ -792,14 +962,50 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "train_kind": write_array(out_dir, "arrays/train_kind.u8", train_kind, "uint8"),
         "train_bc_id": write_array(out_dir, "arrays/train_bc_id.i16", train_bc_id, "int16"),
     }
+    field_raster_entry = None
+    if raster_grid is not None:
+        arrays["field_raster_mask"] = write_array(
+            out_dir,
+            "arrays/field_raster_mask.u8",
+            raster_grid.mask,
+            "uint8",
+        )
+        field_raster_entry = {
+            "width": raster_grid.width,
+            "height": raster_grid.height,
+            "shape": [raster_grid.height, raster_grid.width],
+            "bounds": raster_grid.bounds,
+            "axes": raster_grid.axes,
+            "max_axis_resolution": args.raster_max_resolution,
+            "coordinate_order": {
+                "columns": "x_ascending",
+                "rows": "y_descending",
+                "sample": "pixel_center",
+            },
+            "mask": arrays["field_raster_mask"],
+        }
 
     field_entries: dict[str, Any] = {}
     for name, values in sorted(fields.items()):
-        field_entries[name] = {
+        entry = {
             "label": field_label(run.problem, name),
             "kind": "prediction" if name.startswith("pred_") else "loss",
             "array": write_array(out_dir, f"arrays/{name}.f32", values, "float32"),
         }
+        if raster_grid is not None and name in raster_fields:
+            raster_values = np.asarray(raster_fields[name], dtype=np.float32)
+            expected = raster_grid.height * raster_grid.width
+            if raster_values.size != expected:
+                raise ValueError(
+                    f"{name}: raster length {raster_values.size} != {raster_grid.height} * {raster_grid.width}"
+                )
+            entry["raster"] = write_array(
+                out_dir,
+                f"arrays/{name}_raster.f32",
+                raster_values.reshape(raster_grid.height, raster_grid.width),
+                "float32",
+            )
+        field_entries[name] = entry
 
     matrix_jobs: list[tuple[int, Path, str, int]] = []
     for matrix_path in matrix_files:
@@ -833,7 +1039,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     )
 
     manifest = {
-        "schema_version": 2,
+        "schema_version": SCHEMA_VERSION,
         "problem": run.problem,
         "folder": run.folder.name,
         "run_id": run.run_prefix,
@@ -849,7 +1055,11 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "matrix_mode": args.matrix_mode,
         "k_max": args.k_max,
         "axes": ["x", "y"][: candidate_points.shape[1]],
-        "bounds": infer_bounds(display_points) if len(display_points) else {},
+        "bounds": (
+            raster_grid.bounds
+            if raster_grid is not None
+            else (infer_bounds(display_points) if len(display_points) else {})
+        ),
         "n_candidate": len(candidate_points),
         "n_display": len(display_points),
         "n_train": len(train_points),
@@ -859,6 +1069,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "available_terms": available_terms,
         "term_labels": {term: term_label(run.problem, term) for term in available_terms},
         "arrays": arrays,
+        "field_raster": field_raster_entry,
         "fields": field_entries,
         "influence_matrices": influence_entries,
         "validation": validation_summary(run.validation_dir),
@@ -903,6 +1114,8 @@ def main() -> None:
         raise SystemExit("--k-max must be >= 1")
     if args.matrix_workers < 1:
         raise SystemExit("--matrix-workers must be >= 1")
+    if args.raster_max_resolution < 1:
+        raise SystemExit("--raster-max-resolution must be >= 1")
 
     args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
     args.out_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
@@ -932,11 +1145,12 @@ def main() -> None:
             print(f"FAILED {run.folder.name}/{run.run_prefix}: {exc}")
 
     index = {
-        "schema_version": 2,
+        "schema_version": SCHEMA_VERSION,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "data_root": str(args.data_root),
         "matrix_mode": args.matrix_mode,
         "k_max": args.k_max,
+        "raster_max_resolution": args.raster_max_resolution,
         "runs": index_entries,
     }
     write_json(args.out_root / "index.json", index)
