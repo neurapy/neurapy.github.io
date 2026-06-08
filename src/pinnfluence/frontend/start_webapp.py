@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import os
 import time
 from pathlib import Path
 
@@ -59,7 +58,7 @@ def run_streamlit():
 
 def check_api_log_for_address_in_use():
     if API_LOG.exists():
-        with open(API_LOG, "r") as f:
+        with open(API_LOG) as f:
             log_content = f.read()
             if "Address already in use" in log_content:
                 print(

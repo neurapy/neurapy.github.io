@@ -5,8 +5,7 @@
 from itertools import chain
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import optim
 
 # Parts of the code are modifications of Pytorch's AdamW optimizer
 # Parts of the code are modifications of code from https://github.com/jiaweizzhao/GaLore/blob/master/galore_torch/galore_projector.py
@@ -57,7 +56,7 @@ class SOAP(optim.Optimizer):
         eps: float = 1e-8,
         weight_decay: float = 0.01,
         precondition_frequency: int = 2,
-        max_precond_dim: int = 10000,  #
+        max_precond_dim: int = 10000,
         merge_dims: bool = False,  # Merge dimensions till the product of the dimensions is less than or equal to max_precond_dim.
         precondition_1d: bool = False,
         normalize_grads: bool = False,
@@ -316,27 +315,26 @@ class SOAP(optim.Optimizer):
                 state["GG"][0].lerp_(
                     grad.unsqueeze(1) @ grad.unsqueeze(0), 1 - state["shampoo_beta"]
                 )
+        elif merge_dims:
+            new_grad = self.merge_dims(grad, max_precond_dim)
+            for idx, sh in enumerate(new_grad.shape):
+                if sh <= max_precond_dim:
+                    outer_product = torch.tensordot(
+                        new_grad,
+                        new_grad,
+                        dims=[[*chain(range(idx), range(idx + 1, len(new_grad.shape)))]] * 2,
+                    )
+                    state["GG"][idx].lerp_(outer_product, 1 - state["shampoo_beta"])
         else:
-            if merge_dims:
-                new_grad = self.merge_dims(grad, max_precond_dim)
-                for idx, sh in enumerate(new_grad.shape):
-                    if sh <= max_precond_dim:
-                        outer_product = torch.tensordot(
-                            new_grad,
-                            new_grad,
-                            dims=[[*chain(range(idx), range(idx + 1, len(new_grad.shape)))]] * 2,
-                        )
-                        state["GG"][idx].lerp_(outer_product, 1 - state["shampoo_beta"])
-            else:
-                for idx, sh in enumerate(grad.shape):
-                    if sh <= max_precond_dim:
-                        outer_product = torch.tensordot(
-                            grad,
-                            grad,
-                            # Contracts across all dimensions except for k.
-                            dims=[[*chain(range(idx), range(idx + 1, len(grad.shape)))]] * 2,
-                        )
-                        state["GG"][idx].lerp_(outer_product, 1 - state["shampoo_beta"])
+            for idx, sh in enumerate(grad.shape):
+                if sh <= max_precond_dim:
+                    outer_product = torch.tensordot(
+                        grad,
+                        grad,
+                        # Contracts across all dimensions except for k.
+                        dims=[[*chain(range(idx), range(idx + 1, len(grad.shape)))]] * 2,
+                    )
+                    state["GG"][idx].lerp_(outer_product, 1 - state["shampoo_beta"])
 
         if state["Q"] is None:
             state["Q"] = self.get_orthogonal_matrix(state["GG"])

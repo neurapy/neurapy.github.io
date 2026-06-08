@@ -13,17 +13,10 @@ dependencies = [
   "captum @ git+https://github.com/aleks-krasowski/captum.git",
   "deepxde @ git+https://github.com/aleks-krasowski/deepxde.git",
   "jupyter",
-  "streamlit",
-  "plotly",
-  "jupyterlab",
-  "ipykernel",
   "matplotlib",
   "numpy",
-  "seaborn",
   "pandas",
   "pip",
-  "scikit-learn",
-  "tabulate",
   "torch",
   "wandb",
 ]
@@ -32,6 +25,7 @@ classifiers = []
 
 [dependency-groups]
 dev = ["pre-commit", "pyright", "pytest>=9.0", "ruff", "taplo"]
+streamlit_demo = ["streamlit", "plotly"]
 
 [tool.uv]
 package = false
@@ -89,13 +83,13 @@ select = [
   "SIM",   # flake8-simplify: simplify control flow.
   "SLF",   # flake8-self: discourage private member access.
   "T10",   # flake8-debugger: prevent committed breakpoints.
-  "T20",   # flake8-print: prevent committed print debugging.
-  "TC",    # flake8-type-checking: optimize type-only imports.
-  "TD",    # flake8-todos: require actionable TODOs.
-  "TRY",   # tryceratops: improve exception handling.
-  "UP",    # pyupgrade: modernize syntax for Python 3.14.
-  "W",     # pycodestyle warnings: core style warnings.
-  "YTT",   # flake8-2020: catch sys.version misuse.
+  # "T20",   # flake8-print: prevent committed print debugging.
+  "TC",  # flake8-type-checking: optimize type-only imports.
+  "TD",  # flake8-todos: require actionable TODOs.
+  "TRY", # tryceratops: improve exception handling.
+  "UP",  # pyupgrade: modernize syntax for Python 3.14.
+  "W",   # pycodestyle warnings: core style warnings.
+  "YTT", # flake8-2020: catch sys.version misuse.
 ]
 ignore = [
   "COM812", # Conflicts with Ruff's formatter.

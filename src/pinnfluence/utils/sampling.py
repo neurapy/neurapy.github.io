@@ -1,8 +1,8 @@
 import os
-import time
-from functools import partial
 import tempfile
-from typing import Iterable, Optional
+import time
+from collections.abc import Iterable
+from functools import partial
 
 import captum
 import deepxde as dde
@@ -235,12 +235,12 @@ def score_TDA(
         "abs",
         "pos",
         "neg",
-    ], f"Please choose summation_sign from ['abs', 'pos', 'neg']"
+    ], "Please choose summation_sign from ['abs', 'pos', 'neg']"
 
     assert tda_method in [
         "PINNfluence",
         "grad_dot",
-    ], f"Please choose tda_method from ['PINNfluence', 'grad_dot']"
+    ], "Please choose tda_method from ['PINNfluence', 'grad_dot']"
 
     if potential_precalculated is not None:
         print(f"Precalculated exists: {os.path.exists(potential_precalculated)}")
@@ -345,7 +345,7 @@ def instantiate_IF(
     show_progress: bool = False,
     seed: int = 0,
     use_train_set: bool = True,
-    tmp_dir: Optional[str] = "tmp/r_cache/",
+    tmp_dir: str | None = "tmp/r_cache/",
     prefer_load_R: bool = True,
     projection_dim: int = 50,
 ):
@@ -397,7 +397,7 @@ def instantiate_IF(
 def instantiate_IF_individual_loss_term(
     model,
     loss_idx: Iterable[int],
-    batch_size: Optional[int] = None,
+    batch_size: int | None = None,
     show_progress: bool = False,
     seed: int = 0,
 ):
@@ -523,7 +523,7 @@ def calculate_influence_scores(
 def sample_random_points(
     geometry: dde.geometry.Geometry,
     num_points: int = 1,
-    num_bcs: Optional[int] = None,
+    num_bcs: int | None = None,
 ):
     """Sample random points from the geometry maintaining the same ratios as model data.
 

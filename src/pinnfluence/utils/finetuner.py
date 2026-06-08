@@ -59,7 +59,7 @@ class Finetuner:
         experiment_name = f"{model_name}_finetuned_{self.strategy}_iter_{n_iterations_finetune}_samples_{sampler.num_samples}_scoring_{scorer.strategy}_{scorer.sign}_distribution_{sampler.strategy == 'distribution'}"
 
         config = {
-            "problem": model_name.split("_")[0],
+            "problem": model_name.split("_", maxsplit=1)[0],
             "model_name": model_name,
             "pertubation_strategy": self.strategy,
             "n_iterations_finetune": n_iterations_finetune,
@@ -82,7 +82,7 @@ class Finetuner:
                 potential_dir = potential_run.parent
                 print(potential_dir)
                 if (potential_dir / "config.json").exists():
-                    with open(potential_dir / "config.json", "r") as f:
+                    with open(potential_dir / "config.json") as f:
                         potential_config = json.load(f)
                         chkpt = torch.load(potential_run, weights_only=False)
                         if potential_config == config:
@@ -223,10 +223,9 @@ class Finetuner:
                 self.n_iterations_lbfgs_finetune = n_iterations_lbfgs_finetune_tmp
             return
 
-        else:
-            self.train_adam()
-            if self.n_iterations_lbfgs_finetune > 0:
-                self.train_lbfgs()
+        self.train_adam()
+        if self.n_iterations_lbfgs_finetune > 0:
+            self.train_lbfgs()
 
     def train_adam(self, iterations: int):
         if iterations <= 0:

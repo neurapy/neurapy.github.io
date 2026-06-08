@@ -4,14 +4,14 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-import deepxde as dde
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 import torch
-from matplotlib.colors import CenteredNorm, TwoSlopeNorm, LogNorm
+from matplotlib.colors import CenteredNorm, LogNorm, TwoSlopeNorm
 from matplotlib.lines import Line2D
+from scipy import stats
+
 from pinnfluence.problem_factory import construct_problem
 from pinnfluence.utils.defaults import BAD_PROBLEMS, PROBLEMS
 from pinnfluence.utils.models import ModelWrapper, PINNLoss
@@ -85,10 +85,10 @@ loss_term_names = {
         "pde_loss": "PDE Loss",
         "pde_0": "PDE Loss",
         "bc_loss": "BC Loss",
-        "bc_0": f"IC Loss",
+        "bc_0": "IC Loss",
         "bc_1": "Dirichlet BC ($u(0,t) = 0$)",
         "bc_2": "Dirichlet BC ($u(1,t) = 0$)",
-        "bc_3": f"Operator BC ($\\frac{{\\partial u}}{{\\partial t}}$ at $t=0$)",
+        "bc_3": "Operator BC ($\\frac{\\partial u}{\\partial t}$ at $t=0$)",
         "output_0": "$\\hat u$",
     },
 }
@@ -166,7 +166,7 @@ def generate_experiment_df(experiment_path: str):
         if not config.exists():
             continue
 
-        with open(config, "r") as f:
+        with open(config) as f:
             config = json.load(f)
 
         model_name = config["model_name"]
@@ -544,8 +544,7 @@ def get_directionality_indicator(
 
     if not infl_file.exists():
         raise FileNotFoundError(f"Influence file not found: {infl_file}")
-    else:
-        print(f"Loading influence scores from: {infl_file}")
+    print(f"Loading influence scores from: {infl_file}")
 
     infl_data = np.load(infl_file)
     test_x = infl_data["candidate_points"]
@@ -675,8 +674,7 @@ def get_influences_for_closest_point(
 
     if target == "train":
         return target_influences[:, closest_point_idx], X[closest_point_idx]
-    else:
-        return target_influences[closest_point_idx], X[closest_point_idx]
+    return target_influences[closest_point_idx], X[closest_point_idx]
 
 
 def get_proximity_indicator(
@@ -968,6 +966,7 @@ def visualize_predictions_comparison(
 
     import matplotlib.pyplot as plt
     import numpy as np
+
     from pinnfluence.utils.defaults import BAD_PROBLEMS, PROBLEMS
     from pinnfluence.utils.utils import load_problem
 
@@ -1008,11 +1007,8 @@ def visualize_predictions_comparison(
                     X_orig = model.data.train_x_all
                     if model.data.soln is not None:
                         y_true = model.data.soln(X_orig)
-                    else:
-                        if show_error:
-                            raise ValueError(
-                                "Ground truth solution not available for training points."
-                            )
+                    elif show_error:
+                        raise ValueError("Ground truth solution not available for training points.")
                 else:
                     X_orig, y_true = get_X_y_true(model)
 
@@ -1161,11 +1157,10 @@ def visualize_predictions_comparison(
                         X = model.data.train_x_all
                         if model.data.soln is not None:
                             y_true = model.data.soln(X)
-                        else:
-                            if show_error:
-                                raise ValueError(
-                                    "Ground truth solution not available for training points."
-                                )
+                        elif show_error:
+                            raise ValueError(
+                                "Ground truth solution not available for training points."
+                            )
 
                     if X is None:
                         X, y_true = get_X_y_true(model)
@@ -1237,7 +1232,7 @@ def visualize_predictions_comparison(
             ax.text(
                 0.5,
                 0.5,
-                f"Error loading {config_name}:\n{str(e)}",
+                f"Error loading {config_name}:\n{e!s}",
                 ha="center",
                 va="center",
                 transform=ax.transAxes,
@@ -1297,7 +1292,7 @@ def visualize_influence_comparison(
 
     import matplotlib.pyplot as plt
     import numpy as np
-    from matplotlib.colors import CenteredNorm
+
     from pinnfluence.utils.defaults import BAD_PROBLEMS, PROBLEMS
     from pinnfluence.utils.utils import load_problem
 
@@ -1543,7 +1538,7 @@ def visualize_influence_comparison(
                 ax.text(
                     0.5,
                     0.5,
-                    f"No influence files found",
+                    "No influence files found",
                     ha="center",
                     va="center",
                     transform=ax.transAxes,
@@ -1613,7 +1608,7 @@ def visualize_influence_comparison(
             ax.text(
                 0.5,
                 0.5,
-                f"Error loading {config_name}:\n{str(e)}",
+                f"Error loading {config_name}:\n{e!s}",
                 ha="center",
                 va="center",
                 transform=ax.transAxes,
@@ -1748,7 +1743,7 @@ def visualize_self_influence_comparison(
 
                     # Load influence file
                     infl_path = infl_load_path.joinpath(f"{model_name}_influence_scores")
-                    infl_file = infl_path.joinpath(f"influences_total_loss_total_loss_self.npz")
+                    infl_file = infl_path.joinpath("influences_total_loss_total_loss_self.npz")
 
                     if not infl_file.exists():
                         continue
@@ -1814,13 +1809,13 @@ def visualize_self_influence_comparison(
 
                     # Load influence file
                     infl_path = infl_load_path.joinpath(f"{model_name}_influence_scores")
-                    infl_file = infl_path.joinpath(f"influences_total_loss_total_loss_self.npz")
+                    infl_file = infl_path.joinpath("influences_total_loss_total_loss_self.npz")
 
                     if not infl_file.exists():
                         ax.text(
                             0.5,
                             0.5,
-                            f"Missing:\ninfluences_total_loss_total_loss_self.npz",
+                            "Missing:\ninfluences_total_loss_total_loss_self.npz",
                             ha="center",
                             va="center",
                             transform=ax.transAxes,
@@ -1838,7 +1833,7 @@ def visualize_self_influence_comparison(
                 ax.text(
                     0.5,
                     0.5,
-                    f"No influence files found",
+                    "No influence files found",
                     ha="center",
                     va="center",
                     transform=ax.transAxes,
@@ -1877,7 +1872,7 @@ def visualize_self_influence_comparison(
             ax.text(
                 0.5,
                 0.5,
-                f"Error loading {config_name}:\n{str(e)}",
+                f"Error loading {config_name}:\n{e!s}",
                 ha="center",
                 va="center",
                 transform=ax.transAxes,
@@ -1889,7 +1884,7 @@ def visualize_self_influence_comparison(
             else:
                 ax.set_title(f"{config_name.capitalize()} (seed={seed})")
 
-    fig.suptitle(f"Self influence (total loss)", fontsize=14, y=1.02)
+    fig.suptitle("Self influence (total loss)", fontsize=14, y=1.02)
     plt.tight_layout()
 
     return fig, axes
@@ -1946,11 +1941,13 @@ def visualize_loss_fractions(
         Dictionary containing mean fraction for each loss term
     """
     from pathlib import Path
+
     import matplotlib.pyplot as plt
     import numpy as np
     from matplotlib.colors import TwoSlopeNorm
+
     from pinnfluence.utils.defaults import BAD_PROBLEMS, PROBLEMS
-    from pinnfluence.utils.utils import load_problem, Capturing
+    from pinnfluence.utils.utils import Capturing, load_problem
 
     # Select configuration
     configs = {
@@ -2097,7 +2094,7 @@ def visualize_loss_fractions(
 
     # Compute denominator (sum of absolute influences from all terms)
     denominator = np.zeros(test_x_filtered.shape[0])
-    for term in avg_influences_filtered.keys():
+    for term in avg_influences_filtered:
         denominator += np.abs(avg_influences_filtered[term]).sum(axis=1)
 
     # Avoid division by zero
@@ -2107,7 +2104,7 @@ def visualize_loss_fractions(
     fractions = {}
     mean_fractions = {}
 
-    for term in avg_influences_filtered.keys():
+    for term in avg_influences_filtered:
         frac = np.abs(avg_influences_filtered[term]).sum(axis=1) / denominator
         fractions[term] = frac
         mean_fractions[term] = float(frac.mean())
@@ -2233,10 +2230,12 @@ def visualize_loss_fractions_lineplot(
         Dictionary containing mean fractions, std fractions, mean coherence, and std coherence
     """
     from pathlib import Path
+
     import matplotlib.pyplot as plt
     import numpy as np
+
     from pinnfluence.utils.defaults import BAD_PROBLEMS, PROBLEMS
-    from pinnfluence.utils.utils import load_problem, Capturing
+    from pinnfluence.utils.utils import Capturing, load_problem
 
     # Select configuration
     configs = {
@@ -2563,15 +2562,15 @@ def visualize_loss_fractions_lineplot(
     # Bin the data to reduce noise
     bins = np.linspace(coord_sorted.min(), coord_sorted.max(), num_bins + 1)
     bin_centers = (bins[:-1] + bins[1:]) / 2
-    binned_fractions = {term: np.zeros(num_bins) for term in fractions.keys()}
-    binned_fractions_std = {term: np.zeros(num_bins) for term in fractions.keys()}
+    binned_fractions = {term: np.zeros(num_bins) for term in fractions}
+    binned_fractions_std = {term: np.zeros(num_bins) for term in fractions}
     binned_coherence = np.zeros(num_bins)
     binned_coherence_std = np.zeros(num_bins)
 
     for i in range(num_bins):
         mask = (coord_sorted >= bins[i]) & (coord_sorted < bins[i + 1])
         if mask.sum() > 0:
-            for term in fractions.keys():
+            for term in fractions:
                 binned_fractions[term][i] = fractions_sorted[term][mask].mean()
                 binned_fractions_std[term][i] = fractions_std_sorted[term][mask].mean()
             binned_coherence[i] = coherence_sorted[mask].mean()

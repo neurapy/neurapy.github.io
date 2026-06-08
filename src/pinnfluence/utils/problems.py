@@ -36,8 +36,7 @@ def allen_cahn_ic(x):
     x_in = x[:, 0:1]
     if isinstance(x_in, torch.Tensor):
         return torch.square(x_in) * torch.cos(np.pi * x_in)
-    else:
-        return np.square(x_in) * np.cos(np.pi * x_in)
+    return np.square(x_in) * np.cos(np.pi * x_in)
 
 
 allen_cahn_conditions = [
@@ -101,8 +100,7 @@ def burgers_output_transform(x, y):
 def burgers_ic(x):
     if isinstance(x, torch.Tensor):
         return -torch.sin(torch.pi * x[:, 0:1])
-    else:
-        return -np.sin(np.pi * x[:, 0:1])
+    return -np.sin(np.pi * x[:, 0:1])
 
 
 burgers_conditions = [
@@ -165,8 +163,7 @@ def diffusion_equation_broken(x, y):
 def diffusion_ic(x):
     if isinstance(x, torch.Tensor):
         return torch.sin(np.pi * x[:, 0:1])
-    else:
-        return np.sin(np.pi * x[:, 0:1])
+    return np.sin(np.pi * x[:, 0:1])
 
 
 diffusion_conditions = [
@@ -859,8 +856,7 @@ def wave_ic(x):
     x_in = x[:, 0:1]
     if isinstance(x_in, torch.Tensor):
         return torch.sin(np.pi * x_in) + 0.5 * torch.sin(4 * np.pi * x_in)
-    else:
-        return np.sin(np.pi * x_in) + 0.5 * np.sin(4 * np.pi * x_in)
+    return np.sin(np.pi * x_in) + 0.5 * np.sin(4 * np.pi * x_in)
 
 
 def wave_initial_velocity_bc(x, y, _):

@@ -1,15 +1,12 @@
-import sys
+import json
+from functools import lru_cache
 from pathlib import Path
+
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-import numpy as np
-from typing import Optional, List
-import json
-from functools import lru_cache
 from tqdm import tqdm
-import torch
-import os
 
 from pinnfluence import problem_factory
 
@@ -29,7 +26,7 @@ def _resolve_dir(dir_name: str) -> Path:
     return MODEL_ZOO_ROOT / dir_name
 
 
-def _find_influence_file(base: str) -> Optional[Path]:
+def _find_influence_file(base: str) -> Path | None:
     """Look for `<base>_influence_scores.npz` anywhere under the zoo root.
 
     Influence files for a given checkpoint may live alongside the .pt or at
@@ -88,7 +85,7 @@ def get_model_file(dir_name, model_name):
 
 # --- API Models ---
 class ListDirsResponse(BaseModel):
-    directories: List[str]
+    directories: list[str]
 
 
 class ListModelsRequest(BaseModel):
@@ -96,7 +93,7 @@ class ListModelsRequest(BaseModel):
 
 
 class ListModelsResponse(BaseModel):
-    models: List[str]
+    models: list[str]
 
 
 class ModelSelection(BaseModel):
@@ -119,7 +116,7 @@ class MetaRequest(ModelSelection):
 class LossRequest(ModelSelection):
     loss_type: str
     X: list
-    y: Optional[list] = None
+    y: list | None = None
 
 
 class UniformPointsRequest(ModelSelection):

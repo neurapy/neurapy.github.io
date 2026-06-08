@@ -14,6 +14,7 @@ Example:
     python -m pinnfluence_resampling.pretrain --problem burgers --n_iterations 15_000 --num_domain 1_000 --n_iterations_lbfgs 5_000 --float64
 """
 
+from functools import partial
 from pathlib import Path
 
 import deepxde as dde
@@ -25,10 +26,8 @@ from .utils.callbacks import (
     WandbCallbackLoss,
     WandbCallbackPlots,
 )
-from .utils.defaults import DEFAULTS
 from .utils.parse_args import parse_pretrain_args as parse_args
-from .utils.utils import set_default_device, plot_prediction_heatmap
-from functools import partial
+from .utils.utils import plot_prediction_heatmap, set_default_device
 
 
 def main(

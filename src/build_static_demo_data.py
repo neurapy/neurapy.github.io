@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# pyright: reportMissingTypeStubs=false, reportUnknownParameterType=false, reportMissingTypeArgument=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 """Build fully precomputed static assets for the PINNfluence web demo.
 
 The output is deliberately simple: JSON manifests plus typed-array binary files.
@@ -26,7 +26,6 @@ import torch
 from pinnfluence import problem_factory
 from pinnfluence.utils.models import ModelWrapper
 from pinnfluence.utils.utils import loss_term_names
-
 
 CORE_MATRIX_IDS = {
     "influences_total_loss_output_0",
@@ -57,8 +56,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build static, fully precomputed web demo artifacts."
     )
-    parser.add_argument("--data-root", default="data", type=Path)
-    parser.add_argument("--out-root", default="webdata", type=Path)
     parser.add_argument(
         "--problems",
         nargs="*",
@@ -87,7 +84,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-incomplete",
         action="store_true",
-        help="Do not include incomplete runs in webdata/index.json.",
+        help="Do not include incomplete runs in webdemo/data/index.json.",
     )
     parser.add_argument(
         "--force-run",
@@ -370,7 +367,7 @@ def nearest_candidate_indices(
 
         nn = NearestNeighbors(n_neighbors=1, algorithm="auto")
         nn.fit(candidate_points)
-        indices = nn.kneighbors(display_points, return_distance=False)[:, 0]
+        indices = np.asarray(nn.kneighbors(display_points, return_distance=False))[:, 0]
         return indices.astype(np.uint32)
     except Exception:
         indices = np.empty(len(display_points), dtype=np.uint32)
@@ -486,7 +483,7 @@ def process_influence_matrix(
     with np.load(path, allow_pickle=False) as data:
         scores = np.asarray(data["scores"], dtype=np.float32)
         candidate_points = np.asarray(data["candidate_points"])
-        metadata = {
+        metadata: dict[str, Any] = {
             "id": path.stem,
             "source_file": str(path),
             "method": "GradDot" if path.stem.startswith("grad_dot") else "PINNfluence",
@@ -699,8 +696,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
 
     field_entries: dict[str, Any] = {}
     for name, values in sorted(fields.items()):
-        label = name.removeprefix("pred_").removeprefix("loss_")
-        term = label if name.startswith("loss_") else label
         field_entries[name] = {
             "label": field_label(run.problem, name),
             "kind": "prediction" if name.startswith("pred_") else "loss",
@@ -749,9 +744,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "k_max": args.k_max,
         "axes": ["x", "y"][: candidate_points.shape[1]],
         "bounds": infer_bounds(display_points) if len(display_points) else {},
-        "n_candidate": int(len(candidate_points)),
-        "n_display": int(len(display_points)),
-        "n_train": int(len(train_points)),
+        "n_candidate": len(candidate_points),
+        "n_display": len(display_points),
+        "n_train": len(train_points),
         "n_outputs": n_outputs,
         "num_pdes": num_pdes,
         "num_bcs": num_bcs,
@@ -801,8 +796,8 @@ def main() -> None:
     if args.k_max < 1:
         raise SystemExit("--k-max must be >= 1")
 
-    args.data_root = args.data_root.resolve()
-    args.out_root = args.out_root.resolve()
+    args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
+    args.out_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
     runs = filter_runs(discover_runs(args.data_root), args)
     if not runs:
         raise SystemExit("No runs matched the requested filters")

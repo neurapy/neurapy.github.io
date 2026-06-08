@@ -10,14 +10,14 @@ Usage:
     Use --help to see all available options.
 """
 
+import os
+import tempfile
+
 import deepxde as dde
 import numpy as np
-import os
-
-import tempfile
-import torch
 
 from . import problem_factory
+from .utils.models import ModelWrapper, NetPredWrapper, PINNLoss
 from .utils.parse_args import parse_precalculate_args as parse_args
 from .utils.sampling import (
     calculate_influence_scores,
@@ -26,7 +26,6 @@ from .utils.sampling import (
     sample_random_points,
 )
 from .utils.utils import set_default_device
-from .utils.models import ModelWrapper, NetPredWrapper, PINNLoss
 
 
 def parse_loss_term(term_str, model, num_pdes, num_bcs):

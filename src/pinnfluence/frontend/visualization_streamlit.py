@@ -1,14 +1,10 @@
-import os
-import sys
-from pathlib import Path
-import requests
 import json
-import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-import plotly.colors
-import streamlit as st
 
+import numpy as np
+import plotly.colors
+import plotly.graph_objects as go
+import requests
+import streamlit as st
 from utils import (
     show_change_in_prediction,
     show_mean_influence,
@@ -431,7 +427,7 @@ def main(api_port=8000):
                     cmin=0 if absolute_values else None,
                     cmax=None if absolute_values else None,
                 ),
-                hovertemplate=f"%{{x:.3f}}, %{{y:.3f}}<br>Loss: %{{marker.color:.2e}}<extra></extra>",
+                hovertemplate="%{x:.3f}, %{y:.3f}<br>Loss: %{marker.color:.2e}<extra></extra>",
             )
         )
 

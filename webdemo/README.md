@@ -6,12 +6,10 @@ Serve the repository root and open `/webdemo/`:
 python3 -m http.server 8080
 ```
 
-The app loads generated assets from `webdata/`. Build those assets with:
+The app loads generated assets from `webdemo/data/`. Build those assets with:
 
 ```bash
-.venv/bin/python runscripts/build_static_demo_data.py \
-  --data-root data \
-  --out-root webdata \
+.venv/bin/python src/build_static_demo_data.py \
   --problems allen_cahn_float64 \
   --matrix-mode core \
   --k-max 200 \
@@ -23,9 +21,7 @@ The app loads generated assets from `webdata/`. Build those assets with:
 
 • Use this from the repo root:
 
-  .venv/bin/python runscripts/build_static_demo_data.py \
-    --data-root data \
-    --out-root webdata \
+  .venv/bin/python src/build_static_demo_data.py \
     --matrix-mode core \
     --k-max 200 \
     --field-points 60000 \
@@ -42,7 +38,7 @@ The app loads generated assets from `webdata/`. Build those assets with:
 
   Then verify:
 
-  .venv/bin/python runscripts/verify_static_demo_data.py --webdata-root webdata --samples 5
+  .venv/bin/python src/verify_static_demo_data.py --samples 5
 
   Start/open the app:
 

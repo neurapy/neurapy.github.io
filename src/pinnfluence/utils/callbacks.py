@@ -1,18 +1,17 @@
 import os
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import deepxde as dde
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import wandb
 from deepxde.callbacks import Callback
 from deepxde.metrics import l2_relative_error, mean_squared_error
-import matplotlib.pyplot as plt
-from typing import Callable
-from .utils import plot_prediction_heatmap
-
 from tqdm import tqdm
-import wandb
+
+from .utils import plot_prediction_heatmap
 
 
 class BestModelCheckpoint(Callback):
@@ -275,7 +274,7 @@ class WandbCallback(dde.callbacks.Callback):
         super().__init__()
 
         if not wandb.api.api_key:
-            raise EnvironmentError("Wandb API key not found.")
+            raise OSError("Wandb API key not found.")
 
         self.project = project
         self.name = name

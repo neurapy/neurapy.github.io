@@ -1,9 +1,9 @@
-import requests
+import json
+
 import numpy as np
 import plotly.graph_objects as go
+import requests
 import torch
-import json
-import streamlit as st
 
 PROBLEM_AXES = {
     "Aleksandrov": ("x", "t"),

@@ -1,7 +1,7 @@
-from typing import Callable, Iterable, Literal, Tuple
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import deepxde as dde
-import numpy as np
 import torch
 
 
@@ -42,7 +42,7 @@ class PINNLoss(torch.nn.modules.loss._Loss):
             mode: the type of loss to use, either "mse" (equivalent to "l2") or "l1".
                 default: "mse"
         """
-        super(PINNLoss, self).__init__()
+        super().__init__()
         self.reduction = reduction
         self.include_all_losses = include_all_losses
         self.include_specific_ids = include_specific_ids
@@ -73,12 +73,11 @@ class PINNLoss(torch.nn.modules.loss._Loss):
 
         if self.reduction == "mean":
             return losses.mean()
-        elif self.reduction == "none":
+        if self.reduction == "none":
             return losses
-        elif self.reduction == "sum":
+        if self.reduction == "sum":
             return losses.sum()
-        else:
-            raise NotImplementedError(f"Reduction {self.reduction} not implemented")
+        raise NotImplementedError(f"Reduction {self.reduction} not implemented")
 
 
 class ModelWrapper(torch.nn.Module):
@@ -89,7 +88,7 @@ class ModelWrapper(torch.nn.Module):
         bcs: Iterable[dde.icbc.BC] = None,
         include_pde: bool = True,
     ):
-        super(ModelWrapper, self).__init__()
+        super().__init__()
         self.net = net
         self.pde = pde
         self.bcs = bcs
@@ -930,7 +929,7 @@ class NetPredWrapper(torch.nn.Module):
         net,
         pred_idx=None,
     ):
-        super(NetPredWrapper, self).__init__()
+        super().__init__()
         self.pred_idx = pred_idx
         self.net = net
         self.default_float = dde.config.default_float()

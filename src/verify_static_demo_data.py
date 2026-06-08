@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# pyright: reportMissingTypeArgument=false, reportUnknownParameterType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 """Verify static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-
 
 DTYPES = {
     "float32": np.float32,
@@ -20,7 +19,6 @@ DTYPES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--webdata-root", default="webdata", type=Path)
     parser.add_argument("--samples", default=5, type=int)
     return parser.parse_args()
 
@@ -108,14 +106,15 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
 
 def main() -> None:
     args = parse_args()
-    index_path = args.webdata_root / "index.json"
+    webdata_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
+    index_path = webdata_root / "index.json"
     index = read_json(index_path)
     checked = 0
     for run in index["runs"]:
         manifest_rel = run.get("manifest")
         if not manifest_rel:
             continue
-        manifest_path = args.webdata_root / manifest_rel
+        manifest_path = webdata_root / manifest_rel
         print(f"Checking {manifest_path}")
         verify_topk(manifest_path, args.samples)
         checked += 1

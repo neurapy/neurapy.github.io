@@ -9,7 +9,6 @@ help:
 	@printf '%s\n' \
 		'Available targets:' \
 		'  install    Install dependencies and git hooks' \
-		'  run        Run the app' \
 		'  format     Format Python and TOML files' \
 		'  lint       Lint Python files with Ruff' \
 		'  typecheck  Run Pyright in strict mode' \
@@ -21,9 +20,6 @@ install:
 	$(UV) sync --all-groups
 	$(UV) run pre-commit install
 
-
-# run:
-# 	$(UV) run src/main.py
 
 format:
 	$(UV) run ruff format .

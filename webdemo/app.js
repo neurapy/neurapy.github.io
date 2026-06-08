@@ -6,7 +6,7 @@ const DTYPE_CTORS = {
 };
 
 const state = {
-  indexUrl: new URL("../webdata/index.json", window.location.href),
+  indexUrl: new URL("data/index.json", window.location.href),
   index: null,
   manifest: null,
   manifestUrl: null,
@@ -574,7 +574,7 @@ async function init() {
       dom.runSelect.append(option);
     }
     if (!runs.length) {
-      showMessage("No static demo runs found in webdata/index.json.");
+      showMessage("No static demo runs found in webdemo/data/index.json.");
       return;
     }
     await loadRun(runs[0].manifest);

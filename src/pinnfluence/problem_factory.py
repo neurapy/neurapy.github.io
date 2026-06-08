@@ -8,8 +8,8 @@ which implements this paper https://www.sciencedirect.com/science/article/pii/S0
 and more :-)
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import deepxde as dde
 import numpy as np
@@ -17,8 +17,8 @@ import torch
 
 from . import data
 from .utils.defaults import DEFAULTS
-from .utils.problems import problems
 from .utils.optimizers import SOAP
+from .utils.problems import problems
 
 DATASET_DIR = data.__path__[0]
 
@@ -65,7 +65,7 @@ def drop_single_point(data, drop_single_point):
     if drop_single_point == "none":
         return data
 
-    elif drop_single_point == "IC":
+    if drop_single_point == "IC":
         if isinstance(data.bcs[0], dde.icbc.IC):
             ic_points = data.train_x_bc
             ic_points = data.bcs[0].collocation_points(ic_points)
@@ -402,7 +402,7 @@ def construct_problem(
     if "feature_transform" in problem:
         net.apply_feature_transform(problem["feature_transform"])
 
-    if "use_geometry" in problem and problem["use_geometry"]:
+    if problem.get("use_geometry"):
         geom = problem["create_geometry"]()
     else:
         geom = create_geom(
