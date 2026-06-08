@@ -42,7 +42,7 @@ DTYPES = {
     "int16": np.int16,
 }
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DEFAULT_RASTER_MAX_RESOLUTION = 512
 
 
@@ -77,12 +77,6 @@ def parse_args() -> argparse.Namespace:
         help="Problem folders to process, e.g. allen_cahn_float64 burgers_float64. Default: all.",
     )
     parser.add_argument("--k-max", default=200, type=int)
-    parser.add_argument(
-        "--field-points",
-        default=60_000,
-        type=int,
-        help="Number of precomputed display points for prediction/loss fields. Use 0 to reuse influence candidate points.",
-    )
     parser.add_argument(
         "--raster-max-resolution",
         default=DEFAULT_RASTER_MAX_RESOLUTION,
@@ -494,49 +488,6 @@ def make_raster_grid(
     )
 
 
-def sample_display_points(data: Any, n_points: int, fallback: np.ndarray) -> np.ndarray:
-    if n_points <= 0 or data is None:
-        return fallback
-    geom = data.geom
-    for method in ("uniform_points", "random_points"):
-        sampler = getattr(geom, method, None)
-        if sampler is None:
-            continue
-        try:
-            points = sampler(n_points)
-            points = np.asarray(points, dtype=np.float64)
-            if points.ndim == 2 and len(points) > 0:
-                return points
-        except Exception:
-            continue
-    return fallback
-
-
-def nearest_point_indices(source_points: np.ndarray, target_points: np.ndarray) -> np.ndarray:
-    if len(source_points) == 0:
-        return np.zeros(0, dtype=np.uint32)
-    if len(target_points) == 0:
-        return np.zeros(len(source_points), dtype=np.uint32)
-    if len(source_points) == len(target_points) and np.allclose(source_points, target_points):
-        return np.arange(len(target_points), dtype=np.uint32)
-    try:
-        from sklearn.neighbors import NearestNeighbors
-
-        nn = NearestNeighbors(n_neighbors=1, algorithm="auto")
-        nn.fit(target_points)
-        indices = np.asarray(nn.kneighbors(source_points, return_distance=False))[:, 0]
-        return indices.astype(np.uint32)
-    except Exception:
-        indices = np.empty(len(source_points), dtype=np.uint32)
-        chunk_size = 1024
-        target = target_points.astype(np.float64, copy=False)
-        for start in range(0, len(source_points), chunk_size):
-            chunk = source_points[start : start + chunk_size].astype(np.float64, copy=False)
-            dist2 = ((chunk[:, None, :] - target[None, :, :]) ** 2).sum(axis=2)
-            indices[start : start + len(chunk)] = np.argmin(dist2, axis=1).astype(np.uint32)
-        return indices
-
-
 def validate_points_match(
     path: Path,
     name: str,
@@ -849,7 +800,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     params: dict[str, Any] | None = None
     model = data = None
     train_points = None
-    fields: dict[str, np.ndarray] = {}
     raster_grid: RasterGrid | None = None
     raster_fields: dict[str, np.ndarray] = {}
 
@@ -885,9 +835,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         if candidate_meta is not None
         else np.zeros((0, train_points.shape[1] if train_points.size else 2))
     )
-    display_points = candidate_points
-    display_to_candidate = np.arange(len(candidate_points), dtype=np.uint32)
-
     num_pdes = int(first_meta["num_pdes"]) if first_meta else 0
     num_bcs = int(first_meta["num_bcs"]) if first_meta else 0
     n_outputs = (
@@ -899,21 +846,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     if params is not None and not args.skip_fields:
         try:
             model, data, _, _ = construct_loaded_model(run, params)
-            display_points = sample_display_points(data, args.field_points, candidate_points)
-            display_to_candidate = nearest_point_indices(display_points, candidate_points)
-            fields = predict_fields(
-                model=model,
-                data=data,
-                points=display_points,
-                num_pdes=num_pdes,
-                num_bcs=num_bcs,
-                float64=params["float64"],
-            )
             try:
                 raster_grid = make_raster_grid(
-                    data.geom,
-                    display_points if len(display_points) else candidate_points,
-                    args.raster_max_resolution,
+                    data.geom, candidate_points, args.raster_max_resolution
                 )
                 if raster_grid is not None:
                     raster_fields = predict_fields(
@@ -923,6 +858,10 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                         num_pdes=num_pdes,
                         num_bcs=num_bcs,
                         float64=params["float64"],
+                    )
+                else:
+                    errors.append(
+                        "Field raster precomputation skipped: geometry is not 2D or bounds are unavailable"
                     )
             except Exception as exc:
                 raster_grid = None
@@ -937,26 +876,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         train_kind = np.zeros(len(train_points), dtype=np.uint8)
         train_bc_id = np.full(len(train_points), -1, dtype=np.int16)
 
-    display_to_train = nearest_point_indices(display_points, train_points)
-
     arrays: dict[str, Any] = {
         "candidate_points": write_array(
             out_dir, "arrays/candidate_points.f32", candidate_points, "float32"
-        ),
-        "display_points": write_array(
-            out_dir, "arrays/display_points.f32", display_points, "float32"
-        ),
-        "display_to_candidate": write_array(
-            out_dir,
-            "arrays/display_to_candidate.u32",
-            display_to_candidate,
-            "uint32",
-        ),
-        "display_to_train": write_array(
-            out_dir,
-            "arrays/display_to_train.u32",
-            display_to_train,
-            "uint32",
         ),
         "train_points": write_array(out_dir, "arrays/train_points.f32", train_points, "float32"),
         "train_kind": write_array(out_dir, "arrays/train_kind.u8", train_kind, "uint8"),
@@ -986,14 +908,13 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         }
 
     field_entries: dict[str, Any] = {}
-    for name, values in sorted(fields.items()):
+    for name, values in sorted(raster_fields.items()):
         entry = {
             "label": field_label(run.problem, name),
             "kind": "prediction" if name.startswith("pred_") else "loss",
-            "array": write_array(out_dir, f"arrays/{name}.f32", values, "float32"),
         }
-        if raster_grid is not None and name in raster_fields:
-            raster_values = np.asarray(raster_fields[name], dtype=np.float32)
+        if raster_grid is not None:
+            raster_values = np.asarray(values, dtype=np.float32)
             expected = raster_grid.height * raster_grid.width
             if raster_values.size != expected:
                 raise ValueError(
@@ -1058,10 +979,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "bounds": (
             raster_grid.bounds
             if raster_grid is not None
-            else (infer_bounds(display_points) if len(display_points) else {})
+            else (infer_bounds(candidate_points) if len(candidate_points) else {})
         ),
         "n_candidate": len(candidate_points),
-        "n_display": len(display_points),
         "n_train": len(train_points),
         "n_outputs": n_outputs,
         "num_pdes": num_pdes,

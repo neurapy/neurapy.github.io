@@ -22,12 +22,7 @@ The app serves pre-generated static assets from `webdemo/data/`.
 Build or refresh the demo bundle from the repo root:
 
 ```bash
-uv run python src/build_static_demo_data.py \
-  --matrix-mode all \
-  --k-max 200 \
-  --field-points 10000 \
-  --overwrite \
-  --skip-incomplete
+uv run python src/build_static_demo_data.py --matrix-mode core --k-max 150 --raster-max-resolution 1024 --overwrite --matrix-workers 8
 ```
 
 Verify the generated assets:
@@ -54,6 +49,22 @@ Have fun on ICML
 ---
 
 # Notes
+
+## Webapp ToDos
+
+### Implement
+- Die Bilder müssen richtig Scalen!
+- Das was Aleks geschrieben hat
+- Region Influence
+- Mobile version
+- SInnvolel Defaults ausgewählt
+
+### Performance Optims
+
+1. Erst die Sachen laden, die man sieht. 
+2. Point wise Influence Matrix Lazy im Hintergrund laden. Immer, wenn wir einen einzelnen Batch haben wollen und die jeweilige Problemmatrix
+noch nicht haben, dann fetchen wir nur diesen Batch.
+
 
 ## Was muss ich machen? 
 

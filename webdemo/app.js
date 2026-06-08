@@ -13,12 +13,10 @@ const state = {
   manifest: null,
   manifestUrl: null,
   arrays: {},
-  fields: {},
   fieldRasters: {},
   fieldRasterMask: null,
   topCache: new Map(),
   summaryCache: new Map(),
-  selectedDisplayIndex: 0,
   selectedCandidateIndex: 0,
   selectedTrainIndex: 0,
   selectedCoord: null,
@@ -28,7 +26,6 @@ const state = {
   selectedSign: "abs",
   selectedSummary: "mean_abs",
   k: 25,
-  screenPoints: null,
   mainPlotBounds: null,
 };
 
@@ -384,7 +381,7 @@ function hasRasterForField(fieldId) {
   const values = state.fieldRasters[fieldId];
   const expected = (meta?.height ?? 0) * (meta?.width ?? 0);
   if (!meta || !field?.raster || !values || values.length !== expected) return false;
-  return !state.fieldRasterMask || state.fieldRasterMask.length === expected;
+  return state.fieldRasterMask?.length === expected;
 }
 
 function rasterPixelCenter(meta, row, col) {
@@ -554,10 +551,10 @@ async function drawInfluencePlot() {
   clearCanvas(ctx, width, height);
   drawAxes(ctx, width, height);
 
-  const display = state.arrays.display_points ?? state.arrays.candidate_points;
+  const candidate = state.arrays.candidate_points;
   const train = state.arrays.train_points;
   const dim = state.manifest.arrays.train_points.shape[1];
-  const bounds = getBounds(display, state.manifest.arrays.display_points?.shape?.[1] ?? state.manifest.arrays.candidate_points.shape[1]);
+  const bounds = getBounds(candidate, state.manifest.arrays.candidate_points.shape[1]);
   const nTrain = train.length / dim;
 
   ctx.globalAlpha = 0.16;
@@ -625,47 +622,31 @@ async function drawGlobalPlot() {
 }
 
 function updateStats() {
-  const points = state.arrays.display_points ?? state.arrays.candidate_points;
-  const dim = state.manifest.arrays.display_points?.shape?.[1] ?? state.manifest.arrays.candidate_points.shape[1];
-  const [x, y] = pointAt(points, state.selectedDisplayIndex, dim);
-  const values = state.fields[state.selectedField];
   const rasterSample = sampleRasterAtCoord(state.selectedField, state.selectedCoord);
-  const value = rasterSample ? rasterSample.value : values?.[state.selectedDisplayIndex];
+  const [x, y] = state.selectedCoord ?? [NaN, NaN];
   const displayX = rasterSample ? rasterSample.x : x;
   const displayY = rasterSample ? rasterSample.y : y;
   dom.selectedPoint.textContent = `(${formatNumber(displayX)}, ${formatNumber(displayY)})`;
-  dom.selectedValue.textContent = formatNumber(value);
+  dom.selectedValue.textContent = formatNumber(rasterSample?.value);
   dom.trainCount.textContent = state.manifest.n_train.toLocaleString();
-  dom.candidateCount.textContent = `${(state.manifest.n_display ?? state.manifest.n_candidate).toLocaleString()} display / ${state.manifest.n_candidate.toLocaleString()} influence`;
+  dom.candidateCount.textContent = state.manifest.n_candidate.toLocaleString();
 }
 
 function drawMainPlot() {
-  const values = state.fields[state.selectedField];
   const field = fieldById(state.selectedField);
   dom.mainTitle.textContent = field?.label ?? "Field";
+  state.mainPlotBounds = rasterBounds(currentRasterMeta());
   if (hasRasterForField(state.selectedField)) {
-    state.screenPoints = null;
-    state.mainPlotBounds = rasterBounds(currentRasterMeta());
     drawRasterField({
       canvas: dom.mainCanvas,
       fieldId: state.selectedField,
       titleRangeEl: dom.mainRange,
     });
   } else {
-    const points = state.arrays.display_points ?? state.arrays.candidate_points;
-    const dim =
-      state.manifest.arrays.display_points?.shape?.[1] ??
-      state.manifest.arrays.candidate_points.shape[1];
-    state.mainPlotBounds = getBounds(points, dim);
-    state.screenPoints = drawPointCloud({
-      canvas: dom.mainCanvas,
-      points,
-      dim,
-      values,
-      selectedIndex: state.selectedDisplayIndex,
-      mode: "field",
-      titleRangeEl: dom.mainRange,
-    });
+    const { ctx, width, height } = prepareCanvas(dom.mainCanvas);
+    clearCanvas(ctx, width, height);
+    drawAxes(ctx, width, height);
+    dom.mainRange.textContent = "";
   }
   updateStats();
 }
@@ -673,25 +654,6 @@ function drawMainPlot() {
 async function redrawAll() {
   drawMainPlot();
   await Promise.all([drawInfluencePlot(), drawGlobalPlot()]);
-}
-
-function nearestDisplayPoint(clientX, clientY) {
-  const rect = dom.mainCanvas.getBoundingClientRect();
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-  if (!state.screenPoints) return 0;
-  let best = state.selectedDisplayIndex ?? 0;
-  let bestDist = Infinity;
-  for (let i = 0; i < state.screenPoints.length / 2; i += 1) {
-    const dx = state.screenPoints[i * 2] - x;
-    const dy = state.screenPoints[i * 2 + 1] - y;
-    const dist = dx * dx + dy * dy;
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = i;
-    }
-  }
-  return best;
 }
 
 function nearestPointIndexByCoord(points, dim, x, y) {
@@ -711,31 +673,35 @@ function nearestPointIndexByCoord(points, dim, x, y) {
   return best;
 }
 
-function setSelectedDisplayPoint(displayIndex) {
-  state.selectedDisplayIndex = displayIndex;
-  const candidateMap = state.arrays.display_to_candidate;
-  const trainMap = state.arrays.display_to_train;
-  state.selectedCandidateIndex = candidateMap ? candidateMap[displayIndex] : displayIndex;
-  state.selectedTrainIndex = trainMap ? trainMap[displayIndex] : displayIndex;
-  const points = state.arrays.display_points ?? state.arrays.candidate_points;
-  const dim =
-    state.manifest.arrays.display_points?.shape?.[1] ??
-    state.manifest.arrays.candidate_points.shape[1];
-  state.selectedCoord = pointAt(points, state.selectedDisplayIndex, dim);
+function setSelectedCandidatePoint(candidateIndex) {
+  const candidate = state.arrays.candidate_points;
+  const candidateDim = state.manifest.arrays.candidate_points.shape[1];
+  const count = candidate.length / candidateDim;
+  if (!count) {
+    state.selectedCandidateIndex = 0;
+    state.selectedTrainIndex = 0;
+    state.selectedCoord = null;
+    return;
+  }
+  state.selectedCandidateIndex = clampIndex(candidateIndex, count);
+  state.selectedCoord = pointAt(candidate, state.selectedCandidateIndex, candidateDim);
+  const train = state.arrays.train_points;
+  const trainDim = state.manifest.arrays.train_points.shape[1];
+  state.selectedTrainIndex = nearestPointIndexByCoord(
+    train,
+    trainDim,
+    state.selectedCoord[0],
+    state.selectedCoord[1],
+  );
 }
 
 function setSelectedFromCoord(x, y) {
-  const display = state.arrays.display_points ?? state.arrays.candidate_points;
-  const displayDim =
-    state.manifest.arrays.display_points?.shape?.[1] ??
-    state.manifest.arrays.candidate_points.shape[1];
   const candidate = state.arrays.candidate_points;
   const candidateDim = state.manifest.arrays.candidate_points.shape[1];
   const train = state.arrays.train_points;
   const trainDim = state.manifest.arrays.train_points.shape[1];
 
   state.selectedCoord = [x, y];
-  state.selectedDisplayIndex = nearestPointIndexByCoord(display, displayDim, x, y);
   state.selectedCandidateIndex = nearestPointIndexByCoord(candidate, candidateDim, x, y);
   state.selectedTrainIndex = nearestPointIndexByCoord(train, trainDim, x, y);
 }
@@ -808,45 +774,27 @@ async function loadRun(manifestPath) {
   state.manifestUrl = new URL(manifestPath, state.indexUrl);
   state.manifest = await fetchJson(state.manifestUrl);
   state.fieldRasterMask = null;
+  const fields = Object.entries(state.manifest.fields);
+  if (fields.length && !state.manifest.field_raster?.mask) {
+    throw new Error(`${state.manifest.display_name}: field rasters are missing; regenerate static data.`);
+  }
   if (state.manifest.field_raster?.mask) {
-    try {
-      state.fieldRasterMask = await fetchArray(state.manifest.field_raster.mask, state.manifestUrl);
-    } catch (error) {
-      console.warn("Raster mask failed to load; falling back to point fields.", error);
-      state.fieldRasterMask = null;
-    }
+    state.fieldRasterMask = await fetchArray(state.manifest.field_raster.mask, state.manifestUrl);
   }
   state.arrays = {
     candidate_points: await fetchArray(state.manifest.arrays.candidate_points, state.manifestUrl),
-    display_points: await fetchArray(
-      state.manifest.arrays.display_points ?? state.manifest.arrays.candidate_points,
-      state.manifestUrl,
-    ),
-    display_to_candidate: state.manifest.arrays.display_to_candidate
-      ? await fetchArray(state.manifest.arrays.display_to_candidate, state.manifestUrl)
-      : null,
-    display_to_train: state.manifest.arrays.display_to_train
-      ? await fetchArray(state.manifest.arrays.display_to_train, state.manifestUrl)
-      : null,
     train_points: await fetchArray(state.manifest.arrays.train_points, state.manifestUrl),
-    train_kind: await fetchArray(state.manifest.arrays.train_kind, state.manifestUrl),
-    train_bc_id: await fetchArray(state.manifest.arrays.train_bc_id, state.manifestUrl),
   };
 
-  state.fields = {};
   state.fieldRasters = {};
-  for (const [id, field] of Object.entries(state.manifest.fields)) {
-    state.fields[id] = await fetchArray(field.array, state.manifestUrl);
-    if (field.raster && state.manifest.field_raster && state.fieldRasterMask) {
-      try {
-        state.fieldRasters[id] = await fetchArray(field.raster, state.manifestUrl);
-      } catch (error) {
-        console.warn(`${id} raster failed to load; falling back to point field.`, error);
-      }
+  for (const [id, field] of fields) {
+    if (!field.raster) {
+      throw new Error(`${id}: raster field data is missing; regenerate static data.`);
     }
+    state.fieldRasters[id] = await fetchArray(field.raster, state.manifestUrl);
   }
 
-  setSelectedDisplayPoint(0);
+  setSelectedCandidatePoint(0);
   const hasPrediction = Object.values(state.manifest.fields).some((field) => field.kind === "prediction");
   state.selectedKind = hasPrediction ? "prediction" : "loss";
   state.selectedField = null;
@@ -857,7 +805,6 @@ async function loadRun(manifestPath) {
   dom.runMeta.textContent = [
     state.manifest.display_name,
     `${state.manifest.n_candidate.toLocaleString()} candidate`,
-    `${(state.manifest.n_display ?? state.manifest.n_candidate).toLocaleString()} display`,
     `${state.manifest.n_train.toLocaleString()} train`,
     `${state.manifest.influence_matrices.length} matrices`,
   ].join(" · ");
@@ -932,7 +879,7 @@ dom.signButtons.addEventListener("click", async (event) => {
 });
 
 dom.resetButton.addEventListener("click", async () => {
-  setSelectedDisplayPoint(0);
+  setSelectedCandidatePoint(0);
   await redrawAll();
 });
 
@@ -940,8 +887,6 @@ dom.mainCanvas.addEventListener("click", async (event) => {
   const coord = clickDomainCoord(event);
   if (coord) {
     setSelectedFromCoord(coord[0], coord[1]);
-  } else {
-    setSelectedDisplayPoint(nearestDisplayPoint(event.clientX, event.clientY));
   }
   await redrawAll();
 });

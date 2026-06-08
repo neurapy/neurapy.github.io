@@ -42,45 +42,22 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
     manifest = read_json(manifest_path)
     n_train = manifest["n_train"]
     n_candidate = manifest["n_candidate"]
-    n_display = manifest.get("n_display", n_candidate)
 
     candidate_points = read_array(base, manifest["arrays"]["candidate_points"])
-    display_points = read_array(
-        base, manifest["arrays"].get("display_points", manifest["arrays"]["candidate_points"])
-    )
-    display_to_candidate = (
-        read_array(
-            base,
-            manifest["arrays"].get(
-                "display_to_candidate",
-                {"path": "", "dtype": "uint32", "shape": [0]},
-            ),
-        )
-        if "display_to_candidate" in manifest["arrays"]
-        else np.arange(n_display, dtype=np.uint32)
-    )
-    display_to_train = (
-        read_array(base, manifest["arrays"]["display_to_train"])
-        if "display_to_train" in manifest["arrays"]
-        else None
-    )
     train_points = read_array(base, manifest["arrays"]["train_points"])
     assert candidate_points.shape[0] == n_candidate
-    assert display_points.shape[0] == n_display
-    assert display_to_candidate.shape[0] == n_display
-    if display_to_train is not None:
-        assert display_to_train.shape[0] == n_display
-    if len(display_to_candidate):
-        assert int(display_to_candidate.max()) < n_candidate
-    if display_to_train is not None and len(display_to_train):
-        assert int(display_to_train.max()) < n_train
     assert train_points.shape[0] == n_train
 
-    for field in manifest["fields"].values():
-        values = read_array(base, field["array"])
-        assert values.shape[0] == n_display
+    deprecated_arrays = {"display_points", "display_to_candidate", "display_to_train"}
+    found_deprecated = sorted(deprecated_arrays & set(manifest["arrays"]))
+    if found_deprecated:
+        raise AssertionError(f"Deprecated display arrays are still present: {found_deprecated}")
+    if "n_display" in manifest:
+        raise AssertionError("Deprecated n_display metadata is still present")
 
     field_raster = manifest.get("field_raster")
+    if manifest["fields"] and not field_raster:
+        raise AssertionError("Fields are present but field_raster metadata is missing")
     if field_raster:
         height = int(field_raster["height"])
         width = int(field_raster["width"])
@@ -95,8 +72,10 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
         if mask.size != height * width:
             raise AssertionError(f"field_raster mask length {mask.size} != {height} * {width}")
         for field_id, field in manifest["fields"].items():
+            if "array" in field:
+                raise AssertionError(f"{field_id}: deprecated point field array is still present")
             if "raster" not in field:
-                continue
+                raise AssertionError(f"{field_id}: raster field data is missing")
             raster = read_array(base, field["raster"])
             if list(raster.shape) != shape:
                 raise AssertionError(f"{field_id}: raster shape {list(raster.shape)} != {shape}")
