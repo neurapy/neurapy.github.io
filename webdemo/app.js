@@ -5,6 +5,8 @@ const DTYPE_CTORS = {
   int16: Int16Array,
 };
 
+const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
+
 const state = {
   indexUrl: new URL("data/index.json", window.location.href),
   index: null,
@@ -16,6 +18,7 @@ const state = {
   summaryCache: new Map(),
   selectedDisplayIndex: 0,
   selectedCandidateIndex: 0,
+  selectedTrainIndex: 0,
   selectedField: null,
   selectedKind: "prediction",
   selectedMatrixId: null,
@@ -107,6 +110,35 @@ function fieldById(id) {
 function pointAt(points, index, dim) {
   const offset = index * dim;
   return [points[offset], points[offset + 1] ?? 0];
+}
+
+function clampIndex(index, count) {
+  if (!Number.isFinite(index) || count <= 0) return 0;
+  return Math.max(0, Math.min(count - 1, Math.trunc(index)));
+}
+
+function matrixRowSource(matrix) {
+  return matrix.row_source ?? (matrix.self_influence ? "train_points" : "candidate_points");
+}
+
+function matrixRowArrayName(matrix) {
+  return matrixRowSource(matrix) === "train_points" ? "train_points" : "candidate_points";
+}
+
+function matrixRowPoints(matrix) {
+  return state.arrays[matrixRowArrayName(matrix)];
+}
+
+function matrixRowDim(matrix) {
+  return state.manifest.arrays[matrixRowArrayName(matrix)]?.shape?.[1] ?? 2;
+}
+
+function selectedMatrixRowIndex(matrix, rowCount = null) {
+  const index =
+    matrixRowSource(matrix) === "train_points"
+      ? state.selectedTrainIndex
+      : state.selectedCandidateIndex;
+  return clampIndex(index ?? 0, rowCount ?? matrix.row_count ?? 1);
 }
 
 function getBounds(points, dim) {
@@ -330,9 +362,10 @@ async function loadSummary(matrix, name) {
 
 function topRow(top, row, k) {
   const width = top.shape[1];
+  const safeRow = clampIndex(row, top.shape[0]);
   const count = Math.min(k, width);
-  const indices = top.indices.subarray(row * width, row * width + count);
-  const values = top.values.subarray(row * width, row * width + count);
+  const indices = top.indices.subarray(safeRow * width, safeRow * width + count);
+  const values = top.values.subarray(safeRow * width, safeRow * width + count);
   return { indices, values };
 }
 
@@ -340,7 +373,8 @@ async function drawInfluencePlot() {
   const matrix = matrixById(state.selectedMatrixId);
   if (!matrix) return;
   const top = await loadTop(matrix, state.selectedSign);
-  const { indices, values } = topRow(top, state.selectedCandidateIndex, state.k);
+  const rowIndex = selectedMatrixRowIndex(matrix, top.shape[0]);
+  const { indices, values } = topRow(top, rowIndex, state.k);
   const { ctx, width, height } = prepareCanvas(dom.influenceCanvas);
   clearCanvas(ctx, width, height);
   drawAxes(ctx, width, height);
@@ -384,8 +418,9 @@ async function drawInfluencePlot() {
     ctx.stroke();
   }
 
-  const displayDim = state.manifest.arrays.display_points?.shape?.[1] ?? state.manifest.arrays.candidate_points.shape[1];
-  const [x, y] = pointAt(display, state.selectedDisplayIndex, displayDim);
+  const rowPoints = matrixRowPoints(matrix);
+  const rowDim = matrixRowDim(matrix);
+  const [x, y] = pointAt(rowPoints, rowIndex, rowDim);
   const [sx, sy] = projectPoint(x, y, bounds, width, height);
   ctx.beginPath();
   ctx.arc(sx, sy, 8, 0, Math.PI * 2);
@@ -468,8 +503,10 @@ function nearestDisplayPoint(clientX, clientY) {
 
 function setSelectedDisplayPoint(displayIndex) {
   state.selectedDisplayIndex = displayIndex;
-  const map = state.arrays.display_to_candidate;
-  state.selectedCandidateIndex = map ? map[displayIndex] : displayIndex;
+  const candidateMap = state.arrays.display_to_candidate;
+  const trainMap = state.arrays.display_to_train;
+  state.selectedCandidateIndex = candidateMap ? candidateMap[displayIndex] : displayIndex;
+  state.selectedTrainIndex = trainMap ? trainMap[displayIndex] : displayIndex;
 }
 
 function setActiveButton(container, attr, value) {
@@ -505,7 +542,11 @@ function populateMatrices() {
     dom.matrixSelect.append(option);
   }
   if (!matrixById(state.selectedMatrixId)) {
-    state.selectedMatrixId = state.manifest.influence_matrices[0]?.id ?? null;
+    state.selectedMatrixId =
+      state.manifest.influence_matrices.find((matrix) => matrix.id === DEFAULT_MATRIX_ID)?.id ??
+      state.manifest.influence_matrices.find((matrix) => !matrix.self_influence)?.id ??
+      state.manifest.influence_matrices[0]?.id ??
+      null;
   }
   const matrix = matrixById(state.selectedMatrixId);
   dom.matrixSelect.value = state.selectedMatrixId ?? "";
@@ -530,6 +571,9 @@ async function loadRun(manifestPath) {
     ),
     display_to_candidate: state.manifest.arrays.display_to_candidate
       ? await fetchArray(state.manifest.arrays.display_to_candidate, state.manifestUrl)
+      : null,
+    display_to_train: state.manifest.arrays.display_to_train
+      ? await fetchArray(state.manifest.arrays.display_to_train, state.manifestUrl)
       : null,
     train_points: await fetchArray(state.manifest.arrays.train_points, state.manifestUrl),
     train_kind: await fetchArray(state.manifest.arrays.train_kind, state.manifestUrl),

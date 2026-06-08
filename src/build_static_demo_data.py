@@ -354,29 +354,41 @@ def sample_display_points(data: Any, n_points: int, fallback: np.ndarray) -> np.
     return fallback
 
 
-def nearest_candidate_indices(
-    display_points: np.ndarray, candidate_points: np.ndarray
-) -> np.ndarray:
-    if len(display_points) == len(candidate_points) and np.allclose(
-        display_points, candidate_points
-    ):
-        return np.arange(len(candidate_points), dtype=np.uint32)
+def nearest_point_indices(source_points: np.ndarray, target_points: np.ndarray) -> np.ndarray:
+    if len(source_points) == 0:
+        return np.zeros(0, dtype=np.uint32)
+    if len(target_points) == 0:
+        return np.zeros(len(source_points), dtype=np.uint32)
+    if len(source_points) == len(target_points) and np.allclose(source_points, target_points):
+        return np.arange(len(target_points), dtype=np.uint32)
     try:
         from sklearn.neighbors import NearestNeighbors
 
         nn = NearestNeighbors(n_neighbors=1, algorithm="auto")
-        nn.fit(candidate_points)
-        indices = np.asarray(nn.kneighbors(display_points, return_distance=False))[:, 0]
+        nn.fit(target_points)
+        indices = np.asarray(nn.kneighbors(source_points, return_distance=False))[:, 0]
         return indices.astype(np.uint32)
     except Exception:
-        indices = np.empty(len(display_points), dtype=np.uint32)
+        indices = np.empty(len(source_points), dtype=np.uint32)
         chunk_size = 1024
-        candidate = candidate_points.astype(np.float64, copy=False)
-        for start in range(0, len(display_points), chunk_size):
-            chunk = display_points[start : start + chunk_size].astype(np.float64, copy=False)
-            dist2 = ((chunk[:, None, :] - candidate[None, :, :]) ** 2).sum(axis=2)
+        target = target_points.astype(np.float64, copy=False)
+        for start in range(0, len(source_points), chunk_size):
+            chunk = source_points[start : start + chunk_size].astype(np.float64, copy=False)
+            dist2 = ((chunk[:, None, :] - target[None, :, :]) ** 2).sum(axis=2)
             indices[start : start + len(chunk)] = np.argmin(dist2, axis=1).astype(np.uint32)
         return indices
+
+
+def validate_points_match(
+    path: Path,
+    name: str,
+    actual: np.ndarray,
+    expected: np.ndarray,
+) -> None:
+    if actual.shape != expected.shape:
+        raise ValueError(f"{path.name}: {name} shape {actual.shape} != expected {expected.shape}")
+    if len(actual) and not np.allclose(actual, expected):
+        raise ValueError(f"{path.name}: {name} values do not match expected points")
 
 
 def infer_train_labels(data: Any, n_train: int) -> tuple[np.ndarray, np.ndarray]:
@@ -477,6 +489,8 @@ def process_influence_matrix(
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
+    row_source: str,
+    row_count: int,
     k_max: int,
 ) -> dict[str, Any]:
     with np.load(path, allow_pickle=False) as data:
@@ -497,6 +511,10 @@ def process_influence_matrix(
 
     if scores.ndim != 2:
         raise ValueError(f"Expected 2D scores in {path}, got {scores.shape}")
+    if scores.shape[0] != row_count:
+        raise ValueError(
+            f"{path.name}: score rows {scores.shape[0]} != {row_source} count {row_count}"
+        )
     if scores.shape[1] != n_train:
         raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
 
@@ -559,12 +577,15 @@ def process_influence_matrix(
     metadata.update(
         {
             "candidate_points_shape": list(candidate_points.shape),
+            "row_source": row_source,
+            "row_count": row_count,
             "k": k,
             "label": (f"{metadata['method']}: {metadata['right_term']} -> {metadata['left_term']}"),
             "display_label": (
                 f"{metadata['method']} / "
                 f"{metadata['right_term'].replace('_', ' ')} -> "
                 f"{metadata['left_term'].replace('_', ' ')}"
+                f"{' (self)' if metadata['self_influence'] else ''}"
             ),
             "top": top_entries,
             "summary": summary,
@@ -637,9 +658,17 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         train_points = np.zeros((0, 2), dtype=np.float64)
 
     first_meta = load_matrix_metadata(matrix_files[0]) if matrix_files else None
+    candidate_meta = None
+    for matrix_path in matrix_files:
+        meta = load_matrix_metadata(matrix_path)
+        if not meta["self_influence"]:
+            candidate_meta = meta
+            break
+    if candidate_meta is None:
+        candidate_meta = first_meta
     candidate_points = (
-        first_meta["candidate_points"]
-        if first_meta is not None
+        candidate_meta["candidate_points"]
+        if candidate_meta is not None
         else np.zeros((0, train_points.shape[1] if train_points.size else 2))
     )
     display_points = candidate_points
@@ -657,7 +686,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         try:
             model, data, _, _ = construct_loaded_model(run, params)
             display_points = sample_display_points(data, args.field_points, candidate_points)
-            display_to_candidate = nearest_candidate_indices(display_points, candidate_points)
+            display_to_candidate = nearest_point_indices(display_points, candidate_points)
             fields = predict_fields(
                 model=model,
                 data=data,
@@ -675,6 +704,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         train_kind = np.zeros(len(train_points), dtype=np.uint8)
         train_bc_id = np.full(len(train_points), -1, dtype=np.int16)
 
+    display_to_train = nearest_point_indices(display_points, train_points)
+
     arrays: dict[str, Any] = {
         "candidate_points": write_array(
             out_dir, "arrays/candidate_points.f32", candidate_points, "float32"
@@ -686,6 +717,12 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
             out_dir,
             "arrays/display_to_candidate.u32",
             display_to_candidate,
+            "uint32",
+        ),
+        "display_to_train": write_array(
+            out_dir,
+            "arrays/display_to_train.u32",
+            display_to_train,
             "uint32",
         ),
         "train_points": write_array(out_dir, "arrays/train_points.f32", train_points, "float32"),
@@ -705,14 +742,22 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     for matrix_path in matrix_files:
         try:
             meta = load_matrix_metadata(matrix_path)
-            if not np.allclose(meta["candidate_points"], candidate_points):
-                raise ValueError("candidate_points do not match the first matrix")
+            row_source = "train_points" if meta["self_influence"] else "candidate_points"
+            row_points = train_points if meta["self_influence"] else candidate_points
+            validate_points_match(
+                matrix_path,
+                f"{row_source} row points",
+                meta["candidate_points"],
+                row_points,
+            )
             influence_entries.append(
                 process_influence_matrix(
                     matrix_path,
                     out_dir=out_dir,
                     rel_prefix="influence",
                     n_train=len(train_points),
+                    row_source=row_source,
+                    row_count=len(row_points),
                     k_max=args.k_max,
                 )
             )
@@ -726,7 +771,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     )
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "problem": run.problem,
         "folder": run.folder.name,
         "run_id": run.run_prefix,
@@ -823,7 +868,7 @@ def main() -> None:
             print(f"FAILED {run.folder.name}/{run.run_prefix}: {exc}")
 
     index = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "data_root": str(args.data_root),
         "matrix_mode": args.matrix_mode,

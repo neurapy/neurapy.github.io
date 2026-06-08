@@ -59,12 +59,21 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
         if "display_to_candidate" in manifest["arrays"]
         else np.arange(n_display, dtype=np.uint32)
     )
+    display_to_train = (
+        read_array(base, manifest["arrays"]["display_to_train"])
+        if "display_to_train" in manifest["arrays"]
+        else None
+    )
     train_points = read_array(base, manifest["arrays"]["train_points"])
     assert candidate_points.shape[0] == n_candidate
     assert display_points.shape[0] == n_display
     assert display_to_candidate.shape[0] == n_display
+    if display_to_train is not None:
+        assert display_to_train.shape[0] == n_display
     if len(display_to_candidate):
         assert int(display_to_candidate.max()) < n_candidate
+    if display_to_train is not None and len(display_to_train):
+        assert int(display_to_train.max()) < n_train
     assert train_points.shape[0] == n_train
 
     for field in manifest["fields"].values():
@@ -72,33 +81,66 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
         assert values.shape[0] == n_display
 
     for matrix in manifest["influence_matrices"]:
+        row_source = matrix.get(
+            "row_source",
+            "train_points" if matrix.get("self_influence") else "candidate_points",
+        )
+        if row_source == "candidate_points":
+            expected_rows = n_candidate
+        elif row_source == "train_points":
+            expected_rows = n_train
+        else:
+            raise AssertionError(f"{matrix['id']}: unknown row_source {row_source!r}")
+
         source = Path(matrix["source_file"])
+        raw_scores = None
         if not source.exists():
             print(f"  source missing, shape-only check: {matrix['id']}")
-            continue
-        with np.load(source, allow_pickle=False) as raw:
-            scores = -raw["scores"].astype(np.float32) / float(n_train)
-        rows = np.linspace(0, scores.shape[0] - 1, min(samples, scores.shape[0]))
+        else:
+            with np.load(source, allow_pickle=False) as raw:
+                raw_scores = -raw["scores"].astype(np.float32) / float(n_train)
+            if raw_scores.shape[0] != expected_rows:
+                raise AssertionError(
+                    f"{matrix['id']}: source rows {raw_scores.shape[0]} != {expected_rows}"
+                )
+            if raw_scores.shape[1] != n_train:
+                raise AssertionError(
+                    f"{matrix['id']}: source columns {raw_scores.shape[1]} != {n_train}"
+                )
+
+        rows = np.linspace(0, expected_rows - 1, min(samples, expected_rows))
         rows = rows.astype(int)
 
         for mode in ("abs", "pos", "neg"):
             indices = read_array(base, matrix["top"][mode]["indices"])
             values = read_array(base, matrix["top"][mode]["values"])
             assert indices.shape == values.shape
-            assert indices.shape[0] == n_candidate
+            assert indices.shape[0] == expected_rows
+            if indices.size:
+                assert int(indices.max()) < n_train
 
+            if raw_scores is None:
+                continue
             for row in rows:
                 k = indices.shape[1]
+                row_scores = raw_scores[row]
                 if mode == "abs":
-                    expected = np.argsort(np.abs(scores[row]))[::-1][:k]
+                    rank_scores = np.abs(row_scores)
                 elif mode == "pos":
-                    expected = np.argsort(scores[row])[::-1][:k]
+                    rank_scores = row_scores
                 else:
-                    expected = np.argsort(scores[row])[:k]
+                    rank_scores = -row_scores
                 got = indices[row]
-                if not np.array_equal(got[: min(20, k)], expected[: min(20, k)]):
+
+                if len(np.unique(got)) != len(got):
+                    raise AssertionError(f"{matrix['id']} {mode} row {row}: duplicate top-k index")
+                threshold = np.sort(rank_scores)[::-1][k - 1]
+                if np.any(rank_scores[got] < threshold - 1e-8):
                     raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k mismatch")
-                expected_values = scores[row, got]
+                if np.any(np.diff(rank_scores[got]) > 1e-8):
+                    raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k order mismatch")
+
+                expected_values = row_scores[got]
                 if not np.allclose(values[row], expected_values, rtol=1e-5, atol=1e-8):
                     raise AssertionError(f"{matrix['id']} {mode} row {row}: value mismatch")
 
