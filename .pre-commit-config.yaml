@@ -21,6 +21,6 @@ repos:
 
       - id: pyright
         name: pyright
-        entry: uv run pyright
+        entry: uv run --all-groups pyright
         language: system
         pass_filenames: false

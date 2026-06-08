@@ -1,4 +1,3 @@
-# pyright: reportMissingTypeStubs=false, reportUnknownParameterType=false, reportMissingTypeArgument=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 """Build fully precomputed static assets for the PINNfluence web demo.
 
 The output is deliberately simple: JSON manifests plus typed-array binary files.

@@ -11,7 +11,7 @@ help:
 		'  install    Install dependencies and git hooks' \
 		'  format     Format Python and TOML files' \
 		'  lint       Lint Python files with Ruff' \
-		'  typecheck  Run Pyright in strict mode' \
+		'  typecheck  Run Pyright' \
 		'  test       Run pytest' \
 		'  check      Run all verification commands' \
 		'  clean      Remove local build and tool artifacts'
@@ -29,7 +29,7 @@ lint:
 	$(UV) run ruff check .
 
 typecheck:
-	$(UV) run pyright
+	$(UV) run --all-groups pyright
 
 test:
 	$(UV) run pytest
@@ -38,7 +38,7 @@ check:
 	$(UV) run ruff format --check .
 	$(UV) run taplo fmt --check pyproject.toml
 	$(UV) run ruff check .
-	$(UV) run pyright
+	$(UV) run --all-groups pyright
 	$(UV) run pytest
 
 clean:

@@ -1,4 +1,3 @@
-# pyright: reportMissingTypeArgument=false, reportUnknownParameterType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 """Verify static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
