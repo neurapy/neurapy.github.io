@@ -25,7 +25,7 @@ Build or refresh the demo bundle from the repo root:
 uv run python src/build_static_demo_data.py \
   --matrix-mode all \
   --k-max 200 \
-  --field-points 60000 \
+  --field-points 10000 \
   --overwrite \
   --skip-incomplete
 ```

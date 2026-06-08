@@ -11,9 +11,11 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import re
 import shutil
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -74,6 +76,12 @@ def parse_args() -> argparse.Namespace:
         default="core",
         help="core keeps the public bundle compact; all exports every influence matrix.",
     )
+    parser.add_argument(
+        "--matrix-workers",
+        default=min(4, os.cpu_count() or 1),
+        type=int,
+        help="Number of worker processes for influence matrix export. Use 1 for serial.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "--skip-fields",
@@ -107,7 +115,8 @@ def write_array(
     path = base_dir / rel_path
     path.parent.mkdir(parents=True, exist_ok=True)
     arr = np.asarray(array, dtype=DTYPES[dtype])
-    arr.tofile(path)
+    with path.open("wb") as handle:
+        arr.tofile(handle)
     return {
         "path": rel_path,
         "dtype": dtype,
@@ -594,6 +603,60 @@ def process_influence_matrix(
     return metadata
 
 
+def process_influence_matrix_jobs(
+    jobs: list[tuple[int, Path, str, int]],
+    out_dir: Path,
+    rel_prefix: str,
+    n_train: int,
+    k_max: int,
+    matrix_workers: int,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    results: list[dict[str, Any] | None] = [None] * len(jobs)
+    errors: list[str] = []
+    workers = max(1, min(matrix_workers, len(jobs) or 1))
+
+    if workers == 1:
+        for idx, matrix_path, row_source, row_count in jobs:
+            try:
+                results[idx] = process_influence_matrix(
+                    matrix_path,
+                    out_dir=out_dir,
+                    rel_prefix=rel_prefix,
+                    n_train=n_train,
+                    row_source=row_source,
+                    row_count=row_count,
+                    k_max=k_max,
+                )
+                print(f"  built {matrix_path.name}")
+            except Exception as exc:
+                errors.append(f"{matrix_path.name}: {exc}")
+    else:
+        print(f"  exporting {len(jobs)} matrices with {workers} workers")
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    process_influence_matrix,
+                    matrix_path,
+                    out_dir,
+                    rel_prefix,
+                    n_train,
+                    row_source,
+                    row_count,
+                    k_max,
+                ): (idx, matrix_path)
+                for idx, matrix_path, row_source, row_count in jobs
+            }
+            for future in as_completed(futures):
+                idx, matrix_path = futures[future]
+                try:
+                    results[idx] = future.result()
+                    print(f"  built {matrix_path.name}")
+                except Exception as exc:
+                    errors.append(f"{matrix_path.name}: {exc}")
+
+    return [result for result in results if result is not None], errors
+
+
 def validation_summary(validation_dir: Path | None) -> dict[str, Any]:
     if validation_dir is None:
         return {"available": False, "counts": {}}
@@ -738,7 +801,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
             "array": write_array(out_dir, f"arrays/{name}.f32", values, "float32"),
         }
 
-    influence_entries = []
+    matrix_jobs: list[tuple[int, Path, str, int]] = []
     for matrix_path in matrix_files:
         try:
             meta = load_matrix_metadata(matrix_path)
@@ -750,20 +813,19 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                 meta["candidate_points"],
                 row_points,
             )
-            influence_entries.append(
-                process_influence_matrix(
-                    matrix_path,
-                    out_dir=out_dir,
-                    rel_prefix="influence",
-                    n_train=len(train_points),
-                    row_source=row_source,
-                    row_count=len(row_points),
-                    k_max=args.k_max,
-                )
-            )
-            print(f"  built {matrix_path.name}")
+            matrix_jobs.append((len(matrix_jobs), matrix_path, row_source, len(row_points)))
         except Exception as exc:
             errors.append(f"{matrix_path.name}: {exc}")
+
+    influence_entries, processing_errors = process_influence_matrix_jobs(
+        matrix_jobs,
+        out_dir=out_dir,
+        rel_prefix="influence",
+        n_train=len(train_points),
+        k_max=args.k_max,
+        matrix_workers=int(getattr(args, "matrix_workers", 1)),
+    )
+    errors.extend(processing_errors)
 
     available_terms = sorted(
         {entry["left_term"] for entry in influence_entries}
@@ -839,6 +901,8 @@ def main() -> None:
     torch.set_default_device("cpu")
     if args.k_max < 1:
         raise SystemExit("--k-max must be >= 1")
+    if args.matrix_workers < 1:
+        raise SystemExit("--matrix-workers must be >= 1")
 
     args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
     args.out_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
