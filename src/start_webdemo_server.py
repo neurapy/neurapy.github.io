@@ -4,16 +4,17 @@ from __future__ import annotations
 import argparse
 import functools
 import logging
+import socket
 import sys
-import webbrowser
 from collections.abc import Sequence
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WEBDEMO_DIR = REPO_ROOT / "webdemo"
-DEFAULT_HOST = "127.0.0.1"
+DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
+WILDCARD_HOSTS = {"", "0.0.0.0", "::"}
 
 LOGGER = logging.getLogger("webdemo")
 
@@ -70,12 +71,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=f"TCP port to bind. Defaults to {DEFAULT_PORT}.",
     )
     parser.add_argument(
-        "--open",
-        action="store_true",
-        dest="open_browser",
-        help="Open the demo in the default browser after the server starts.",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print per-request debug logs.",
@@ -100,10 +95,23 @@ def create_server(host: str, port: int, webdemo_dir: Path = WEBDEMO_DIR) -> WebD
 
 
 def local_url(host: str, port: int) -> str:
-    display_host = "127.0.0.1" if host in {"", "0.0.0.0", "::"} else host
+    display_host = "127.0.0.1" if host in WILDCARD_HOSTS else host
     if ":" in display_host and not display_host.startswith("["):
         display_host = f"[{display_host}]"
     return f"http://{display_host}:{port}/"
+
+
+def network_url(host: str, port: int) -> str | None:
+    if host not in WILDCARD_HOSTS:
+        return None
+    try:
+        addresses = socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        addresses = []
+    for address in addresses:
+        if not address.startswith("127."):
+            return f"http://{address}:{port}/"
+    return f"http://<this-machine-ip>:{port}/"
 
 
 def configure_logging(verbose: bool) -> None:
@@ -111,16 +119,15 @@ def configure_logging(verbose: bool) -> None:
     logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
 
 
-def run_server(host: str, port: int, *, open_browser: bool = False) -> int:
+def run_server(host: str, port: int) -> int:
     with create_server(host, port) as server:
         actual_port = server.server_address[1]
-        url = local_url(host, actual_port)
         print(f"Serving webdemo: {WEBDEMO_DIR}", flush=True)
-        print(f"URL: {url}", flush=True)
+        print(f"Listening on: {host}:{actual_port}", flush=True)
+        print(f"Local URL: {local_url(host, actual_port)}", flush=True)
+        if url := network_url(host, actual_port):
+            print(f"Network URL: {url}", flush=True)
         print("Press Ctrl+C to stop.", flush=True)
-
-        if open_browser:
-            webbrowser.open(url)
 
         try:
             server.serve_forever()
@@ -135,7 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     configure_logging(args.verbose)
     try:
-        return run_server(args.host, args.port, open_browser=args.open_browser)
+        return run_server(args.host, args.port)
     except OSError as exc:
         print(f"Could not start webdemo server on {args.host}:{args.port}: {exc}", file=sys.stderr)
         return 1

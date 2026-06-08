@@ -936,7 +936,7 @@ def visualize_predictions_comparison(
     show_error=False,
     use_train_points=False,
     cmap="coolwarm",
-    marker_sizes=[50, 50],
+    marker_sizes=None,
     logscale=False,
 ):
     """
@@ -971,6 +971,9 @@ def visualize_predictions_comparison(
     from pinnfluence.utils.utils import load_problem
 
     configs = {"good": ("PROBLEMS", PROBLEMS), "bad": ("BAD_PROBLEMS", BAD_PROBLEMS)}
+
+    if marker_sizes is None:
+        marker_sizes = [50, 50]
 
     fig, axes = plt.subplots(1, 2, figsize=figsize, sharey=True)
 
@@ -1256,7 +1259,7 @@ def visualize_influence_comparison(
     figsize=(8, 6),
     model_zoo_base="../../model_zoo_cluster",
     influence_zoo_base=None,
-    marker_sizes=[50, 50],
+    marker_sizes=None,
     marker_size_cross=300,
     absolute=True,
     alpha=None,
@@ -1297,6 +1300,9 @@ def visualize_influence_comparison(
     from pinnfluence.utils.utils import load_problem
 
     configs = {"good": ("PROBLEMS", PROBLEMS), "bad": ("BAD_PROBLEMS", BAD_PROBLEMS)}
+
+    if marker_sizes is None:
+        marker_sizes = [50, 50]
 
     # Create separate figures for each configuration
     figures = {}

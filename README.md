@@ -8,10 +8,11 @@ Serve only the static webdemo:
 make install
 make webdemo
 ```
+Alternatively and only if this fails: `python3 -m http.server 8080` from webdemo
 
 Then open <http://127.0.0.1:8080/>.
 
-The rest should be not necessary. But just in case..:
+The rest should be not necessary. But just in case something goes wrong:
 
 ## Generate Data from raw_data
 

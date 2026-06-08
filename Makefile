@@ -9,7 +9,7 @@ help:
 	@printf '%s\n' \
 		'Available targets:' \
 		'  install    Install dependencies and git hooks' \
-		'  webdemo    Serve the static webdemo on http://127.0.0.1:8080/' \
+		'  webdemo    Serve the static webdemo on port 8080, accessible on the network' \
 		'  format     Format Python and TOML files' \
 		'  lint       Lint Python files with Ruff' \
 		'  typecheck  Run Pyright' \

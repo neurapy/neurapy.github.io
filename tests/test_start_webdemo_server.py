@@ -7,7 +7,7 @@ from urllib.request import urlopen
 
 import pytest
 
-from start_webdemo_server import create_server, local_url, parse_args
+from start_webdemo_server import create_server, local_url, network_url, parse_args
 
 
 @contextmanager
@@ -28,12 +28,11 @@ def read_url(url: str) -> bytes:
         return response.read()
 
 
-def test_parse_args_defaults_to_local_webdemo_port() -> None:
+def test_parse_args_defaults_to_network_accessible_webdemo_port() -> None:
     args = parse_args([])
 
-    assert args.host == "127.0.0.1"
+    assert args.host == "0.0.0.0"
     assert args.port == 8080
-    assert args.open_browser is False
 
 
 @pytest.mark.parametrize(
@@ -46,6 +45,11 @@ def test_parse_args_defaults_to_local_webdemo_port() -> None:
 )
 def test_local_url(host: str, expected: str) -> None:
     assert local_url(host, 8080) == expected
+
+
+def test_network_url_is_only_shown_for_wildcard_hosts() -> None:
+    assert network_url("127.0.0.1", 8080) is None
+    assert network_url("0.0.0.0", 8080) is not None
 
 
 def test_server_serves_webdemo_index() -> None:
