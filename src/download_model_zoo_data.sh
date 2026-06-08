@@ -12,8 +12,9 @@ REMOTE_HOST="ai-ws-213"
 REMOTE_ROOT="/home/dolderer/pinnfluence_code_dreckig_smiley/model_zoo_cluster"
 LOCAL_ROOT="data"
 
+# Comment out / Fill in
 FOLDERS=(
-  # "allen_cahn_float64"
+  "allen_cahn_float64"
   "burgers_float64"
   "diffusion_float64"
   "drift_diffusion_float64"
@@ -22,8 +23,9 @@ FOLDERS=(
   "wave_float64"
 )
 
+# Comment out / Fill in
 declare -A PREFIXES=(
-  # ["allen_cahn_float64"]="allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft"
+  ["allen_cahn_float64"]="allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft"
   ["burgers_float64"]="burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft"
   ["diffusion_float64"]="diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft"
   ["drift_diffusion_float64"]="drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft"

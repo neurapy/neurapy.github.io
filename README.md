@@ -11,7 +11,10 @@ make webdemo
 
 Then open <http://127.0.0.1:8080/>.
 
+The rest should be not necessary. But just in case..:
+
 ## Generate Data from raw_data
+
 
 The app serves pre-generated static assets from `webdemo/data/`.
 
@@ -40,6 +43,8 @@ Expected in `($"PROJECT_ROOT")/raw_data/` are your folders like `allen_cahn_floa
 ..._validation/
 ..._full.pt
 ```
+
+There is also a script to automatically download those from my folder from the `ai-ws-213`. Comment out / fill in what you need. Its faster with an SSH-Key.
 
 Have fun on ICML
 
