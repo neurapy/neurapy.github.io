@@ -121,6 +121,11 @@ function pointAt(points, index, dim) {
   return [points[offset], points[offset + 1] ?? 0];
 }
 
+function projectPointAt(points, index, dim, bounds, viewport) {
+  const offset = index * dim;
+  return projectPointToViewport(points[offset], points[offset + 1] ?? 0, bounds, viewport);
+}
+
 function clampIndex(index, count) {
   if (!Number.isFinite(index) || count <= 0) return 0;
   return Math.max(0, Math.min(count - 1, Math.trunc(index)));
@@ -150,19 +155,23 @@ function selectedMatrixRowIndex(matrix, rowCount = null) {
   return clampIndex(index ?? 0, rowCount ?? matrix.row_count ?? 1);
 }
 
+function boundsFromAxisMap(bounds, axes = ["x", "y"]) {
+  if (!bounds) return null;
+  const xBounds = bounds[axes[0]] ?? bounds.x;
+  const yBounds = bounds[axes[1]] ?? bounds.y;
+  if (!xBounds || !yBounds) return null;
+  return {
+    minX: xBounds[0],
+    maxX: xBounds[1],
+    minY: yBounds[0],
+    maxY: yBounds[1],
+  };
+}
+
 function getBounds(points, dim) {
-  const bounds = state.manifest?.bounds ?? {};
-  const axes = state.manifest?.axes ?? ["x", "y"];
-  const xBounds = bounds[axes[0]];
-  const yBounds = bounds[axes[1]];
-  if (xBounds && yBounds) {
-    return {
-      minX: xBounds[0],
-      maxX: xBounds[1],
-      minY: yBounds[0],
-      maxY: yBounds[1],
-    };
-  }
+  const manifestBounds = boundsFromAxisMap(state.manifest?.bounds, state.manifest?.axes);
+  if (manifestBounds) return manifestBounds;
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -283,6 +292,16 @@ function drawAxes(ctx, viewport) {
   ctx.strokeRect(viewport.x, viewport.y, Math.max(1, viewport.width), Math.max(1, viewport.height));
 }
 
+function drawMarker(ctx, sx, sy, radius) {
+  ctx.beginPath();
+  ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#f0b429";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#17202a";
+  ctx.stroke();
+}
+
 function adaptivePointSize(viewport, count, mode) {
   const drawableArea = Math.max(1, viewport.width * viewport.height);
   const spacing = Math.sqrt(drawableArea / Math.max(1, count));
@@ -297,7 +316,6 @@ function drawPointCloud({
   points,
   dim,
   values,
-  selectedIndex,
   mode = "field",
   titleRangeEl = null,
 }) {
@@ -316,13 +334,8 @@ function drawPointCloud({
     titleRangeEl.textContent = `${formatNumber(range.min)} … ${formatNumber(range.max)}`;
   }
 
-  const screen = new Float32Array(count * 2);
   for (let i = 0; i < count; i += 1) {
-    const x = points[i * dim];
-    const y = points[i * dim + 1] ?? 0;
-    const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
-    screen[i * 2] = sx;
-    screen[i * 2 + 1] = sy;
+    const [sx, sy] = projectPointAt(points, i, dim, bounds, viewport);
     const value = values ? values[i] : 0;
     ctx.fillStyle =
       mode === "diverging"
@@ -332,19 +345,6 @@ function drawPointCloud({
     ctx.fillRect(sx - halfPoint, sy - halfPoint, pointSize, pointSize);
   }
   ctx.globalAlpha = 1;
-
-  if (selectedIndex != null && selectedIndex >= 0 && selectedIndex < count) {
-    const sx = screen[selectedIndex * 2];
-    const sy = screen[selectedIndex * 2 + 1];
-    ctx.beginPath();
-    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
-    ctx.fillStyle = "#f0b429";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#17202a";
-    ctx.stroke();
-  }
-  return screen;
 }
 
 function currentRasterMeta() {
@@ -354,17 +354,7 @@ function currentRasterMeta() {
 }
 
 function rasterBounds(meta) {
-  if (!meta?.bounds) return null;
-  const axes = meta.axes ?? state.manifest?.axes ?? ["x", "y"];
-  const xBounds = meta.bounds?.[axes[0]] ?? meta.bounds?.x;
-  const yBounds = meta.bounds?.[axes[1]] ?? meta.bounds?.y;
-  if (!xBounds || !yBounds) return null;
-  return {
-    minX: xBounds[0],
-    maxX: xBounds[1],
-    minY: yBounds[0],
-    maxY: yBounds[1],
-  };
+  return boundsFromAxisMap(meta?.bounds, meta?.axes ?? state.manifest?.axes);
 }
 
 function hasRasterForField(fieldId) {
@@ -493,13 +483,7 @@ function drawRasterField({ canvas, fieldId, titleRangeEl = null }) {
   const sample = sampleRasterAtCoord(fieldId, state.selectedCoord);
   if (sample) {
     const [sx, sy] = projectPointToViewport(sample.x, sample.y, bounds, viewport);
-    ctx.beginPath();
-    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
-    ctx.fillStyle = "#f0b429";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#17202a";
-    ctx.stroke();
+    drawMarker(ctx, sx, sy, 7);
   }
   return true;
 }
@@ -554,12 +538,7 @@ async function drawInfluencePlot() {
   ctx.globalAlpha = 0.16;
   ctx.fillStyle = "#647282";
   for (let i = 0; i < nTrain; i += 1) {
-    const [sx, sy] = projectPointToViewport(
-      train[i * dim],
-      train[i * dim + 1] ?? 0,
-      bounds,
-      viewport,
-    );
+    const [sx, sy] = projectPointAt(train, i, dim, bounds, viewport);
     ctx.fillRect(sx - 1, sy - 1, 2, 2);
   }
   ctx.globalAlpha = 1;
@@ -572,12 +551,7 @@ async function drawInfluencePlot() {
   for (let i = values.length - 1; i >= 0; i -= 1) {
     const trainIndex = indices[i];
     const value = values[i];
-    const [sx, sy] = projectPointToViewport(
-      train[trainIndex * dim],
-      train[trainIndex * dim + 1] ?? 0,
-      bounds,
-      viewport,
-    );
+    const [sx, sy] = projectPointAt(train, trainIndex, dim, bounds, viewport);
     const radius = 4 + 9 * Math.sqrt(Math.abs(value) / (maxAbs || 1));
     ctx.beginPath();
     ctx.arc(sx, sy, radius, 0, Math.PI * 2);
@@ -590,15 +564,8 @@ async function drawInfluencePlot() {
 
   const rowPoints = matrixRowPoints(matrix);
   const rowDim = matrixRowDim(matrix);
-  const [x, y] = pointAt(rowPoints, rowIndex, rowDim);
-  const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
-  ctx.beginPath();
-  ctx.arc(sx, sy, 8, 0, Math.PI * 2);
-  ctx.fillStyle = "#f0b429";
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#17202a";
-  ctx.stroke();
+  const [sx, sy] = projectPointAt(rowPoints, rowIndex, rowDim, bounds, viewport);
+  drawMarker(ctx, sx, sy, 8);
   dom.influenceRange.textContent = `max |I| ${formatNumber(maxAbs)}`;
 }
 
@@ -611,7 +578,6 @@ async function drawGlobalPlot() {
     points: state.arrays.train_points,
     dim: state.manifest.arrays.train_points.shape[1],
     values,
-    selectedIndex: null,
     mode: state.selectedSummary.includes("signed") || state.selectedSummary.includes("negative")
       ? "diverging"
       : "field",
