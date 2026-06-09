@@ -220,6 +220,7 @@ select {
 .plot-header {
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -230,7 +231,8 @@ select {
 }
 
 .plot-title-group {
-  min-width: 0;
+  min-width: 120px;
+  flex: 1 1 150px;
   display: grid;
   gap: 3px;
 }
@@ -245,6 +247,7 @@ select {
 
 .selection-readout {
   min-width: 0;
+  flex: 0 1 auto;
   display: grid;
   grid-template-columns: auto minmax(0, auto) auto minmax(0, auto);
   align-items: baseline;
@@ -288,33 +291,125 @@ select {
   box-shadow: 0 12px 28px rgba(25, 38, 52, 0.14);
 }
 
-.model-menu {
+.plot-actions[data-control-layout="inline"] {
+  flex: 0 1 auto;
+}
+
+.plot-actions[data-control-layout="bar"] {
+  flex: 1 0 100%;
+  justify-content: stretch;
+}
+
+.plot-actions[data-control-layout="menu"] {
+  flex: 0 0 auto;
+}
+
+.plot-actions[data-control-layout="inline"] .menu-button,
+.plot-actions[data-control-layout="bar"] .menu-button {
+  display: none;
+}
+
+.plot-actions[data-control-layout="menu"] .menu-button {
+  display: grid;
+}
+
+.plot-actions[data-control-layout="inline"] .plot-menu,
+.plot-actions[data-control-layout="bar"] .plot-menu {
+  position: static;
   display: flex;
   align-items: end;
+  flex-wrap: wrap;
   gap: 8px;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
   border: 0;
   box-shadow: none;
   background: transparent;
 }
 
-.model-actions .menu-button {
-  display: none;
+.plot-actions[data-control-layout="bar"] .plot-menu {
+  width: 100%;
 }
 
-.train-menu {
+.plot-actions[data-control-layout="menu"] .plot-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 20;
   width: min(360px, calc(100vw - 40px));
+  max-width: calc(var(--panel-width, 360px) - 22px);
   display: none;
   grid-template-columns: 1fr;
   gap: 10px;
   padding: 10px;
 }
 
-.train-actions[data-open="true"] .train-menu {
+.plot-actions[data-control-layout="menu"][data-open="true"] .plot-menu {
   display: grid;
+}
+
+.model-actions[data-control-layout="menu"][data-open="true"] .model-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.plot-actions[data-control-layout="inline"] .plot-control,
+.plot-actions[data-control-layout="bar"] .plot-control {
+  flex: 0 1 auto;
+}
+
+.plot-actions[data-control-layout="bar"] .plot-control {
+  flex-grow: 1;
+}
+
+.field-control,
+.matrix-control,
+.summary-control {
+  flex-basis: 210px;
+}
+
+.kind-control {
+  flex-basis: 168px;
+}
+
+.sign-control {
+  flex-basis: 124px;
+}
+
+.k-control {
+  flex-basis: 150px;
+}
+
+.plot-actions[data-control-layout="bar"] .field-control,
+.plot-actions[data-control-layout="bar"] .matrix-control,
+.plot-actions[data-control-layout="bar"] .summary-control {
+  flex-basis: min(100%, 220px);
+}
+
+.plot-actions[data-control-layout="bar"] .kind-control {
+  flex-basis: min(100%, 168px);
+}
+
+.plot-actions[data-control-layout="bar"] .sign-control {
+  flex-basis: min(100%, 124px);
+}
+
+.plot-actions[data-control-layout="bar"] .k-control {
+  flex-basis: min(100%, 160px);
+}
+
+.plot-actions[data-control-layout="menu"] .plot-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.plot-actions[data-control-layout="menu"] .plot-control select,
+.plot-actions[data-control-layout="menu"] .segmented {
+  width: 100%;
+  min-width: 0;
 }
 
 .plot-control {
@@ -327,15 +422,39 @@ select {
 }
 
 .plot-control select {
-  min-width: 180px;
+  min-width: 0;
+}
+
+.plot-actions[data-control-layout="inline"] .field-control,
+.plot-actions[data-control-layout="bar"] .field-control,
+.plot-actions[data-control-layout="inline"] .matrix-control,
+.plot-actions[data-control-layout="bar"] .matrix-control,
+.plot-actions[data-control-layout="inline"] .summary-control,
+.plot-actions[data-control-layout="bar"] .summary-control {
+  min-width: 170px;
+}
+
+.plot-actions[data-control-layout="inline"] .kind-control,
+.plot-actions[data-control-layout="bar"] .kind-control {
+  min-width: 150px;
+}
+
+.plot-actions[data-control-layout="inline"] .sign-control,
+.plot-actions[data-control-layout="bar"] .sign-control {
+  min-width: 110px;
+}
+
+.plot-actions[data-control-layout="inline"] .k-control,
+.plot-actions[data-control-layout="bar"] .k-control {
+  min-width: 130px;
 }
 
 .model-menu .plot-control:first-child {
-  width: clamp(150px, 18vw, 250px);
+  width: auto;
 }
 
 .model-menu .segmented {
-  width: 168px;
+  width: 100%;
 }
 
 .k-control span {
@@ -416,37 +535,6 @@ input[type="range"] {
   .plot-grid {
     min-height: calc(100svh - 116px);
   }
-
-  .model-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 20;
-    width: min(340px, calc(100vw - 40px));
-    display: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 10px;
-    border: 1px solid var(--line);
-    box-shadow: 0 12px 28px rgba(25, 38, 52, 0.14);
-    background: var(--surface);
-  }
-
-  .model-actions .menu-button {
-    display: grid;
-  }
-
-  .model-actions[data-open="true"] .model-menu {
-    display: flex;
-  }
-
-  .model-menu .plot-control:first-child,
-  .model-menu .segmented,
-  .plot-control select {
-    width: 100%;
-    min-width: 0;
-  }
 }
 
 @media (max-width: 720px) {
@@ -512,9 +600,9 @@ input[type="range"] {
     max-width: 100px;
   }
 
-  .model-menu,
-  .train-menu {
+  .plot-actions[data-control-layout="menu"] .plot-menu {
     width: min(330px, calc(100vw - 24px));
+    max-width: calc(var(--panel-width, 330px) - 18px);
   }
 
   .icon-button {

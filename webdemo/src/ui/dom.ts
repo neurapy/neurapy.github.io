@@ -12,8 +12,11 @@ export interface DomRefs {
   summarySelect: HTMLSelectElement;
   summaryControl: HTMLElement;
   trainModeButtons: HTMLElement;
+  modelPanel: HTMLElement;
+  modelActions: HTMLElement;
   modelMenuButton: HTMLButtonElement;
   modelMenu: HTMLElement;
+  trainActions: HTMLElement;
   trainMenuButton: HTMLButtonElement;
   trainMenu: HTMLElement;
   selectedPointLabel: HTMLElement;
@@ -55,8 +58,11 @@ export function getDomRefs(): DomRefs {
     summarySelect: required("#summarySelect", HTMLSelectElement),
     summaryControl: required("#summaryControl", HTMLElement),
     trainModeButtons: required("#trainModeButtons", HTMLElement),
+    modelPanel: required("#modelPanel", HTMLElement),
+    modelActions: required(".model-actions", HTMLElement),
     modelMenuButton: required("#modelMenuButton", HTMLButtonElement),
     modelMenu: required("#modelMenu", HTMLElement),
+    trainActions: required(".train-actions", HTMLElement),
     trainMenuButton: required("#trainMenuButton", HTMLButtonElement),
     trainMenu: required("#trainMenu", HTMLElement),
     selectedPointLabel: required("#selectedPointLabel", HTMLElement),

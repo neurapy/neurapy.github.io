@@ -31,7 +31,7 @@
 
       <section class="workspace">
         <section id="plotGrid" class="plot-grid" data-layout="row">
-          <article class="plot-panel model-panel">
+          <article id="modelPanel" class="plot-panel model-panel">
             <div class="plot-header">
               <div class="plot-title-group">
                 <h2 id="mainTitle">Model</h2>
@@ -43,7 +43,7 @@
                 <span id="selectedValueLabel" class="readout-label">Value</span>
                 <span id="selectedValue" class="readout-value">-</span>
               </div>
-              <div class="plot-actions model-actions">
+              <div class="plot-actions model-actions" data-control-layout="menu" data-open="false">
                 <button
                   id="modelMenuButton"
                   class="icon-button menu-button"
@@ -60,11 +60,11 @@
                   </svg>
                 </button>
                 <div id="modelMenu" class="plot-menu model-menu" role="menu">
-                  <label class="plot-control">
+                  <label class="plot-control field-control">
                     <span>Field</span>
                     <select id="fieldSelect"></select>
                   </label>
-                  <div class="plot-control">
+                  <div class="plot-control kind-control">
                     <span>Kind</span>
                     <div class="segmented" id="fieldKindButtons" role="group" aria-label="Field kind">
                       <button data-kind="prediction" class="active">Prediction</button>
@@ -90,7 +90,7 @@
                 <button data-train-mode="local" class="active">Local</button>
                 <button data-train-mode="global">Global</button>
               </div>
-              <div class="plot-actions train-actions">
+              <div class="plot-actions train-actions" data-control-layout="menu" data-open="false">
                 <button
                   id="trainMenuButton"
                   class="icon-button menu-button"
@@ -107,11 +107,11 @@
                   </svg>
                 </button>
                 <div id="trainMenu" class="plot-menu train-menu" role="menu">
-                  <label class="plot-control">
+                  <label class="plot-control matrix-control">
                     <span>Influence</span>
                     <select id="matrixSelect"></select>
                   </label>
-                  <div class="plot-control">
+                  <div class="plot-control sign-control">
                     <span>Sign</span>
                     <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
                       <button data-sign="abs" class="active">|·|</button>
@@ -123,7 +123,7 @@
                     <span>Top k <output id="kOutput" for="kSlider">25</output></span>
                     <input id="kSlider" type="range" min="1" max="200" value="25" />
                   </label>
-                  <label id="summaryControl" class="plot-control">
+                  <label id="summaryControl" class="plot-control summary-control">
                     <span>Global</span>
                     <select id="summarySelect">
                       <option value="mean_abs">Mean |influence|</option>

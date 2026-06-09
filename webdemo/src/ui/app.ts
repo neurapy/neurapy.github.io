@@ -54,6 +54,7 @@ const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_DISTANCE_PX = 36;
 
 type PanelName = "main" | "train";
+type ControlLayout = "inline" | "bar" | "menu";
 type ModelGesture = {
   pointerId: number;
   pointerType: string;
@@ -91,6 +92,7 @@ export class AppController {
   private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
   private lastLayoutSignature = "";
+  private lastControlLayoutSignature = "";
 
   async start(): Promise<void> {
     this.bindEvents();
@@ -163,6 +165,7 @@ export class AppController {
       this.store.dispatch({ type: "trainPlotMode", trainPlotMode });
       this.setActiveButtons(this.dom.trainModeButtons, trainPlotMode, "trainMode");
       this.updateTrainControlVisibility();
+      this.refreshResponsiveLayout();
       this.schedule("train");
     });
     this.dom.modelMenuButton.addEventListener("click", (event) => {
@@ -202,8 +205,7 @@ export class AppController {
   }
 
   private toggleMenu(menu: "model" | "train"): void {
-    const actions =
-      menu === "model" ? this.dom.modelMenuButton.parentElement : this.dom.trainMenuButton.parentElement;
+    const actions = menu === "model" ? this.dom.modelActions : this.dom.trainActions;
     const isOpen = actions?.dataset.open === "true";
     this.closeMenus();
     this.setMenuOpen(menu, !isOpen);
@@ -211,8 +213,8 @@ export class AppController {
 
   private setMenuOpen(menu: "model" | "train", open: boolean): void {
     const button = menu === "model" ? this.dom.modelMenuButton : this.dom.trainMenuButton;
-    const actions = button.parentElement;
-    if (actions) actions.dataset.open = open ? "true" : "false";
+    const actions = menu === "model" ? this.dom.modelActions : this.dom.trainActions;
+    actions.dataset.open = open ? "true" : "false";
     button.setAttribute("aria-expanded", String(open));
   }
 
@@ -225,13 +227,126 @@ export class AppController {
     this.dom.summaryControl.hidden = this.store.state.trainPlotMode !== "global";
   }
 
+  private refreshResponsiveLayout(): boolean {
+    const controlsChanged = this.applyAdaptiveControlLayouts();
+    const layoutChanged = this.applyAdaptiveLayout();
+    const controlsChangedAfterLayout = layoutChanged ? this.applyAdaptiveControlLayouts() : false;
+    return controlsChanged || layoutChanged || controlsChangedAfterLayout;
+  }
+
+  private applyAdaptiveControlLayouts(): boolean {
+    this.updatePanelWidthVar(this.dom.modelPanel);
+    this.updatePanelWidthVar(this.dom.trainPanel);
+
+    const modelLayout = this.chooseControlLayout({
+      panel: this.dom.modelPanel,
+      actions: this.dom.modelActions,
+      menu: this.dom.modelMenu,
+      button: this.dom.modelMenuButton,
+    });
+    const trainLayout = this.chooseControlLayout({
+      panel: this.dom.trainPanel,
+      actions: this.dom.trainActions,
+      menu: this.dom.trainMenu,
+      button: this.dom.trainMenuButton,
+    });
+    const signature = `${modelLayout}|${trainLayout}`;
+    const changed = signature !== this.lastControlLayoutSignature;
+    this.lastControlLayoutSignature = signature;
+    this.setControlLayout(this.dom.modelActions, this.dom.modelMenuButton, modelLayout);
+    this.setControlLayout(this.dom.trainActions, this.dom.trainMenuButton, trainLayout);
+    return changed;
+  }
+
+  private chooseControlLayout({
+    panel,
+    actions,
+    menu,
+    button,
+  }: {
+    panel: HTMLElement;
+    actions: HTMLElement;
+    menu: HTMLElement;
+    button: HTMLButtonElement;
+  }): ControlLayout {
+    const previousLayout = this.controlLayout(actions);
+    const wasOpen = actions.dataset.open === "true";
+    const candidates: ControlLayout[] = ["inline", "bar", "menu"];
+    for (const layout of candidates) {
+      this.setControlLayout(actions, button, layout, false);
+      if (this.controlLayoutFits(panel, actions, menu, layout)) {
+        this.setControlLayout(actions, button, previousLayout, wasOpen && previousLayout === "menu");
+        return layout;
+      }
+    }
+    this.setControlLayout(actions, button, previousLayout, wasOpen && previousLayout === "menu");
+    return "menu";
+  }
+
+  private controlLayoutFits(
+    panel: HTMLElement,
+    actions: HTMLElement,
+    menu: HTMLElement,
+    layout: ControlLayout,
+  ): boolean {
+    if (layout === "menu") return true;
+    const header = actions.closest<HTMLElement>(".plot-header");
+    if (!header) return false;
+    const panelRect = panel.getBoundingClientRect();
+    const headerRect = header.getBoundingClientRect();
+    if (panelRect.width <= 1 || panelRect.height <= 1) return false;
+
+    const bodyHeight = panelRect.height - headerRect.height;
+    const minBodyHeight = panelRect.height < 360 ? 110 : 180;
+    if (bodyHeight < minBodyHeight) return false;
+    if (layout === "inline" && headerRect.height > 84) return false;
+    if (layout === "bar" && headerRect.height > Math.min(150, panelRect.height * 0.45)) return false;
+    return (
+      !this.hasHorizontalOverflow(header) &&
+      !this.hasHorizontalOverflow(actions) &&
+      !this.hasHorizontalOverflow(menu)
+    );
+  }
+
+  private hasHorizontalOverflow(element: HTMLElement): boolean {
+    return element.scrollWidth > element.clientWidth + 3;
+  }
+
+  private controlLayout(actions: HTMLElement): ControlLayout {
+    const layout = actions.dataset.controlLayout;
+    return layout === "inline" || layout === "bar" ? layout : "menu";
+  }
+
+  private setControlLayout(
+    actions: HTMLElement,
+    button: HTMLButtonElement,
+    layout: ControlLayout,
+    keepOpen = actions.dataset.open === "true",
+  ): void {
+    actions.dataset.controlLayout = layout;
+    if (layout !== "menu") {
+      actions.dataset.open = "false";
+      button.setAttribute("aria-expanded", "false");
+      return;
+    }
+    actions.dataset.open = keepOpen ? "true" : "false";
+    button.setAttribute("aria-expanded", String(keepOpen));
+  }
+
+  private updatePanelWidthVar(panel: HTMLElement): void {
+    const width = Math.max(120, panel.getBoundingClientRect().width);
+    panel.style.setProperty("--panel-width", `${Math.round(width)}px`);
+  }
+
   private observeLayout(): void {
     const observer = new ResizeObserver(() => {
-      this.applyAdaptiveLayout();
+      this.refreshResponsiveLayout();
       this.schedule("main");
       this.schedule("train");
     });
     observer.observe(this.dom.plotGrid);
+    observer.observe(this.dom.modelPanel);
+    observer.observe(this.dom.trainPanel);
   }
 
   private populateRunSelect(): void {
@@ -282,7 +397,7 @@ export class AppController {
       this.loadSummary(),
     ]);
     this.dom.runMeta.textContent = `${this.manifest.display_name} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
-    this.applyAdaptiveLayout();
+    this.refreshResponsiveLayout();
     this.schedule("main");
     this.schedule("train");
     this.updateStats();
@@ -393,7 +508,7 @@ export class AppController {
     this.dom.mainRange.textContent = domain
       ? `${label} · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`
       : label;
-    if (this.applyAdaptiveLayout()) this.schedule("train");
+    if (this.refreshResponsiveLayout()) this.schedule("train");
     this.schedule("main");
     this.updateStats();
     this.updatePrefetchPlan();
@@ -905,6 +1020,7 @@ export class AppController {
         ? `x ${formatNumber(region.minX)} … ${formatNumber(region.maxX)}, y ${formatNumber(region.minY)} … ${formatNumber(region.maxY)}`
         : "-";
       this.dom.selectedValue.textContent = "-";
+      this.refreshResponsiveLayout();
       return;
     }
     const context = this.context();
@@ -921,5 +1037,6 @@ export class AppController {
     this.dom.selectedValueLabel.textContent = "Value";
     this.dom.selectedPoint.textContent = `(${formatNumber(x)}, ${formatNumber(y)})`;
     this.dom.selectedValue.textContent = formatNumber(sample?.value);
+    this.refreshResponsiveLayout();
   }
 }

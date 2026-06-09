@@ -36,6 +36,38 @@ async function clickMainPoint(page: Page): Promise<void> {
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.65);
 }
 
+async function openControlsIfMenu(page: Page, panel: "model" | "train"): Promise<void> {
+  const actions = page.locator(`.${panel}-actions`);
+  const layout = await actions.getAttribute("data-control-layout");
+  const open = await actions.getAttribute("data-open");
+  if (layout === "menu" && open !== "true") {
+    await page.locator(`#${panel}MenuButton`).click();
+  }
+}
+
+async function expectVisibleControlsInsidePanels(page: Page): Promise<void> {
+  const leaks = await page.locator(".plot-panel").evaluateAll((panels) =>
+    panels.flatMap((panel) => {
+      const panelRect = panel.getBoundingClientRect();
+      const elements = panel.querySelectorAll<HTMLElement>(
+        ".plot-actions, .plot-menu, .plot-control, select, .segmented, .menu-button",
+      );
+      return Array.from(elements)
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && rect.width > 0 && rect.height > 0;
+        })
+        .filter((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left < panelRect.left - 1 || rect.right > panelRect.right + 1;
+        })
+        .map((element) => `${panel.id || panel.className}:${element.id || element.className}`);
+    }),
+  );
+  expect(leaks).toEqual([]);
+}
+
 async function tapMainPoint(page: Page): Promise<void> {
   const box = await page.locator("#mainCanvas").boundingBox();
   if (!box) throw new Error("Missing main canvas bounds");
@@ -105,6 +137,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator(".train-panel #matrixSelect")).toHaveCount(1);
   await expect(page.locator(".train-panel #signButtons")).toHaveCount(1);
   await expect(page.locator(".train-panel #kSlider")).toHaveCount(1);
+  await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -133,7 +166,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#mainTitle")).toHaveText("Model");
   await expect(page.locator("#mainRange")).toHaveText(/Total loss/);
 
-  await page.locator("#trainMenuButton").click();
+  await openControlsIfMenu(page, "train");
   await page.locator("button[data-sign='pos']").click();
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/0_indices.u16"))).toBe(true);
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(true);
@@ -141,15 +174,16 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#summaryControl")).toBeHidden();
   await page.locator("button[data-train-mode='global']").click();
   await expect(page.locator("button[data-train-mode='global']")).toHaveClass(/active/);
-  await page.locator("#trainMenuButton").click();
+  await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeVisible();
+  await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
   await expect(page.locator("#globalCanvas")).toHaveCount(0);
 
   await page.locator("button[data-train-mode='local']").click();
   await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
-  await page.locator("#trainMenuButton").click();
+  await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeHidden();
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
@@ -170,6 +204,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator(".control-group")).toHaveCount(0);
   await expect(page.locator(".plot-panel")).toHaveCount(2);
   await expect(page.locator("#globalPanel")).toHaveCount(0);
+  await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
@@ -188,9 +223,25 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await page.locator("button[data-train-mode='global']").click();
-  await page.locator("#trainMenuButton").click();
+  await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeVisible();
+  await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("#trainPanel")).toBeVisible();
   await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
+});
+
+test("settings use wrapped in-panel bars when there is tile space", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(FIXTURE_URL);
+
+  await expect(page.locator(".model-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
+  await expect(page.locator(".train-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
+  await expectVisibleControlsInsidePanels(page);
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openControlsIfMenu(page, "model");
+  await openControlsIfMenu(page, "train");
+  await expectVisibleControlsInsidePanels(page);
 });
