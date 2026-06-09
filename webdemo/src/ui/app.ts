@@ -289,7 +289,10 @@ export class AppController {
       ),
     );
     this.dom.summarySelect.value = this.store.state.summary;
-    const maxK = Math.max(1, Math.min(64, this.selectedMatrix()?.max_local_influence_points ?? this.manifest.max_local_influence_points));
+    const maxK = Math.max(
+      1,
+      this.selectedMatrix()?.max_local_influence_points ?? this.manifest.max_local_influence_points,
+    );
     this.dom.kSlider.max = String(maxK);
     this.dom.kSlider.value = String(Math.min(this.store.state.k, maxK));
     this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
