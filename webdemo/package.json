@@ -1,0 +1,26 @@
+{
+  "name": "pinnfluence-vis-webdemo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node scripts/write-tiny-data.mjs && playwright test",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check": "npm run typecheck && npm run test && npm run test:e2e && npm run build"
+  },
+  "dependencies": {
+    "d3": "7.9.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/d3": "7.4.3",
+    "@types/node": "20.19.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.3",
+    "vitest": "3.2.6"
+  }
+}

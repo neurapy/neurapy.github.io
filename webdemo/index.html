@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PINNfluence Demo</title>
-    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="app-shell">
@@ -19,7 +18,7 @@
             <select id="runSelect"></select>
           </label>
           <button id="resetButton" class="icon-button" title="Reset selection" aria-label="Reset selection">
-            ↺
+            <span aria-hidden="true">R</span>
           </button>
         </div>
       </header>
@@ -47,7 +46,7 @@
             <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
               <button data-sign="abs" class="active">|·|</button>
               <button data-sign="pos">+</button>
-              <button data-sign="neg">−</button>
+              <button data-sign="neg">-</button>
             </div>
           </div>
 
@@ -70,6 +69,11 @@
                 <option value="negative_mass">Negative mass</option>
               </select>
             </label>
+          </div>
+
+          <div class="segmented mobile-tabs" id="mobileTabs" role="group" aria-label="Secondary plot">
+            <button data-tab="local" class="active">Local</button>
+            <button data-tab="global">Global</button>
           </div>
 
           <dl class="stats">
@@ -98,27 +102,36 @@
               <h2 id="mainTitle">Field</h2>
               <span id="mainRange" class="muted"></span>
             </div>
-            <canvas id="mainCanvas"></canvas>
+            <div class="plot-body">
+              <canvas id="mainCanvas"></canvas>
+              <svg id="mainSvg" class="plot-overlay" aria-hidden="true"></svg>
+            </div>
           </article>
 
-          <article class="plot-panel">
+          <article id="localPanel" class="plot-panel secondary" data-mobile-active="true">
             <div class="plot-header">
               <h2>Local Influence</h2>
               <span id="influenceRange" class="muted"></span>
             </div>
-            <canvas id="influenceCanvas"></canvas>
+            <div class="plot-body">
+              <canvas id="influenceCanvas"></canvas>
+              <svg id="influenceSvg" class="plot-overlay" aria-hidden="true"></svg>
+            </div>
           </article>
 
-          <article class="plot-panel">
+          <article id="globalPanel" class="plot-panel secondary" data-mobile-active="false">
             <div class="plot-header">
               <h2>Global Training Influence</h2>
               <span id="globalRange" class="muted"></span>
             </div>
-            <canvas id="globalCanvas"></canvas>
+            <div class="plot-body">
+              <canvas id="globalCanvas"></canvas>
+              <svg id="globalSvg" class="plot-overlay" aria-hidden="true"></svg>
+            </div>
           </article>
         </section>
       </section>
     </main>
-    <script src="./app.js" type="module"></script>
+    <script src="/src/main.ts" type="module"></script>
   </body>
 </html>

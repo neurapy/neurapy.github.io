@@ -1,0 +1,198 @@
+export type DType = "float32" | "uint32" | "uint16" | "uint8" | "int16";
+export type TypedArray =
+  | Float32Array
+  | Uint32Array
+  | Uint16Array
+  | Uint8Array
+  | Int16Array;
+
+export type Priority = "foreground" | "background";
+export type FieldKind = "prediction" | "loss";
+export type InfluenceSign = "abs" | "pos" | "neg";
+export type SummaryName =
+  | "mean_abs"
+  | "mean_signed"
+  | "max_abs"
+  | "positive_mass"
+  | "negative_mass";
+
+export interface ArraySpec {
+  path: string;
+  dtype: DType;
+  shape: number[];
+  bytes?: number;
+}
+
+export interface Bounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export type AxisBounds = Record<string, [number, number]>;
+
+export interface LinearEncoding {
+  kind: "linear";
+  min: number;
+  max: number;
+  missing?: number;
+}
+
+export interface RasterFieldManifest {
+  label: string;
+  kind: FieldKind;
+  raster: ArraySpec;
+  encoding: LinearEncoding;
+  display_domain: [number, number];
+}
+
+export interface FieldRasterManifest {
+  width: number;
+  height: number;
+  shape: [number, number];
+  bounds: AxisBounds;
+  axes: string[];
+  max_axis_resolution?: number;
+  coordinate_order?: Record<string, string>;
+  mask: ArraySpec;
+}
+
+export interface InfluenceChunkSpec {
+  id: number;
+  row_start: number;
+  row_count: number;
+  k: number;
+  value_scale: number;
+  indices: ArraySpec;
+  values: ArraySpec;
+}
+
+export interface InfluenceTopChunks {
+  row_chunk_size: number;
+  chunk_count: number;
+  indices_dtype: "uint16" | "uint32";
+  values_dtype: "int16";
+  value_encoding: {
+    kind: "symmetric_linear";
+    scale_by: "chunk.value_scale";
+  };
+  chunks: InfluenceChunkSpec[];
+}
+
+export interface InfluenceMatrixManifest {
+  id: string;
+  source_file?: string;
+  method: string;
+  left_term: string;
+  right_term: string;
+  num_pdes: number;
+  num_bcs: number;
+  n_outputs: number;
+  self_influence: boolean;
+  scores_shape: number[];
+  candidate_points_shape?: number[];
+  row_source: "candidate_points" | "train_points";
+  row_count: number;
+  k: number;
+  k_web_max: number;
+  row_chunk_size: number;
+  label: string;
+  display_label: string;
+  top_chunks: Record<InfluenceSign, InfluenceTopChunks>;
+  summary: Record<SummaryName, ArraySpec>;
+}
+
+export interface RunManifest {
+  schema_version: 5;
+  problem: string;
+  folder: string;
+  run_id: string;
+  display_name: string;
+  status: "complete" | "partial" | "incomplete" | "failed";
+  errors: string[];
+  generated_at: string;
+  matrix_mode?: string;
+  k_web_max: number;
+  row_chunk_size: number;
+  axes: string[];
+  bounds: AxisBounds;
+  n_candidate: number;
+  n_train: number;
+  n_outputs: number;
+  num_pdes: number;
+  num_bcs: number;
+  available_terms: string[];
+  term_labels: Record<string, string>;
+  default_field: string | null;
+  default_matrix: string | null;
+  arrays: {
+    candidate_points: ArraySpec;
+    train_points: ArraySpec;
+    train_kind: ArraySpec;
+    train_bc_id: ArraySpec;
+  };
+  field_raster: FieldRasterManifest | null;
+  fields: Record<string, RasterFieldManifest>;
+  influence_matrices: InfluenceMatrixManifest[];
+  validation?: Record<string, unknown>;
+}
+
+export interface IndexRunEntry {
+  run_id: string;
+  display_name: string;
+  problem: string;
+  n_candidate: number;
+  n_train: number;
+  status: RunManifest["status"];
+  manifest: string | null;
+  default_field: string | null;
+  default_matrix: string | null;
+  n_matrices?: number;
+  n_fields?: number;
+  errors?: string[];
+}
+
+export interface DataIndex {
+  schema_version: 5;
+  generated_at: string;
+  matrix_mode?: string;
+  k_web_max?: number;
+  row_chunk_size?: number;
+  bundle_report?: string;
+  runs: IndexRunEntry[];
+}
+
+export interface PointArrays {
+  candidate_points: Float32Array;
+  train_points: Float32Array;
+  train_kind: Uint8Array;
+  train_bc_id: Int16Array;
+}
+
+export interface RasterData {
+  fieldId: string;
+  values: Uint16Array;
+  mask: Uint8Array;
+  encoding: LinearEncoding;
+  displayDomain: [number, number];
+  width: number;
+  height: number;
+}
+
+export interface InfluenceRow {
+  rowIndex: number;
+  indices: Uint16Array | Uint32Array;
+  values: Float32Array;
+  rawValues: Int16Array;
+  valueScale: number;
+}
+
+export interface PlotViewport {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  right: number;
+  bottom: number;
+}
