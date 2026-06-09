@@ -1,6 +1,7 @@
 # PINNfluence ICML Demo
 
-## How to run
+
+## How to run from local machine
 
 Start the Vite webdemo dev server:
 
