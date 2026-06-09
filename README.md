@@ -101,11 +101,23 @@ Have fun on ICML
 ---
 
 # Notes
+
+
+## Layout
+
+2 Möglichkeiten
+1.: 1 Plot und local influences werden direkt drin displayed
+2.: Train + Candidate Plots. 
+
+
+
 ## Fragen für Aleks
 
 1. Regional Influences:
 Paper verwendet Summe oder? Aber das hängt ja stark von der Anzahl der Punkte ab. Wäre Average nicht besser.
-Vor allen Dingen hier in der Demo: Ich verwende zur berechnung nur die top k influences. Average wäre doch grade da besser.
+Vor allen Dingen hier in der Demo: Ich verwende zur Berechnung nur die top k influences. Average wäre doch grade da besser.
+2. Was soll/könnte noch drin sein?
+3. Welche Reihenfolge der Arrays?
 
 
 ## Webapp ToDos
