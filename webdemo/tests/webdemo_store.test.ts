@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import { initialState, reduceState } from "../src/state/store";
 
 describe("app state reducer", () => {
+  it("defaults the Train plot to Local and switches mode explicitly", () => {
+    expect(initialState.trainPlotMode).toBe("local");
+
+    const state = reduceState(initialState, { type: "trainPlotMode", trainPlotMode: "global" });
+
+    expect(state.trainPlotMode).toBe("global");
+  });
+
   it("clears region state on reset and run changes", () => {
     const region = { minX: 0.1, maxX: 0.4, minY: 0.2, maxY: 0.6 };
     const selected = reduceState(

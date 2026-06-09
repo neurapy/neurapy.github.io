@@ -11,26 +11,23 @@ export interface DomRefs {
   kSlider: HTMLInputElement;
   kOutput: HTMLOutputElement;
   summarySelect: HTMLSelectElement;
-  mobileTabs: HTMLElement;
+  trainModeButtons: HTMLElement;
   selectedPointLabel: HTMLElement;
   selectedPoint: HTMLElement;
   selectedValueLabel: HTMLElement;
   selectedValue: HTMLElement;
   trainCount: HTMLElement;
   candidateCount: HTMLElement;
+  plotGrid: HTMLElement;
   mainTitle: HTMLElement;
   mainRange: HTMLElement;
-  localTitle: HTMLElement;
-  influenceRange: HTMLElement;
-  globalRange: HTMLElement;
+  trainTitle: HTMLElement;
+  trainRange: HTMLElement;
   mainCanvas: HTMLCanvasElement;
-  influenceCanvas: HTMLCanvasElement;
-  globalCanvas: HTMLCanvasElement;
+  trainCanvas: HTMLCanvasElement;
   mainSvg: SVGSVGElement;
-  influenceSvg: SVGSVGElement;
-  globalSvg: SVGSVGElement;
-  localPanel: HTMLElement;
-  globalPanel: HTMLElement;
+  trainSvg: SVGSVGElement;
+  trainPanel: HTMLElement;
 }
 
 function required<T extends Element>(selector: string, ctor: new (...args: never[]) => T): T {
@@ -55,26 +52,23 @@ export function getDomRefs(): DomRefs {
     kSlider: required("#kSlider", HTMLInputElement),
     kOutput: required("#kOutput", HTMLOutputElement),
     summarySelect: required("#summarySelect", HTMLSelectElement),
-    mobileTabs: required("#mobileTabs", HTMLElement),
+    trainModeButtons: required("#trainModeButtons", HTMLElement),
     selectedPointLabel: required("#selectedPointLabel", HTMLElement),
     selectedPoint: required("#selectedPoint", HTMLElement),
     selectedValueLabel: required("#selectedValueLabel", HTMLElement),
     selectedValue: required("#selectedValue", HTMLElement),
     trainCount: required("#trainCount", HTMLElement),
     candidateCount: required("#candidateCount", HTMLElement),
+    plotGrid: required("#plotGrid", HTMLElement),
     mainTitle: required("#mainTitle", HTMLElement),
     mainRange: required("#mainRange", HTMLElement),
-    localTitle: required("#localTitle", HTMLElement),
-    influenceRange: required("#influenceRange", HTMLElement),
-    globalRange: required("#globalRange", HTMLElement),
+    trainTitle: required("#trainTitle", HTMLElement),
+    trainRange: required("#trainRange", HTMLElement),
     mainCanvas: required("#mainCanvas", HTMLCanvasElement),
-    influenceCanvas: required("#influenceCanvas", HTMLCanvasElement),
-    globalCanvas: required("#globalCanvas", HTMLCanvasElement),
+    trainCanvas: required("#trainCanvas", HTMLCanvasElement),
     mainSvg: required("#mainSvg", SVGSVGElement),
-    influenceSvg: required("#influenceSvg", SVGSVGElement),
-    globalSvg: required("#globalSvg", SVGSVGElement),
-    localPanel: required("#localPanel", HTMLElement),
-    globalPanel: required("#globalPanel", HTMLElement),
+    trainSvg: required("#trainSvg", SVGSVGElement),
+    trainPanel: required("#trainPanel", HTMLElement),
   };
 }
 

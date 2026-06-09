@@ -21,11 +21,13 @@ import {
   boundsFromAxisMap,
   clampIndex,
   containsViewportPoint,
+  domainAspectRatio,
   inferPointBounds,
   pointAt,
   regionBoundsFromViewportDrag,
   selectPointIndicesInBounds,
 } from "../viz/geometry";
+import { chooseAdaptivePlotLayout } from "../viz/layout";
 import {
   buildDelaunay,
   pointerInDomain,
@@ -48,7 +50,7 @@ const SUMMARY_LABELS: Record<SummaryName, string> = {
   negative_mass: "Negative mass",
 };
 
-type PanelName = "main" | "local" | "global";
+type PanelName = "main" | "train";
 
 export class AppController {
   private readonly dom: DomRefs = getDomRefs();
@@ -76,6 +78,7 @@ export class AppController {
   private latestRasterRequest = 0;
   private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
+  private lastLayoutSignature = "";
 
   async start(): Promise<void> {
     this.bindEvents();
@@ -109,8 +112,7 @@ export class AppController {
     this.dom.matrixSelect.addEventListener("change", () => {
       this.store.dispatch({ type: "matrix", matrixId: this.dom.matrixSelect.value });
       void Promise.all([this.loadInfluenceForSelection(), this.loadSummary()]).then(() => {
-        this.schedule("local");
-        this.schedule("global");
+        this.schedule("train");
         this.updateStats();
       });
     });
@@ -129,7 +131,7 @@ export class AppController {
       this.store.dispatch({ type: "sign", sign });
       this.setActiveButtons(this.dom.signButtons, sign, "sign");
       void this.loadInfluenceForSelection().then(() => {
-        this.schedule("local");
+        this.schedule("train");
         this.updateStats();
       });
     });
@@ -143,28 +145,26 @@ export class AppController {
       this.setActiveButtons(this.dom.selectionModeButtons, mode, "mode");
       void this.loadInfluenceForSelection().then(() => {
         this.schedule("main");
-        this.schedule("local");
+        this.schedule("train");
         this.updateStats();
       });
     });
     this.dom.kSlider.addEventListener("input", () => {
       this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
       this.dom.kOutput.value = String(this.store.state.k);
-      this.schedule("local");
+      this.schedule("train");
     });
     this.dom.summarySelect.addEventListener("change", () => {
       this.store.dispatch({ type: "summary", summary: this.dom.summarySelect.value as SummaryName });
-      void this.loadSummary().then(() => this.schedule("global"));
+      void this.loadSummary().then(() => this.schedule("train"));
     });
-    this.dom.mobileTabs.addEventListener("click", (event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-tab]");
+    this.dom.trainModeButtons.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-train-mode]");
       if (!button) return;
-      const tab = button.dataset.tab === "global" ? "global" : "local";
-      this.store.dispatch({ type: "mobileTab", mobileTab: tab });
-      this.setActiveButtons(this.dom.mobileTabs, tab, "tab");
-      this.dom.localPanel.dataset.mobileActive = String(tab === "local");
-      this.dom.globalPanel.dataset.mobileActive = String(tab === "global");
-      this.schedule(tab);
+      const trainPlotMode = button.dataset.trainMode === "global" ? "global" : "local";
+      this.store.dispatch({ type: "trainPlotMode", trainPlotMode });
+      this.setActiveButtons(this.dom.trainModeButtons, trainPlotMode, "trainMode");
+      this.schedule("train");
     });
     this.dom.resetButton.addEventListener("click", () => {
       this.store.dispatch({ type: "resetSelection" });
@@ -175,7 +175,7 @@ export class AppController {
       this.pickDefaultSelection();
       void this.loadInfluenceForSelection().then(() => {
         this.schedule("main");
-        this.schedule("local");
+        this.schedule("train");
         this.updateStats();
       });
     });
@@ -191,13 +191,11 @@ export class AppController {
 
   private observeLayout(): void {
     const observer = new ResizeObserver(() => {
+      this.applyAdaptiveLayout();
       this.schedule("main");
-      this.schedule("local");
-      this.schedule("global");
+      this.schedule("train");
     });
-    observer.observe(this.dom.mainCanvas);
-    observer.observe(this.dom.influenceCanvas);
-    observer.observe(this.dom.globalCanvas);
+    observer.observe(this.dom.plotGrid);
   }
 
   private populateRunSelect(): void {
@@ -246,9 +244,9 @@ export class AppController {
       this.loadSummary(),
     ]);
     this.dom.runMeta.textContent = `${this.manifest.display_name} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+    this.applyAdaptiveLayout();
     this.schedule("main");
-    this.schedule("local");
-    this.schedule("global");
+    this.schedule("train");
     this.updateStats();
     this.prefetcher = new RunPrefetcher(this.repo, this.manifest);
     this.startBackgroundPrefetch();
@@ -300,7 +298,7 @@ export class AppController {
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
     this.setActiveButtons(this.dom.selectionModeButtons, this.store.state.selectionMode, "mode");
-    this.setActiveButtons(this.dom.mobileTabs, this.store.state.mobileTab, "tab");
+    this.setActiveButtons(this.dom.trainModeButtons, this.store.state.trainPlotMode, "trainMode");
   }
 
   private populateFieldSelect(kind: "prediction" | "loss"): void {
@@ -351,9 +349,13 @@ export class AppController {
     if (!this.repo || !this.manifest || !fieldId) return;
     this.raster = await this.repo.loadRaster(fieldId, "foreground");
     await this.renderRasterWithWorker();
-    this.dom.mainTitle.textContent = this.manifest.fields[fieldId]?.label ?? "Field";
+    this.dom.mainTitle.textContent = "Model";
+    const label = this.manifest.fields[fieldId]?.label ?? "Field";
     const domain = this.manifest.fields[fieldId]?.display_domain;
-    this.dom.mainRange.textContent = domain ? `${formatNumber(domain[0])} … ${formatNumber(domain[1])}` : "";
+    this.dom.mainRange.textContent = domain
+      ? `${label} · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`
+      : label;
+    if (this.applyAdaptiveLayout()) this.schedule("train");
     this.schedule("main");
     this.updateStats();
     this.updatePrefetchPlan();
@@ -435,7 +437,7 @@ export class AppController {
       return;
     }
     this.influenceAggregate = null;
-    this.schedule("local");
+    this.schedule("train");
     const aggregate = await this.repo.loadInfluenceAggregate(
       matrix,
       this.store.state.sign,
@@ -501,6 +503,41 @@ export class AppController {
     };
   }
 
+  private applyAdaptiveLayout(): boolean {
+    const context = this.context();
+    if (!context) return false;
+    const rect = this.dom.plotGrid.getBoundingClientRect();
+    if (rect.width <= 1 || rect.height <= 1) return false;
+    const style = getComputedStyle(this.dom.plotGrid);
+    const gap = Number.parseFloat(style.gap || style.columnGap) || 0;
+    const headerHeight =
+      Math.max(
+        this.dom.mainTitle.closest(".plot-header")?.getBoundingClientRect().height ?? 0,
+        this.dom.trainTitle.closest(".plot-header")?.getBoundingClientRect().height ?? 0,
+      ) || 44;
+    const layout = chooseAdaptivePlotLayout({
+      width: rect.width,
+      height: rect.height,
+      gap,
+      headerHeight,
+      modelAspect: domainAspectRatio(this.mainPlotBounds(context)),
+      trainAspect: domainAspectRatio(context.bounds),
+    });
+    const modelTrack = `${Math.max(1, Math.round(layout.modelTrackPx))}px`;
+    const trainTrack = `${Math.max(1, Math.round(layout.trainTrackPx))}px`;
+    const columns =
+      layout.orientation === "row" ? `${modelTrack} ${trainTrack}` : "minmax(0, 1fr)";
+    const rows =
+      layout.orientation === "column" ? `${modelTrack} ${trainTrack}` : "minmax(0, 1fr)";
+    const signature = `${layout.orientation}|${columns}|${rows}`;
+    if (signature === this.lastLayoutSignature) return false;
+    this.lastLayoutSignature = signature;
+    this.dom.plotGrid.dataset.layout = layout.orientation;
+    this.dom.plotGrid.style.gridTemplateColumns = columns;
+    this.dom.plotGrid.style.gridTemplateRows = rows;
+    return true;
+  }
+
   private schedule(panel: PanelName): void {
     if (this.scheduled.has(panel)) return;
     this.scheduled.add(panel);
@@ -529,27 +566,27 @@ export class AppController {
       });
       return;
     }
-    if (panel === "local") {
+    if (this.store.state.trainPlotMode === "local") {
       const matrix = this.selectedMatrix();
       if (!matrix) return;
+      this.dom.trainTitle.textContent = "Train";
       if (this.store.state.selectionMode === "region") {
         const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
         const maxAbs = renderRegionalInfluencePlot({
-          canvas: this.dom.influenceCanvas,
-          svg: this.dom.influenceSvg,
+          canvas: this.dom.trainCanvas,
+          svg: this.dom.trainSvg,
           context,
           aggregate: this.influenceAggregate,
           k: this.store.state.k,
         });
-        this.dom.localTitle.textContent = "Regional Influence";
-        this.dom.influenceRange.textContent = this.store.state.selectedRegion
-          ? `sum over ${selectedCount.toLocaleString()} candidates${maxAbs ? ` · max |sum I| ${formatNumber(maxAbs)}` : ""}`
+        this.dom.trainRange.textContent = this.store.state.selectedRegion
+          ? `Local region · sum over ${selectedCount.toLocaleString()} candidates${maxAbs ? ` · max |sum I| ${formatNumber(maxAbs)}` : ""}`
           : "";
         return;
       }
       const maxAbs = renderLocalInfluencePlot({
-        canvas: this.dom.influenceCanvas,
-        svg: this.dom.influenceSvg,
+        canvas: this.dom.trainCanvas,
+        svg: this.dom.trainSvg,
         context,
         matrix,
         row: this.influenceRow,
@@ -557,20 +594,20 @@ export class AppController {
         selectedTrainIndex: this.store.state.selectedTrainIndex,
         k: this.store.state.k,
       });
-      this.dom.localTitle.textContent = "Local Influence";
-      this.dom.influenceRange.textContent = maxAbs ? `max |I| ${formatNumber(maxAbs)}` : "";
+      this.dom.trainRange.textContent = maxAbs ? `Local · max |I| ${formatNumber(maxAbs)}` : "Local";
       return;
     }
     const domain = renderGlobalPlot({
-      canvas: this.dom.globalCanvas,
-      svg: this.dom.globalSvg,
+      canvas: this.dom.trainCanvas,
+      svg: this.dom.trainSvg,
       context,
       values: this.summaryValues,
       diverging:
         this.store.state.summary === "mean_signed" ||
         this.store.state.summary === "negative_mass",
     });
-    this.dom.globalRange.textContent = `${formatNumber(domain[0])} … ${formatNumber(domain[1])}`;
+    this.dom.trainTitle.textContent = "Train";
+    this.dom.trainRange.textContent = `Global · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`;
   }
 
   private handleMainPointerDown(event: PointerEvent): void {
@@ -646,7 +683,7 @@ export class AppController {
     this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
     void this.loadInfluenceForSelection().then(() => {
       this.schedule("main");
-      this.schedule("local");
+      this.schedule("train");
       this.updateStats();
     });
   }
@@ -673,13 +710,13 @@ export class AppController {
     const rowIndices = matrix ? this.refreshRegionRowSelection(matrix) : [];
     this.influenceAggregate = null;
     this.schedule("main");
-    this.schedule("local");
+    this.schedule("train");
     this.updateStats();
     if (!rowIndices.length) {
       this.updatePrefetchPlan();
     }
     void this.loadInfluenceForSelection().then(() => {
-      this.schedule("local");
+      this.schedule("train");
       this.updateStats();
     });
   }
@@ -692,7 +729,7 @@ export class AppController {
     this.store.dispatch({ type: "regionSelection", region: null, candidateIndices: [] });
     this.latestAggregateRequest += 1;
     this.schedule("main");
-    this.schedule("local");
+    this.schedule("train");
     this.updateStats();
     this.updatePrefetchPlan();
   }

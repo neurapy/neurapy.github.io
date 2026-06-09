@@ -198,10 +198,6 @@ select {
   box-shadow: 0 1px 4px rgba(25, 38, 52, 0.12);
 }
 
-.mobile-tabs {
-  display: none;
-}
-
 .stats {
   margin: 0;
   padding: 4px 11px;
@@ -240,8 +236,8 @@ select {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.24fr) minmax(340px, 0.76fr);
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -249,12 +245,12 @@ select {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
 
-.plot-panel.primary {
-  grid-row: 1 / span 2;
+.plot-grid[data-layout="column"] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .plot-header {
@@ -267,12 +263,27 @@ select {
   border-bottom: 1px solid var(--line);
 }
 
+.plot-title-group {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
 .plot-header .muted {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.train-header {
+  align-items: center;
+}
+
+.train-mode {
+  width: 144px;
+  flex: 0 0 auto;
 }
 
 .plot-body {
@@ -396,32 +407,22 @@ input[type="range"] {
     padding: 9px;
   }
 
-  .mobile-tabs {
-    display: grid;
-  }
-
   .stats {
     display: none;
   }
 
   .plot-grid {
-    height: clamp(360px, calc(100svh - 450px), 560px);
+    height: clamp(300px, calc(100svh - 480px), 360px);
     min-height: 0;
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
     gap: 10px;
   }
 
-  .plot-panel.primary {
-    grid-row: auto;
+  .plot-header {
+    padding: 8px 10px;
   }
 
-  .plot-panel.secondary {
-    display: none;
-  }
-
-  .plot-panel.secondary[data-mobile-active="true"] {
-    display: grid;
+  .train-mode {
+    width: 132px;
   }
 }
 

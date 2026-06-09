@@ -82,11 +82,6 @@
             </label>
           </div>
 
-          <div class="segmented mobile-tabs" id="mobileTabs" role="group" aria-label="Secondary plot">
-            <button data-tab="local" class="active">Local</button>
-            <button data-tab="global">Global</button>
-          </div>
-
           <dl class="stats">
             <div>
               <dt id="selectedPointLabel">Point</dt>
@@ -107,10 +102,10 @@
           </dl>
         </aside>
 
-        <section class="plot-grid">
-          <article class="plot-panel primary">
+        <section id="plotGrid" class="plot-grid" data-layout="row">
+          <article class="plot-panel model-panel">
             <div class="plot-header">
-              <h2 id="mainTitle">Field</h2>
+              <h2 id="mainTitle">Model</h2>
               <span id="mainRange" class="muted"></span>
             </div>
             <div class="plot-body">
@@ -119,25 +114,20 @@
             </div>
           </article>
 
-          <article id="localPanel" class="plot-panel secondary" data-mobile-active="true">
-            <div class="plot-header">
-              <h2 id="localTitle">Local Influence</h2>
-              <span id="influenceRange" class="muted"></span>
+          <article id="trainPanel" class="plot-panel train-panel">
+            <div class="plot-header train-header">
+              <div class="plot-title-group">
+                <h2 id="trainTitle">Train</h2>
+                <span id="trainRange" class="muted"></span>
+              </div>
+              <div class="segmented train-mode" id="trainModeButtons" role="group" aria-label="Train plot mode">
+                <button data-train-mode="local" class="active">Local</button>
+                <button data-train-mode="global">Global</button>
+              </div>
             </div>
             <div class="plot-body">
-              <canvas id="influenceCanvas"></canvas>
-              <svg id="influenceSvg" class="plot-overlay" aria-hidden="true"></svg>
-            </div>
-          </article>
-
-          <article id="globalPanel" class="plot-panel secondary" data-mobile-active="false">
-            <div class="plot-header">
-              <h2>Global Training Influence</h2>
-              <span id="globalRange" class="muted"></span>
-            </div>
-            <div class="plot-body">
-              <canvas id="globalCanvas"></canvas>
-              <svg id="globalSvg" class="plot-overlay" aria-hidden="true"></svg>
+              <canvas id="trainCanvas"></canvas>
+              <svg id="trainSvg" class="plot-overlay" aria-hidden="true"></svg>
             </div>
           </article>
         </section>

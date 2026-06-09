@@ -14,7 +14,7 @@ export interface AppState {
   selectedCoord: [number, number] | null;
   selectedRegion: Bounds | null;
   selectedRegionCandidateIndices: number[];
-  mobileTab: "local" | "global";
+  trainPlotMode: "local" | "global";
 }
 
 export type AppAction =
@@ -37,7 +37,7 @@ export type AppAction =
       region: Bounds | null;
       candidateIndices: number[];
     }
-  | { type: "mobileTab"; mobileTab: AppState["mobileTab"] }
+  | { type: "trainPlotMode"; trainPlotMode: AppState["trainPlotMode"] }
   | { type: "resetSelection" };
 
 export const initialState: AppState = {
@@ -54,7 +54,7 @@ export const initialState: AppState = {
   selectedCoord: null,
   selectedRegion: null,
   selectedRegionCandidateIndices: [],
-  mobileTab: "local",
+  trainPlotMode: "local",
 };
 
 export function reduceState(state: AppState, action: AppAction): AppState {
@@ -98,8 +98,8 @@ export function reduceState(state: AppState, action: AppAction): AppState {
           Math.max(0, Math.trunc(index)),
         ),
       };
-    case "mobileTab":
-      return { ...state, mobileTab: action.mobileTab };
+    case "trainPlotMode":
+      return { ...state, trainPlotMode: action.trainPlotMode };
     case "resetSelection":
       return {
         ...state,

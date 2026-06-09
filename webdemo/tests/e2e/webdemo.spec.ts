@@ -36,27 +36,29 @@ async function clickMainPoint(page: Page): Promise<void> {
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.65);
 }
 
-test("desktop renders important plots and continues background prefetching", async ({ page }, testInfo) => {
+test("desktop renders two plots and continues background prefetching", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
 
   await page.goto(FIXTURE_URL);
 
-  await expect(page.locator("#mainTitle")).toHaveText(/Prediction/);
+  await expect(page.locator(".plot-panel")).toHaveCount(2);
+  await expect(page.locator("#globalPanel")).toHaveCount(0);
+  await expect(page.locator("#mainTitle")).toHaveText("Model");
+  await expect(page.locator("#mainRange")).toHaveText(/Prediction output/);
+  await expect(page.locator("#trainTitle")).toHaveText("Train");
+  await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#mainCanvas");
-  await expectNonblankCanvas(page, "#influenceCanvas");
-  await expectNonblankCanvas(page, "#globalCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
 
-  const mainBox = await page.locator(".plot-panel.primary").boundingBox();
-  const localBox = await page.locator("#localPanel").boundingBox();
-  const globalBox = await page.locator("#globalPanel").boundingBox();
+  const mainBox = await page.locator(".model-panel").boundingBox();
+  const trainBox = await page.locator("#trainPanel").boundingBox();
   const viewport = page.viewportSize();
   expect(mainBox?.y).toBeGreaterThanOrEqual(0);
-  expect(localBox?.y).toBeGreaterThanOrEqual(0);
-  expect(globalBox?.y).toBeGreaterThanOrEqual(0);
+  expect(trainBox?.y).toBeGreaterThanOrEqual(0);
   expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
-  expect((globalBox?.y ?? 0) + (globalBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
+  expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
   const predIndex = requests.findIndex((url) => url.includes("pred_output_0_raster.u16"));
   const lossIndex = requests.findIndex((url) => url.includes("loss_total_raster.u16"));
@@ -71,43 +73,52 @@ test("desktop renders important plots and continues background prefetching", asy
   await expect.poll(() => requests.some((url) => url.includes("abs/chunks/1_indices.u16"))).toBe(true);
 
   await page.locator("button[data-kind='loss']").click();
-  await expect(page.locator("#mainTitle")).toHaveText(/Total loss/);
+  await expect(page.locator("#mainTitle")).toHaveText("Model");
+  await expect(page.locator("#mainRange")).toHaveText(/Total loss/);
 
   await page.locator("button[data-sign='pos']").click();
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/0_indices.u16"))).toBe(true);
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(true);
 
+  await page.locator("button[data-train-mode='global']").click();
+  await expect(page.locator("button[data-train-mode='global']")).toHaveClass(/active/);
+  await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expect(page.locator("#globalCanvas")).toHaveCount(0);
+
+  await page.locator("button[data-train-mode='local']").click();
+  await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await page.locator("button[data-mode='region']").click();
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
   await expect(page.locator("#candidateCount")).toHaveText(/[1-4] \/ 4/);
-  await expect(page.locator("#localTitle")).toHaveText("Regional Influence");
-  await expect(page.locator("#influenceRange")).toHaveText(/sum over [1-4] candidates/);
-  await expectNonblankCanvas(page, "#influenceCanvas");
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
+  await expectNonblankCanvas(page, "#trainCanvas");
 
   await page.locator("button[data-mode='point']").click();
   await clickMainPoint(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/\(.+, .+\)/);
-  await expect(page.locator("#localTitle")).toHaveText("Local Influence");
-  await expectNonblankCanvas(page, "#influenceCanvas");
+  await expect(page.locator("#trainRange")).toHaveText(/Local/);
+  await expectNonblankCanvas(page, "#trainCanvas");
 });
 
-test("mobile keeps main and selected secondary plot in the first viewport", async ({ page }, testInfo) => {
+test("mobile keeps Model and Train visible in the first viewport", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile-only viewport assertions");
   await page.goto(FIXTURE_URL);
 
+  await expect(page.locator(".plot-panel")).toHaveCount(2);
+  await expect(page.locator("#globalPanel")).toHaveCount(0);
   await expectNonblankCanvas(page, "#mainCanvas");
-  await expectNonblankCanvas(page, "#influenceCanvas");
-  await expect(page.locator("#globalPanel")).toBeHidden();
+  await expectNonblankCanvas(page, "#trainCanvas");
 
-  const mainBox = await page.locator(".plot-panel.primary").boundingBox();
-  const localBox = await page.locator("#localPanel").boundingBox();
+  const mainBox = await page.locator(".model-panel").boundingBox();
+  const trainBox = await page.locator("#trainPanel").boundingBox();
   const viewport = page.viewportSize();
   expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
-  expect((localBox?.y ?? 0) + (localBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
+  expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
-  await page.locator("button[data-tab='global']").click();
-  await expect(page.locator("#localPanel")).toBeHidden();
-  await expect(page.locator("#globalPanel")).toBeVisible();
-  await expectNonblankCanvas(page, "#globalCanvas");
+  await page.locator("button[data-train-mode='global']").click();
+  await expect(page.locator("#trainPanel")).toBeVisible();
+  await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
+  await expectNonblankCanvas(page, "#trainCanvas");
 });
