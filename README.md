@@ -103,6 +103,13 @@ Have fun on ICML
 # Notes
 
 
+## TODOS nach ALeks quatschen
+- Aleks schickt mir Folder names für GOOD und BAD model. 
+-> Neue Daten Generieren
+-> Good / Bad switcher in der TOP BAR
+- Kontur in Train rein
+- Evtl. Den Nach Loss Terms gesplittete Global Influence POlot
+
 ## Layout
 
 2 Möglichkeiten
@@ -112,6 +119,12 @@ Have fun on ICML
 
 
 ## Fragen für Aleks
+
+Infos:
+
+Für die lokale Demo, falls ihr ein Laptop oder PC da hinstellen könnt, kannst du es mit vollen Top-K Generieren.
+
+Fragen
 
 1. Regional Influences:
 Paper verwendet Summe oder? Aber das hängt ja stark von der Anzahl der Punkte ab. Wäre Average nicht besser.
@@ -125,12 +138,20 @@ offtopic:
 ## Webapp ToDos
 
 ### Implement
+- Checkbox, und ansonsten nichts preloaden.
 1. Aspect Ration richtig nutzen um Prediction + Global Influence am best möglichsten darszustellen
 - Die Bilder müssen richtig scalen!
 - Das was Aleks geschrieben hat
 - Region Influence
 - Mobile version
 - Sinnvolle Defaults ausgewählt
+
+- Arrow
+- text wie Prediction û · 0.0015868 … 0.31018 Verschwindet in Mobile (Und ist auch unötig)
+- Axis Labels
+- Colorbar und range der predictions
+- TIle Titel anpassen
+- Reihenfolge Matrizen
 
 ### Performance Optims
 
