@@ -9,7 +9,7 @@ import {
   planRunPrefetchTasks,
   type PrefetchContext,
 } from "../src/data/prefetcher";
-import type { RunManifest } from "../src/types";
+import type { InfluenceMatrixManifest, RunManifest } from "../src/types";
 
 function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
   const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
@@ -220,6 +220,155 @@ describe("chunk row lookup", () => {
     expect(row.values[0]).toBeCloseTo(0.2);
     expect(row.values[1]).toBeCloseTo(-0.1);
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+function aggregateChunk(
+  sign: "abs" | "pos" | "neg",
+  id: number,
+  rowStart: number,
+): InfluenceMatrixManifest["top_chunks"]["abs"]["chunks"][number] {
+  return {
+    id,
+    row_start: rowStart,
+    row_count: 2,
+    k: 2,
+    value_scale: 0.001,
+    indices: {
+      path: `m0/${sign}/chunks/${id}_indices.u16`,
+      dtype: "uint16",
+      shape: [2, 2],
+    },
+    values: {
+      path: `m0/${sign}/chunks/${id}_values.i16`,
+      dtype: "int16",
+      shape: [2, 2],
+    },
+  };
+}
+
+function aggregateMatrix(): InfluenceMatrixManifest {
+  const matrix = manifest.influence_matrices[0];
+  return {
+    ...matrix,
+    scores_shape: [4, 3],
+    row_count: 4,
+    k: 2,
+    max_local_influence_points: 2,
+    top_chunks: {
+      abs: {
+        ...matrix.top_chunks.abs,
+        row_chunk_size: 2,
+        chunk_count: 2,
+        chunks: [aggregateChunk("abs", 0, 0), aggregateChunk("abs", 1, 2)],
+      },
+      pos: {
+        ...matrix.top_chunks.abs,
+        row_chunk_size: 2,
+        chunk_count: 2,
+        chunks: [aggregateChunk("pos", 0, 0), aggregateChunk("pos", 1, 2)],
+      },
+      neg: {
+        ...matrix.top_chunks.abs,
+        row_chunk_size: 2,
+        chunk_count: 2,
+        chunks: [aggregateChunk("neg", 0, 0), aggregateChunk("neg", 1, 2)],
+      },
+    },
+  };
+}
+
+function installAggregateFetch(): void {
+  const chunkBuffers = new Map<string, ArrayBuffer>();
+  for (const sign of ["abs", "pos", "neg"]) {
+    chunkBuffers.set(
+      `http://example.test/m0/${sign}/chunks/0_indices.u16`,
+      bufferFrom(new Uint16Array([0, 1, 1, 2])),
+    );
+    chunkBuffers.set(
+      `http://example.test/m0/${sign}/chunks/0_values.i16`,
+      bufferFrom(new Int16Array([100, -200, -50, 150])),
+    );
+    chunkBuffers.set(
+      `http://example.test/m0/${sign}/chunks/1_indices.u16`,
+      bufferFrom(new Uint16Array([0, 2, 2, 1])),
+    );
+    chunkBuffers.set(
+      `http://example.test/m0/${sign}/chunks/1_values.i16`,
+      bufferFrom(new Int16Array([300, -100, -400, 50])),
+    );
+  }
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const key = input.toString();
+    const buffer = chunkBuffers.get(key);
+    if (!buffer) return new Response(null, { status: 404 });
+    return new Response(buffer.slice(0));
+  });
+}
+
+describe("chunk row aggregation", () => {
+  it("aggregates rows from one chunk", async () => {
+    installAggregateFetch();
+    const matrix = aggregateMatrix();
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const aggregate = await repo.loadInfluenceAggregate(matrix, "abs", [0, 1]);
+
+    expect(Array.from(aggregate.rowIndices)).toEqual([0, 1]);
+    expect(Array.from(aggregate.indices)).toEqual([1, 2, 0]);
+    expect(Array.from(aggregate.values)).toEqual([
+      expect.closeTo(0.25),
+      expect.closeTo(0.15),
+      expect.closeTo(0.1),
+    ]);
+  });
+
+  it("aggregates rows across chunks", async () => {
+    installAggregateFetch();
+    const matrix = aggregateMatrix();
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const aggregate = await repo.loadInfluenceAggregate(matrix, "abs", [1, 2]);
+
+    expect(Array.from(aggregate.indices)).toEqual([0, 2, 1]);
+    expect(Array.from(aggregate.values)).toEqual([
+      expect.closeTo(0.3),
+      expect.closeTo(0.25),
+      expect.closeTo(0.05),
+    ]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("filters and sorts aggregate values by selected sign", async () => {
+    installAggregateFetch();
+    const matrix = aggregateMatrix();
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const pos = await repo.loadInfluenceAggregate(matrix, "pos", [0, 1]);
+    const neg = await repo.loadInfluenceAggregate(matrix, "neg", [0, 2]);
+
+    expect(Array.from(pos.indices)).toEqual([2, 0]);
+    expect(Array.from(pos.values)).toEqual([expect.closeTo(0.15), expect.closeTo(0.1)]);
+    expect(Array.from(neg.indices)).toEqual([1, 2]);
+    expect(Array.from(neg.values)).toEqual([expect.closeTo(-0.2), expect.closeTo(-0.1)]);
+  });
+
+  it("fetches a shared chunk once for multiple selected rows", async () => {
+    installAggregateFetch();
+    const matrix = aggregateMatrix();
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    await repo.loadInfluenceAggregate(matrix, "abs", [0, 1]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      new URL("http://example.test/m0/abs/chunks/0_indices.u16"),
+      expect.any(Object),
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      new URL("http://example.test/m0/abs/chunks/0_values.i16"),
+      expect.any(Object),
+    );
   });
 });
 

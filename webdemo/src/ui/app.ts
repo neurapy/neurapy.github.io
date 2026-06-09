@@ -1,8 +1,10 @@
 import type { Delaunay } from "d3";
 import type {
+  Bounds,
   DataIndex,
   FieldKind,
   IndexRunEntry,
+  InfluenceAggregate,
   InfluenceMatrixManifest,
   InfluenceRow,
   PointArrays,
@@ -15,7 +17,15 @@ import { loadIndex, loadRunManifest, resolveIndexUrl } from "../data/manifest";
 import { RunPrefetcher, type PrefetchContext } from "../data/prefetcher";
 import { Store } from "../state/store";
 import type { RasterWorkerRequest, RasterWorkerResponse } from "../worker/rasterWorker";
-import { boundsFromAxisMap, clampIndex, inferPointBounds, pointAt } from "../viz/geometry";
+import {
+  boundsFromAxisMap,
+  clampIndex,
+  containsViewportPoint,
+  inferPointBounds,
+  pointAt,
+  regionBoundsFromViewportDrag,
+  selectPointIndicesInBounds,
+} from "../viz/geometry";
 import {
   buildDelaunay,
   pointerInDomain,
@@ -23,6 +33,7 @@ import {
   renderGlobalPlot,
   renderLocalInfluencePlot,
   renderMainPlot,
+  renderRegionalInfluencePlot,
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
@@ -57,9 +68,13 @@ export class AppController {
   private raster: RasterData | null = null;
   private rasterResult: RasterRenderResult | null = null;
   private influenceRow: InfluenceRow | null = null;
+  private influenceAggregate: InfluenceAggregate | null = null;
   private summaryValues: Float32Array | null = null;
   private mainViewport = null as ReturnType<typeof renderMainPlot> | null;
+  private draftRegion: Bounds | null = null;
+  private regionDrag: { pointerId: number; start: [number, number]; current: [number, number] } | null = null;
   private latestRasterRequest = 0;
+  private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
 
   async start(): Promise<void> {
@@ -93,9 +108,10 @@ export class AppController {
     });
     this.dom.matrixSelect.addEventListener("change", () => {
       this.store.dispatch({ type: "matrix", matrixId: this.dom.matrixSelect.value });
-      void Promise.all([this.loadInfluenceRow(), this.loadSummary()]).then(() => {
+      void Promise.all([this.loadInfluenceForSelection(), this.loadSummary()]).then(() => {
         this.schedule("local");
         this.schedule("global");
+        this.updateStats();
       });
     });
     this.dom.fieldKindButtons.addEventListener("click", (event) => {
@@ -112,7 +128,24 @@ export class AppController {
       const sign = button.dataset.sign === "pos" || button.dataset.sign === "neg" ? button.dataset.sign : "abs";
       this.store.dispatch({ type: "sign", sign });
       this.setActiveButtons(this.dom.signButtons, sign, "sign");
-      void this.loadInfluenceRow().then(() => this.schedule("local"));
+      void this.loadInfluenceForSelection().then(() => {
+        this.schedule("local");
+        this.updateStats();
+      });
+    });
+    this.dom.selectionModeButtons.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-mode]");
+      if (!button) return;
+      const mode = button.dataset.mode === "region" ? "region" : "point";
+      this.store.dispatch({ type: "selectionMode", selectionMode: mode });
+      this.draftRegion = null;
+      this.regionDrag = null;
+      this.setActiveButtons(this.dom.selectionModeButtons, mode, "mode");
+      void this.loadInfluenceForSelection().then(() => {
+        this.schedule("main");
+        this.schedule("local");
+        this.updateStats();
+      });
     });
     this.dom.kSlider.addEventListener("input", () => {
       this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
@@ -135,14 +168,25 @@ export class AppController {
     });
     this.dom.resetButton.addEventListener("click", () => {
       this.store.dispatch({ type: "resetSelection" });
+      this.draftRegion = null;
+      this.regionDrag = null;
+      this.influenceAggregate = null;
+      this.setActiveButtons(this.dom.selectionModeButtons, this.store.state.selectionMode, "mode");
       this.pickDefaultSelection();
-      void this.loadInfluenceRow().then(() => {
+      void this.loadInfluenceForSelection().then(() => {
         this.schedule("main");
         this.schedule("local");
         this.updateStats();
       });
     });
-    this.dom.mainCanvas.addEventListener("pointerdown", (event) => this.handleMainPointer(event));
+    this.dom.mainCanvas.addEventListener("pointerdown", (event) => this.handleMainPointerDown(event));
+    this.dom.mainCanvas.addEventListener("pointermove", (event) => this.handleMainPointerMove(event));
+    this.dom.mainCanvas.addEventListener("pointerup", (event) => this.handleMainPointerUp(event));
+    this.dom.mainCanvas.addEventListener("pointercancel", (event) => this.handleMainPointerCancel(event));
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      this.clearRegionSelection();
+    });
   }
 
   private observeLayout(): void {
@@ -170,6 +214,14 @@ export class AppController {
     this.prefetcher?.stop();
     this.prefetcher = null;
     this.repo?.abortBackground();
+    this.raster = null;
+    this.rasterResult = null;
+    this.influenceRow = null;
+    this.influenceAggregate = null;
+    this.summaryValues = null;
+    this.draftRegion = null;
+    this.regionDrag = null;
+    this.latestAggregateRequest += 1;
     showMessage(this.dom.message, null);
     this.dom.runMeta.textContent = `Loading ${run.display_name}`;
     this.store.dispatch({ type: "run", runId: run.run_id });
@@ -188,7 +240,11 @@ export class AppController {
     );
     this.populateControls();
     this.pickDefaultSelection();
-    await Promise.all([this.loadRaster(this.store.state.fieldId), this.loadInfluenceRow(), this.loadSummary()]);
+    await Promise.all([
+      this.loadRaster(this.store.state.fieldId),
+      this.loadInfluenceForSelection(),
+      this.loadSummary(),
+    ]);
     this.dom.runMeta.textContent = `${this.manifest.display_name} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
     this.schedule("main");
     this.schedule("local");
@@ -240,6 +296,7 @@ export class AppController {
     this.dom.kOutput.value = String(this.store.state.k);
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
+    this.setActiveButtons(this.dom.selectionModeButtons, this.store.state.selectionMode, "mode");
     this.setActiveButtons(this.dom.mobileTabs, this.store.state.mobileTab, "tab");
   }
 
@@ -355,6 +412,38 @@ export class AppController {
     this.updatePrefetchPlan();
   }
 
+  private async loadInfluenceForSelection(): Promise<void> {
+    if (this.store.state.selectionMode === "region") {
+      await this.loadInfluenceAggregate();
+      return;
+    }
+    this.latestAggregateRequest += 1;
+    await this.loadInfluenceRow();
+  }
+
+  private async loadInfluenceAggregate(): Promise<void> {
+    const matrix = this.selectedMatrix();
+    if (!this.repo || !matrix) return;
+    const requestId = ++this.latestAggregateRequest;
+    const rowIndices = this.refreshRegionRowSelection(matrix);
+    if (!this.store.state.selectedRegion) {
+      this.influenceAggregate = null;
+      this.updatePrefetchPlan();
+      return;
+    }
+    this.influenceAggregate = null;
+    this.schedule("local");
+    const aggregate = await this.repo.loadInfluenceAggregate(
+      matrix,
+      this.store.state.sign,
+      rowIndices,
+      "foreground",
+    );
+    if (requestId !== this.latestAggregateRequest) return;
+    this.influenceAggregate = aggregate;
+    this.updatePrefetchPlan();
+  }
+
   private async loadSummary(): Promise<void> {
     const matrix = this.selectedMatrix();
     if (!this.repo || !matrix) return;
@@ -388,6 +477,8 @@ export class AppController {
       summary: this.store.state.summary,
       selectedCandidateIndex: this.store.state.selectedCandidateIndex,
       selectedTrainIndex: this.store.state.selectedTrainIndex,
+      selectionMode: this.store.state.selectionMode,
+      selectedRegionCandidateIndices: this.store.state.selectedRegionCandidateIndices,
     };
   }
 
@@ -426,7 +517,10 @@ export class AppController {
         context,
         raster: this.raster,
         rasterResult: this.rasterResult,
-        selectedCoord: this.store.state.selectedCoord,
+        selectedCoord: this.store.state.selectionMode === "point" ? this.store.state.selectedCoord : null,
+        selectedRegion:
+          this.store.state.selectionMode === "region" ? this.store.state.selectedRegion : null,
+        draftRegion: this.store.state.selectionMode === "region" ? this.draftRegion : null,
         showCandidatePoints: true,
         showTrainPoints: true,
       });
@@ -435,6 +529,21 @@ export class AppController {
     if (panel === "local") {
       const matrix = this.selectedMatrix();
       if (!matrix) return;
+      if (this.store.state.selectionMode === "region") {
+        const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
+        const maxAbs = renderRegionalInfluencePlot({
+          canvas: this.dom.influenceCanvas,
+          svg: this.dom.influenceSvg,
+          context,
+          aggregate: this.influenceAggregate,
+          k: this.store.state.k,
+        });
+        this.dom.localTitle.textContent = "Regional Influence";
+        this.dom.influenceRange.textContent = this.store.state.selectedRegion
+          ? `sum over ${selectedCount.toLocaleString()} candidates${maxAbs ? ` · max |sum I| ${formatNumber(maxAbs)}` : ""}`
+          : "";
+        return;
+      }
       const maxAbs = renderLocalInfluencePlot({
         canvas: this.dom.influenceCanvas,
         svg: this.dom.influenceSvg,
@@ -445,6 +554,7 @@ export class AppController {
         selectedTrainIndex: this.store.state.selectedTrainIndex,
         k: this.store.state.k,
       });
+      this.dom.localTitle.textContent = "Local Influence";
       this.dom.influenceRange.textContent = maxAbs ? `max |I| ${formatNumber(maxAbs)}` : "";
       return;
     }
@@ -460,10 +570,62 @@ export class AppController {
     this.dom.globalRange.textContent = `${formatNumber(domain[0])} … ${formatNumber(domain[1])}`;
   }
 
-  private handleMainPointer(event: PointerEvent): void {
+  private handleMainPointerDown(event: PointerEvent): void {
+    if (this.store.state.selectionMode === "region") {
+      this.handleRegionPointerDown(event);
+      return;
+    }
+    this.handlePointPointer(event);
+  }
+
+  private handleMainPointerMove(event: PointerEvent): void {
+    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
     const context = this.context();
     if (!context || !this.mainViewport) return;
-    const domain = pointerInDomain(event, this.dom.mainCanvas, context.bounds, this.mainViewport);
+    const bounds = this.mainPlotBounds(context);
+    this.regionDrag.current = this.canvasPointer(event);
+    this.draftRegion = regionBoundsFromViewportDrag(
+      this.regionDrag.start,
+      this.regionDrag.current,
+      bounds,
+      this.mainViewport,
+    );
+    this.schedule("main");
+  }
+
+  private handleMainPointerUp(event: PointerEvent): void {
+    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
+    const drag = this.regionDrag;
+    const end = this.canvasPointer(event);
+    this.regionDrag = null;
+    if (this.dom.mainCanvas.hasPointerCapture(event.pointerId)) {
+      this.dom.mainCanvas.releasePointerCapture(event.pointerId);
+    }
+    const distance = Math.hypot(end[0] - drag.start[0], end[1] - drag.start[1]);
+    const region = this.draftRegion;
+    this.draftRegion = null;
+    if (distance < 8 || !region) {
+      this.schedule("main");
+      return;
+    }
+    this.finalizeRegionSelection(region);
+  }
+
+  private handleMainPointerCancel(event: PointerEvent): void {
+    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
+    this.regionDrag = null;
+    this.draftRegion = null;
+    if (this.dom.mainCanvas.hasPointerCapture(event.pointerId)) {
+      this.dom.mainCanvas.releasePointerCapture(event.pointerId);
+    }
+    this.schedule("main");
+  }
+
+  private handlePointPointer(event: PointerEvent): void {
+    const context = this.context();
+    if (!context || !this.mainViewport) return;
+    const bounds = this.mainPlotBounds(context);
+    const domain = pointerInDomain(event, this.dom.mainCanvas, bounds, this.mainViewport);
     if (!domain) return;
     const matrix = this.selectedMatrix();
     const candidateIndex =
@@ -479,15 +641,109 @@ export class AppController {
         ? pointAt(context.points.train_points, trainIndex, context.trainDim)
         : pointAt(context.points.candidate_points, candidateIndex, context.candidateDim);
     this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
-    void this.loadInfluenceRow().then(() => {
+    void this.loadInfluenceForSelection().then(() => {
       this.schedule("main");
       this.schedule("local");
       this.updateStats();
     });
   }
 
+  private handleRegionPointerDown(event: PointerEvent): void {
+    const context = this.context();
+    if (!context || !this.mainViewport) return;
+    const point = this.canvasPointer(event);
+    if (!containsViewportPoint(point[0], point[1], this.mainViewport)) return;
+    this.dom.mainCanvas.setPointerCapture(event.pointerId);
+    this.regionDrag = { pointerId: event.pointerId, start: point, current: point };
+    this.draftRegion = regionBoundsFromViewportDrag(
+      point,
+      point,
+      this.mainPlotBounds(context),
+      this.mainViewport,
+    );
+    this.schedule("main");
+  }
+
+  private finalizeRegionSelection(region: Bounds): void {
+    this.store.dispatch({ type: "regionSelection", region, candidateIndices: [] });
+    const matrix = this.selectedMatrix();
+    const rowIndices = matrix ? this.refreshRegionRowSelection(matrix) : [];
+    this.influenceAggregate = null;
+    this.schedule("main");
+    this.schedule("local");
+    this.updateStats();
+    if (!rowIndices.length) {
+      this.updatePrefetchPlan();
+    }
+    void this.loadInfluenceForSelection().then(() => {
+      this.schedule("local");
+      this.updateStats();
+    });
+  }
+
+  private clearRegionSelection(): void {
+    if (!this.store.state.selectedRegion && !this.draftRegion) return;
+    this.draftRegion = null;
+    this.regionDrag = null;
+    this.influenceAggregate = null;
+    this.store.dispatch({ type: "regionSelection", region: null, candidateIndices: [] });
+    this.latestAggregateRequest += 1;
+    this.schedule("main");
+    this.schedule("local");
+    this.updateStats();
+    this.updatePrefetchPlan();
+  }
+
+  private refreshRegionRowSelection(matrix: InfluenceMatrixManifest): number[] {
+    const context = this.context();
+    const region = this.store.state.selectedRegion;
+    if (!context || !region) {
+      this.store.dispatch({ type: "regionSelection", region, candidateIndices: [] });
+      return [];
+    }
+    const rowSourcePoints =
+      matrix.row_source === "train_points"
+        ? context.points.train_points
+        : context.points.candidate_points;
+    const rowDim = matrix.row_source === "train_points" ? context.trainDim : context.candidateDim;
+    const rowIndices = selectPointIndicesInBounds(
+      rowSourcePoints,
+      rowDim,
+      region,
+      matrix.row_count,
+    );
+    this.store.dispatch({ type: "regionSelection", region, candidateIndices: rowIndices });
+    return rowIndices;
+  }
+
+  private mainPlotBounds(context: PlotContext): Bounds {
+    return this.manifest?.field_raster
+      ? boundsFromAxisMap(this.manifest.field_raster.bounds, this.manifest.field_raster.axes)
+      : context.bounds;
+  }
+
+  private canvasPointer(event: PointerEvent): [number, number] {
+    const rect = this.dom.mainCanvas.getBoundingClientRect();
+    return [event.clientX - rect.left, event.clientY - rect.top];
+  }
+
   private updateStats(): void {
     if (!this.manifest) return;
+    if (this.store.state.selectionMode === "region") {
+      const region = this.store.state.selectedRegion;
+      const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
+      this.dom.selectedPointLabel.textContent = "Region";
+      this.dom.selectedValueLabel.textContent = "Value";
+      this.dom.selectedPoint.textContent = region
+        ? `x ${formatNumber(region.minX)} … ${formatNumber(region.maxX)}, y ${formatNumber(region.minY)} … ${formatNumber(region.maxY)}`
+        : "-";
+      this.dom.selectedValue.textContent = "-";
+      this.dom.trainCount.textContent = this.manifest.n_train.toLocaleString();
+      this.dom.candidateCount.textContent = region
+        ? `${selectedCount.toLocaleString()} / ${this.manifest.n_candidate.toLocaleString()}`
+        : this.manifest.n_candidate.toLocaleString();
+      return;
+    }
     const context = this.context();
     const rasterBounds = this.manifest.field_raster
       ? boundsFromAxisMap(this.manifest.field_raster.bounds, this.manifest.field_raster.axes)
@@ -498,6 +754,8 @@ export class AppController {
     const [x, y] = sample
       ? [sample.x, sample.y]
       : (this.store.state.selectedCoord ?? [Number.NaN, Number.NaN]);
+    this.dom.selectedPointLabel.textContent = "Point";
+    this.dom.selectedValueLabel.textContent = "Value";
     this.dom.selectedPoint.textContent = `(${formatNumber(x)}, ${formatNumber(y)})`;
     this.dom.selectedValue.textContent = formatNumber(sample?.value);
     this.dom.trainCount.textContent = this.manifest.n_train.toLocaleString();

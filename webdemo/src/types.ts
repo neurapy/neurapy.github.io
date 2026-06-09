@@ -9,6 +9,7 @@ export type TypedArray =
 export type Priority = "foreground" | "background";
 export type FieldKind = "prediction" | "loss";
 export type InfluenceSign = "abs" | "pos" | "neg";
+export type SelectionMode = "point" | "region";
 export type SummaryName =
   | "mean_abs"
   | "mean_signed"
@@ -185,6 +186,12 @@ export interface InfluenceRow {
   values: Float32Array;
   rawValues: Int16Array;
   valueScale: number;
+}
+
+export interface InfluenceAggregate {
+  rowIndices: number[];
+  indices: Uint32Array;
+  values: Float32Array;
 }
 
 export interface PlotViewport {

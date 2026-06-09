@@ -9,6 +9,7 @@ import {
 } from "d3";
 import type {
   Bounds,
+  InfluenceAggregate,
   InfluenceMatrixManifest,
   InfluenceRow,
   PointArrays,
@@ -128,6 +129,8 @@ export function renderMainPlot(args: {
   raster: RasterData | null;
   rasterResult: RasterRenderResult | null;
   selectedCoord: [number, number] | null;
+  selectedRegion: Bounds | null;
+  draftRegion: Bounds | null;
   showCandidatePoints: boolean;
   showTrainPoints: boolean;
 }): PlotViewport {
@@ -170,6 +173,12 @@ export function renderMainPlot(args: {
     const [sx, sy] = projectPointToViewport(args.selectedCoord[0], args.selectedCoord[1], rasterBounds, viewport);
     drawPointMarker(ctx, sx, sy, 7);
   }
+  if (args.selectedRegion) {
+    drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, false);
+  }
+  if (args.draftRegion) {
+    drawRegionOverlay(ctx, args.draftRegion, rasterBounds, viewport, true);
+  }
 
   renderAxes(args.svg, rasterBounds, width, height, viewport);
   if (args.rasterResult?.contourPaths.length) {
@@ -184,6 +193,29 @@ export function renderMainPlot(args: {
       .attr("transform", `translate(${viewport.x},${viewport.y}) scale(${scaleX},${scaleY})`);
   }
   return viewport;
+}
+
+function drawRegionOverlay(
+  ctx: CanvasRenderingContext2D,
+  region: Bounds,
+  bounds: Bounds,
+  viewport: PlotViewport,
+  draft: boolean,
+): void {
+  const [x0, y0] = projectPointToViewport(region.minX, region.maxY, bounds, viewport);
+  const [x1, y1] = projectPointToViewport(region.maxX, region.minY, bounds, viewport);
+  const x = Math.min(x0, x1);
+  const y = Math.min(y0, y1);
+  const width = Math.abs(x1 - x0);
+  const height = Math.abs(y1 - y0);
+  ctx.save();
+  ctx.fillStyle = draft ? "rgba(242, 184, 75, 0.16)" : "rgba(12, 124, 120, 0.14)";
+  ctx.strokeStyle = draft ? "#f2b84b" : "#0c7c78";
+  ctx.lineWidth = draft ? 1.4 : 2;
+  ctx.setLineDash(draft ? [6, 4] : []);
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeRect(x, y, width, height);
+  ctx.restore();
 }
 
 export function renderLocalInfluencePlot(args: {
@@ -250,6 +282,45 @@ export function renderLocalInfluencePlot(args: {
     ctx.stroke();
   }
   drawPointMarker(ctx, rowSx, rowSy, 7);
+  return maxAbs;
+}
+
+export function renderRegionalInfluencePlot(args: {
+  canvas: HTMLCanvasElement;
+  svg: SVGSVGElement;
+  context: PlotContext;
+  aggregate: InfluenceAggregate | null;
+  k: number;
+}): number {
+  const { ctx, width, height } = prepareCanvas(args.canvas);
+  clearCanvas(ctx, width, height);
+  const viewport = plotViewport(args.context.bounds, width, height);
+  renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, args.context.bounds, viewport, {
+    color: "#526070",
+    alpha: 0.18,
+    maxPoints: 10000,
+    size: 2,
+  });
+
+  if (!args.aggregate) return 0;
+  const values = args.aggregate.values.subarray(0, Math.min(args.k, args.aggregate.values.length));
+  const indices = args.aggregate.indices.subarray(0, values.length);
+  const maxAbs = Math.max(0, ...Array.from(values, (value) => Math.abs(value)));
+  const radius = scaleSqrt().domain([0, maxAbs || 1]).range([3, 15]);
+  const color = divergingColorScale([-maxAbs || -1, maxAbs || 1]);
+
+  for (let index = indices.length - 1; index >= 0; index -= 1) {
+    const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
+    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
+    ctx.beginPath();
+    ctx.arc(sx, sy, radius(Math.abs(values[index])), 0, Math.PI * 2);
+    ctx.fillStyle = color(values[index]);
+    ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "#182230";
+    ctx.stroke();
+  }
   return maxAbs;
 }
 

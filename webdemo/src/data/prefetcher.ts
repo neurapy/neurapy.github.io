@@ -4,6 +4,7 @@ import type {
   InfluenceMatrixManifest,
   InfluenceSign,
   RunManifest,
+  SelectionMode,
   SummaryName,
 } from "../types";
 import type { DataRepository } from "./arrays";
@@ -25,6 +26,8 @@ export interface PrefetchContext {
   summary: SummaryName;
   selectedCandidateIndex: number;
   selectedTrainIndex: number;
+  selectionMode?: SelectionMode;
+  selectedRegionCandidateIndices?: number[];
 }
 
 export interface PrefetchTask {
@@ -163,12 +166,16 @@ function addMatrixChunkTasks(
   selectedMatrix: boolean,
 ): void {
   const selectedRow = selectedRowIndex(matrix, context);
+  const selectedRows =
+    context.selectionMode === "region" && context.selectedRegionCandidateIndices?.length
+      ? context.selectedRegionCandidateIndices
+      : [selectedRow];
   for (const sign of INFLUENCE_SIGNS) {
     const group = matrix.top_chunks[sign];
     if (!group) continue;
     const signOffset = sign === context.sign ? 0 : 10;
     for (const chunk of group.chunks) {
-      const distance = chunkDistance(chunk.row_start, chunk.row_count, selectedRow);
+      const distance = chunkDistanceToRows(chunk.row_start, chunk.row_count, selectedRows);
       const rank = selectedMatrix ? 30 + signOffset + Math.min(distance, 10_000) : 100 + signOffset + chunk.id;
       add(chunk.indices, rank, `chunk:${matrix.id}:${sign}:${chunk.id}:indices`);
       add(chunk.values, rank, `chunk:${matrix.id}:${sign}:${chunk.id}:values`);
@@ -188,6 +195,15 @@ function chunkDistance(rowStart: number, rowCount: number, rowIndex: number): nu
   if (rowIndex < rowStart) return rowStart - rowIndex;
   if (rowIndex > rowEnd) return rowIndex - rowEnd;
   return 0;
+}
+
+function chunkDistanceToRows(rowStart: number, rowCount: number, rowIndices: number[]): number {
+  let minDistance = Infinity;
+  for (const rowIndex of rowIndices) {
+    if (!Number.isFinite(rowIndex)) continue;
+    minDistance = Math.min(minDistance, chunkDistance(rowStart, rowCount, Math.trunc(rowIndex)));
+  }
+  return Number.isFinite(minDistance) ? minDistance : 0;
 }
 
 function arraySpecKey(spec: ArraySpec): string {

@@ -1,5 +1,7 @@
 import type {
   ArraySpec,
+  InfluenceAggregate,
+  InfluenceChunkSpec,
   InfluenceMatrixManifest,
   InfluenceRow,
   InfluenceSign,
@@ -143,6 +145,61 @@ export class DataRepository {
     };
   }
 
+  async loadInfluenceAggregate(
+    matrix: InfluenceMatrixManifest,
+    sign: InfluenceSign,
+    rowIndices: number[],
+    priority: Priority = "foreground",
+  ): Promise<InfluenceAggregate> {
+    const group = matrix.top_chunks[sign];
+    if (!group) throw new Error(`${matrix.id}: ${sign} chunks are unavailable`);
+    const rowsByChunk = new Map<InfluenceChunkSpec, number[]>();
+    const validRows: number[] = [];
+    for (const rowIndex of rowIndices) {
+      if (!Number.isFinite(rowIndex)) continue;
+      const row = Math.trunc(rowIndex);
+      if (row < 0 || row >= matrix.row_count) continue;
+      const chunk = group.chunks.find(
+        (candidate) => row >= candidate.row_start && row < candidate.row_start + candidate.row_count,
+      );
+      if (!chunk) continue;
+      validRows.push(row);
+      const rows = rowsByChunk.get(chunk);
+      if (rows) {
+        rows.push(row);
+      } else {
+        rowsByChunk.set(chunk, [row]);
+      }
+    }
+
+    const sums = new Map<number, number>();
+    await Promise.all(
+      Array.from(rowsByChunk.entries()).map(async ([chunk, rows]) => {
+        const [indicesArray, rawArray] = await Promise.all([
+          this.loadArray<Uint16Array | Uint32Array>(chunk.indices, priority),
+          this.loadArray<Int16Array>(chunk.values, priority),
+        ]);
+        for (const row of rows) {
+          const offset = (row - chunk.row_start) * chunk.k;
+          for (let index = 0; index < chunk.k; index += 1) {
+            const trainIndex = indicesArray[offset + index];
+            const value = rawArray[offset + index] * chunk.value_scale;
+            const contribution = aggregateContribution(value, sign);
+            if (!contribution) continue;
+            sums.set(trainIndex, (sums.get(trainIndex) ?? 0) + contribution);
+          }
+        }
+      }),
+    );
+
+    const entries = Array.from(sums.entries()).sort((a, b) => compareAggregateEntries(a, b, sign));
+    return {
+      rowIndices: validRows,
+      indices: Uint32Array.from(entries, ([index]) => index),
+      values: Float32Array.from(entries, ([, value]) => value),
+    };
+  }
+
   private arrayUrl(spec: ArraySpec): URL {
     return new URL(spec.path, this.manifestUrl);
   }
@@ -158,6 +215,22 @@ export function dequantizeInt16Values(values: Int16Array, scale: number): Float3
     out[index] = values[index] * scale;
   }
   return out;
+}
+
+function aggregateContribution(value: number, sign: InfluenceSign): number {
+  if (sign === "abs") return Math.abs(value);
+  if (sign === "pos") return value > 0 ? value : 0;
+  return value < 0 ? value : 0;
+}
+
+function compareAggregateEntries(
+  a: [number, number],
+  b: [number, number],
+  sign: InfluenceSign,
+): number {
+  if (sign === "neg") return a[1] - b[1] || a[0] - b[0];
+  if (sign === "pos") return b[1] - a[1] || a[0] - b[0];
+  return Math.abs(b[1]) - Math.abs(a[1]) || a[0] - b[0];
 }
 
 export function dequantizeUint16Raster(values: Uint16Array, field: RasterFieldManifest): Float32Array {

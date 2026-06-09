@@ -7,16 +7,20 @@ export interface DomRefs {
   matrixSelect: HTMLSelectElement;
   fieldKindButtons: HTMLElement;
   signButtons: HTMLElement;
+  selectionModeButtons: HTMLElement;
   kSlider: HTMLInputElement;
   kOutput: HTMLOutputElement;
   summarySelect: HTMLSelectElement;
   mobileTabs: HTMLElement;
+  selectedPointLabel: HTMLElement;
   selectedPoint: HTMLElement;
+  selectedValueLabel: HTMLElement;
   selectedValue: HTMLElement;
   trainCount: HTMLElement;
   candidateCount: HTMLElement;
   mainTitle: HTMLElement;
   mainRange: HTMLElement;
+  localTitle: HTMLElement;
   influenceRange: HTMLElement;
   globalRange: HTMLElement;
   mainCanvas: HTMLCanvasElement;
@@ -47,16 +51,20 @@ export function getDomRefs(): DomRefs {
     matrixSelect: required("#matrixSelect", HTMLSelectElement),
     fieldKindButtons: required("#fieldKindButtons", HTMLElement),
     signButtons: required("#signButtons", HTMLElement),
+    selectionModeButtons: required("#selectionModeButtons", HTMLElement),
     kSlider: required("#kSlider", HTMLInputElement),
     kOutput: required("#kOutput", HTMLOutputElement),
     summarySelect: required("#summarySelect", HTMLSelectElement),
     mobileTabs: required("#mobileTabs", HTMLElement),
+    selectedPointLabel: required("#selectedPointLabel", HTMLElement),
     selectedPoint: required("#selectedPoint", HTMLElement),
+    selectedValueLabel: required("#selectedValueLabel", HTMLElement),
     selectedValue: required("#selectedValue", HTMLElement),
     trainCount: required("#trainCount", HTMLElement),
     candidateCount: required("#candidateCount", HTMLElement),
     mainTitle: required("#mainTitle", HTMLElement),
     mainRange: required("#mainRange", HTMLElement),
+    localTitle: required("#localTitle", HTMLElement),
     influenceRange: required("#influenceRange", HTMLElement),
     globalRange: required("#globalRange", HTMLElement),
     mainCanvas: required("#mainCanvas", HTMLCanvasElement),

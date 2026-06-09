@@ -22,6 +22,16 @@ export function normalizedBounds(bounds: Partial<Bounds> | null | undefined): Bo
   };
 }
 
+export function normalizeRegionBounds(bounds: Partial<Bounds> | null | undefined): Bounds {
+  const safeBounds = normalizedBounds(bounds);
+  return {
+    minX: Math.min(safeBounds.minX, safeBounds.maxX),
+    maxX: Math.max(safeBounds.minX, safeBounds.maxX),
+    minY: Math.min(safeBounds.minY, safeBounds.maxY),
+    maxY: Math.max(safeBounds.minY, safeBounds.maxY),
+  };
+}
+
 export function boundsFromAxisMap(axisBounds: AxisBounds | null | undefined, axes = ["x", "y"]): Bounds {
   const xBounds = axisBounds?.[axes[0]] ?? axisBounds?.x ?? [0, 1];
   const yBounds = axisBounds?.[axes[1]] ?? axisBounds?.y ?? [0, 1];
@@ -157,6 +167,41 @@ export function unprojectPointFromViewport(
     Math.min(1, (viewport.y + viewport.height - sy) / Math.max(1, viewport.height)),
   );
   return [safeBounds.minX + nx * spanX, safeBounds.minY + ny * spanY];
+}
+
+export function regionBoundsFromViewportDrag(
+  start: [number, number],
+  end: [number, number],
+  bounds: Partial<Bounds> | null | undefined,
+  viewport: PlotViewport,
+): Bounds {
+  const startDomain = unprojectPointFromViewport(start[0], start[1], bounds, viewport);
+  const endDomain = unprojectPointFromViewport(end[0], end[1], bounds, viewport);
+  return normalizeRegionBounds({
+    minX: startDomain[0],
+    maxX: endDomain[0],
+    minY: startDomain[1],
+    maxY: endDomain[1],
+  });
+}
+
+export function selectPointIndicesInBounds(
+  points: Float32Array,
+  dim: number,
+  region: Partial<Bounds> | null | undefined,
+  count = Math.floor(points.length / dim),
+): number[] {
+  const bounds = normalizeRegionBounds(region);
+  const maxCount = Math.max(0, Math.min(Math.floor(points.length / dim), Math.trunc(count)));
+  const indices: number[] = [];
+  for (let index = 0; index < maxCount; index += 1) {
+    const x = points[index * dim];
+    const y = points[index * dim + 1] ?? 0;
+    if (x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY) {
+      indices.push(index);
+    }
+  }
+  return indices;
 }
 
 export function pointAt(points: Float32Array, index: number, dim: number): [number, number] {

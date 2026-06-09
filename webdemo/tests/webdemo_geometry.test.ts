@@ -6,6 +6,8 @@ import {
   fitScales,
   plotViewport,
   projectPointToViewport,
+  regionBoundsFromViewportDrag,
+  selectPointIndicesInBounds,
   unprojectPointFromViewport,
 } from "../src/viz/geometry";
 
@@ -64,5 +66,29 @@ describe("D3 plot geometry", () => {
 
   it("preserves zero as a valid physical bound", () => {
     close(domainAspectRatio({ minX: -1, maxX: 0, minY: -1, maxY: 1 }), 0.5);
+  });
+
+  it("normalizes drag rectangles independent of drag direction", () => {
+    const bounds = { minX: 0, maxX: 10, minY: -2, maxY: 8 };
+    const viewport = plotViewport(bounds, 500, 500);
+    const forward = regionBoundsFromViewportDrag([viewport.x + 40, viewport.y + 30], [viewport.x + 180, viewport.y + 220], bounds, viewport);
+    const reverse = regionBoundsFromViewportDrag([viewport.x + 180, viewport.y + 220], [viewport.x + 40, viewport.y + 30], bounds, viewport);
+
+    close(forward.minX, reverse.minX);
+    close(forward.maxX, reverse.maxX);
+    close(forward.minY, reverse.minY);
+    close(forward.maxY, reverse.maxY);
+  });
+
+  it("selects candidate indices inside inclusive region bounds", () => {
+    const points = new Float32Array([0.1, 0.1, 0.5, 0.5, 0.8, 0.2, 0.5, 0.7]);
+    const selected = selectPointIndicesInBounds(points, 2, {
+      minX: 0.2,
+      maxX: 0.7,
+      minY: 0.5,
+      maxY: 0.7,
+    });
+
+    expect(selected).toEqual([1, 3]);
   });
 });

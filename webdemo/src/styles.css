@@ -405,7 +405,7 @@ input[type="range"] {
   }
 
   .plot-grid {
-    height: clamp(360px, calc(100svh - 430px), 560px);
+    height: clamp(360px, calc(100svh - 450px), 560px);
     min-height: 0;
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);

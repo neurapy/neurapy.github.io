@@ -52,6 +52,16 @@
 
           <div class="control-group">
             <label>
+              <span>Selection</span>
+            </label>
+            <div class="segmented" id="selectionModeButtons" role="group" aria-label="Selection mode">
+              <button data-mode="point" class="active">Point</button>
+              <button data-mode="region">Region</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label>
               <span>Top k</span>
               <output id="kOutput">25</output>
               <input id="kSlider" type="range" min="1" max="200" value="25" />
@@ -78,11 +88,11 @@
 
           <dl class="stats">
             <div>
-              <dt>Point</dt>
+              <dt id="selectedPointLabel">Point</dt>
               <dd id="selectedPoint">-</dd>
             </div>
             <div>
-              <dt>Value</dt>
+              <dt id="selectedValueLabel">Value</dt>
               <dd id="selectedValue">-</dd>
             </div>
             <div>
@@ -110,7 +120,7 @@
 
           <article id="localPanel" class="plot-panel secondary" data-mobile-active="true">
             <div class="plot-header">
-              <h2>Local Influence</h2>
+              <h2 id="localTitle">Local Influence</h2>
               <span id="influenceRange" class="muted"></span>
             </div>
             <div class="plot-body">
