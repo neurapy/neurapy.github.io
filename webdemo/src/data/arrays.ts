@@ -33,13 +33,21 @@ export class DataRepository {
     this.loader.abortBackground();
   }
 
+  hasArray(spec: ArraySpec): boolean {
+    return this.cache.has(this.cacheKey(spec));
+  }
+
+  async prefetchArray(spec: ArraySpec): Promise<void> {
+    await this.loadArray(spec, "background");
+  }
+
   async loadArray<T extends TypedArray>(
     spec: ArraySpec,
     priority: Priority = "foreground",
     signal?: AbortSignal,
   ): Promise<T> {
-    const url = new URL(spec.path, this.manifestUrl);
-    const key = `${spec.dtype}:${url.toString()}`;
+    const url = this.arrayUrl(spec);
+    const key = this.cacheKey(spec);
     const cached = this.cache.get(key);
     if (cached) return cached as T;
     const buffer = await this.loader.load(url, priority, signal);
@@ -135,9 +143,12 @@ export class DataRepository {
     };
   }
 
-  prefetchRaster(field: RasterFieldManifest | undefined): void {
-    if (!field) return;
-    void this.loadArray(field.raster, "background").catch(() => undefined);
+  private arrayUrl(spec: ArraySpec): URL {
+    return new URL(spec.path, this.manifestUrl);
+  }
+
+  private cacheKey(spec: ArraySpec): string {
+    return `${spec.dtype}:${this.arrayUrl(spec).toString()}`;
   }
 }
 

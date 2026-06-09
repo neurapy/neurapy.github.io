@@ -18,22 +18,12 @@ Reachable from local Network. For non-local, set up port forwarding.
 ## Development-Preview
 
 ```bash
-<<<<<<< HEAD
-make verify-data
-=======
 make dev # Hot-Reloading, no build
->>>>>>> 18bed37 (Refresh Makefile webdemo targets)
 ```
 
 ## Github.io hosting
 
-<<<<<<< HEAD
-```bash
-make webdemo-build
-```
-=======
 Currently deployed at `neurapy.github.io`.
->>>>>>> 18bed37 (Refresh Makefile webdemo targets)
 
 Pushed Changes automatically update deployment.
 
@@ -55,12 +45,7 @@ make deploy-watch
 
 Print the command to disable GitHub Pages:
 ```bash
-<<<<<<< HEAD
-make deploy-status
-make deploy-watch
-=======
 make undeploy
->>>>>>> 18bed37 (Refresh Makefile webdemo targets)
 ```
 #### Deploy in different Repo
 
@@ -85,9 +70,6 @@ gh api --method POST repos/OWNER/REPO/pages -f build_type=workflow # If Pages ar
 If you have `raw_data/` but `webdemo/public/data` is missing: 
 
 ```bash
-<<<<<<< HEAD
-make deploy
-=======
 uv run python src/build_static_demo_data.py \
 --matrix-mode core \
 --max_local_influence_points 64 \
@@ -100,7 +82,6 @@ uv run python src/build_static_demo_data.py \
 # raster-max-resolution is resolution of precomputed prediction / loss graphs on the longest axis
 
 make verify-data # Verification step
->>>>>>> 18bed37 (Refresh Makefile webdemo targets)
 ```
 
 ## No Raw Data?

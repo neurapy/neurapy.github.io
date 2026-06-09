@@ -21,7 +21,7 @@ async function expectNonblankCanvas(page: Page, selector: string): Promise<void>
   await expect.poll(() => canvasIsNonblank(page, selector), { timeout: 10_000 }).toBe(true);
 }
 
-test("desktop renders important plots in the first viewport and starts lazily", async ({ page }, testInfo) => {
+test("desktop renders important plots and continues background prefetching", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
@@ -43,18 +43,24 @@ test("desktop renders important plots in the first viewport and starts lazily", 
   expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
   expect((globalBox?.y ?? 0) + (globalBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
-  expect(requests.some((url) => url.includes("pred_output_0_raster.u16"))).toBe(true);
-  expect(requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(false);
-  expect(requests.some((url) => url.includes("abs/chunks/0_indices.u16"))).toBe(true);
-  expect(requests.some((url) => url.includes("abs/chunks/1_indices.u16"))).toBe(false);
+  const predIndex = requests.findIndex((url) => url.includes("pred_output_0_raster.u16"));
+  const lossIndex = requests.findIndex((url) => url.includes("loss_total_raster.u16"));
+  const absChunk0Index = requests.findIndex((url) => url.includes("abs/chunks/0_indices.u16"));
+  const absChunk1Index = requests.findIndex((url) => url.includes("abs/chunks/1_indices.u16"));
+  expect(predIndex).toBeGreaterThanOrEqual(0);
+  expect(absChunk0Index).toBeGreaterThanOrEqual(0);
+  if (lossIndex >= 0) expect(predIndex).toBeLessThan(lossIndex);
+  if (absChunk1Index >= 0) expect(absChunk0Index).toBeLessThan(absChunk1Index);
+
+  await expect.poll(() => requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(true);
+  await expect.poll(() => requests.some((url) => url.includes("abs/chunks/1_indices.u16"))).toBe(true);
 
   await page.locator("button[data-kind='loss']").click();
   await expect(page.locator("#mainTitle")).toHaveText(/Total loss/);
-  await expect.poll(() => requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(true);
 
   await page.locator("button[data-sign='pos']").click();
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/0_indices.u16"))).toBe(true);
-  expect(requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(false);
+  await expect.poll(() => requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(true);
 });
 
 test("mobile keeps main and selected secondary plot in the first viewport", async ({ page }, testInfo) => {

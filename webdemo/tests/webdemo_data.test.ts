@@ -4,6 +4,11 @@ import { DataRepository, dequantizeInt16Values, dequantizeUint16Raster } from ".
 import { assertV5RunManifest } from "../src/data/manifest";
 import { typedArrayFromBuffer } from "../src/data/dtypes";
 import { PriorityLoader } from "../src/data/loader";
+import {
+  RunPrefetcher,
+  planRunPrefetchTasks,
+  type PrefetchContext,
+} from "../src/data/prefetcher";
 import type { RunManifest } from "../src/types";
 
 function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
@@ -11,6 +16,47 @@ function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
   const copy = new Uint8Array(bytes.length);
   copy.set(bytes);
   return copy.buffer as ArrayBuffer;
+}
+
+interface DeferredFetchCall {
+  url: string;
+  signal: AbortSignal | null;
+  resolve: (buffer?: ArrayBuffer) => void;
+}
+
+async function waitFor(assertion: () => void): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  throw lastError;
+}
+
+function installDeferredFetch(): DeferredFetchCall[] {
+  const calls: DeferredFetchCall[] = [];
+  globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init?.signal instanceof AbortSignal ? init.signal : null;
+    return new Promise<Response>((resolve, reject) => {
+      const call: DeferredFetchCall = {
+        url: input.toString(),
+        signal,
+        resolve: (buffer = new ArrayBuffer(1)) => resolve(new Response(buffer.slice(0))),
+      };
+      signal?.addEventListener(
+        "abort",
+        () => reject(new DOMException("Request aborted", "AbortError")),
+        { once: true },
+      );
+      calls.push(call);
+    });
+  });
+  return calls;
 }
 
 const manifest = {
@@ -186,5 +232,105 @@ describe("priority loader", () => {
     loader.abortBackground();
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("does not start background requests while foreground work is active", async () => {
+    const calls = installDeferredFetch();
+    const loader = new PriorityLoader({ foreground: 1, background: 1 });
+    const foreground = loader.load(new URL("http://example.test/foreground.bin"), "foreground");
+
+    await waitFor(() => expect(calls.map((call) => call.url)).toEqual(["http://example.test/foreground.bin"]));
+    const background = loader.load(new URL("http://example.test/background.bin"), "background");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(calls.map((call) => call.url)).toEqual(["http://example.test/foreground.bin"]);
+
+    calls[0].resolve();
+    await foreground;
+    await waitFor(() =>
+      expect(calls.map((call) => call.url)).toEqual([
+        "http://example.test/foreground.bin",
+        "http://example.test/background.bin",
+      ]),
+    );
+    calls[1].resolve();
+    await background;
+  });
+
+  it("preempts active background requests and requeues them after foreground completion", async () => {
+    const calls = installDeferredFetch();
+    const loader = new PriorityLoader({ foreground: 1, background: 1 });
+    const background = loader.load(new URL("http://example.test/background.bin"), "background");
+
+    await waitFor(() => expect(calls.map((call) => call.url)).toEqual(["http://example.test/background.bin"]));
+    const foreground = loader.load(new URL("http://example.test/foreground.bin"), "foreground");
+
+    await waitFor(() => expect(calls.map((call) => call.url)).toContain("http://example.test/foreground.bin"));
+    expect(calls[0].signal?.aborted).toBe(true);
+
+    calls.find((call) => call.url === "http://example.test/foreground.bin")?.resolve();
+    await foreground;
+    await waitFor(() => expect(calls.filter((call) => call.url === "http://example.test/background.bin")).toHaveLength(2));
+
+    calls.at(-1)?.resolve();
+    await background;
+  });
+
+  it("promotes queued background requests when the same URL becomes foreground", async () => {
+    const calls = installDeferredFetch();
+    const loader = new PriorityLoader({ foreground: 1, background: 0 });
+    const url = new URL("http://example.test/shared.bin");
+    const background = loader.load(url, "background");
+    const foreground = loader.load(url, "foreground");
+
+    await waitFor(() => expect(calls.map((call) => call.url)).toEqual(["http://example.test/shared.bin"]));
+
+    calls[0].resolve();
+    await expect(background).resolves.toBeInstanceOf(ArrayBuffer);
+    await expect(foreground).resolves.toBeInstanceOf(ArrayBuffer);
+    expect(calls).toHaveLength(1);
+  });
+});
+
+describe("run prefetch planner", () => {
+  const context: PrefetchContext = {
+    fieldId: "pred_output_0",
+    fieldKind: "prediction",
+    matrixId: "m0",
+    sign: "abs",
+    summary: "mean_abs",
+    selectedCandidateIndex: 0,
+    selectedTrainIndex: 0,
+  };
+
+  it("enumerates run assets once in likely-use order", () => {
+    const tasks = planRunPrefetchTasks(manifest, context);
+    const paths = tasks.map((task) => task.spec.path);
+
+    expect(paths).toContain("mask.u8");
+    expect(paths).toContain("pred.u16");
+    expect(paths).toContain("summary.f32");
+    expect(paths).toContain("m0/abs/chunks/0_indices.u16");
+    expect(paths).toContain("m0/abs/chunks/0_values.i16");
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(paths.indexOf("pred.u16")).toBeLessThan(paths.indexOf("summary.f32"));
+  });
+
+  it("records failed background assets and does not retry them forever", async () => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 404 }));
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+    const prefetcher = new RunPrefetcher(repo, manifest);
+
+    prefetcher.update(context);
+    await prefetcher.waitForIdle();
+    const attemptedAfterFirstPass = prefetcher.attemptedCount;
+    const failedAfterFirstPass = prefetcher.failedCount;
+
+    prefetcher.update(context);
+    await prefetcher.waitForIdle();
+
+    expect(attemptedAfterFirstPass).toBeGreaterThan(0);
+    expect(prefetcher.attemptedCount).toBe(attemptedAfterFirstPass);
+    expect(prefetcher.failedCount).toBe(failedAfterFirstPass);
   });
 });

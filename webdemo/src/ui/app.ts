@@ -1,6 +1,7 @@
 import type { Delaunay } from "d3";
 import type {
   DataIndex,
+  FieldKind,
   IndexRunEntry,
   InfluenceMatrixManifest,
   InfluenceRow,
@@ -11,6 +12,7 @@ import type {
 } from "../types";
 import { DataRepository } from "../data/arrays";
 import { loadIndex, loadRunManifest, resolveIndexUrl } from "../data/manifest";
+import { RunPrefetcher, type PrefetchContext } from "../data/prefetcher";
 import { Store } from "../state/store";
 import type { RasterWorkerRequest, RasterWorkerResponse } from "../worker/rasterWorker";
 import { boundsFromAxisMap, clampIndex, inferPointBounds, pointAt } from "../viz/geometry";
@@ -48,6 +50,7 @@ export class AppController {
   private manifest: RunManifest | null = null;
   private manifestUrl: URL | null = null;
   private repo: DataRepository | null = null;
+  private prefetcher: RunPrefetcher | null = null;
   private points: PointArrays | null = null;
   private candidateDelaunay: Delaunay<number> | null = null;
   private trainDelaunay: Delaunay<number> | null = null;
@@ -164,6 +167,9 @@ export class AppController {
 
   private async loadRun(run: IndexRunEntry): Promise<void> {
     if (!run.manifest) return;
+    this.prefetcher?.stop();
+    this.prefetcher = null;
+    this.repo?.abortBackground();
     showMessage(this.dom.message, null);
     this.dom.runMeta.textContent = `Loading ${run.display_name}`;
     this.store.dispatch({ type: "run", runId: run.run_id });
@@ -188,6 +194,8 @@ export class AppController {
     this.schedule("local");
     this.schedule("global");
     this.updateStats();
+    this.prefetcher = new RunPrefetcher(this.repo, this.manifest);
+    this.startBackgroundPrefetch();
   }
 
   private populateControls(): void {
@@ -281,7 +289,6 @@ export class AppController {
 
   private async loadRaster(fieldId: string | null): Promise<void> {
     if (!this.repo || !this.manifest || !fieldId) return;
-    this.repo.abortBackground();
     this.raster = await this.repo.loadRaster(fieldId, "foreground");
     await this.renderRasterWithWorker();
     this.dom.mainTitle.textContent = this.manifest.fields[fieldId]?.label ?? "Field";
@@ -289,9 +296,7 @@ export class AppController {
     this.dom.mainRange.textContent = domain ? `${formatNumber(domain[0])} … ${formatNumber(domain[1])}` : "";
     this.schedule("main");
     this.updateStats();
-    for (const [id, field] of Object.entries(this.manifest.fields)) {
-      if (id !== fieldId && field.kind === this.store.state.fieldKind) this.repo.prefetchRaster(field);
-    }
+    this.updatePrefetchPlan();
   }
 
   private renderRasterWithWorker(): Promise<void> {
@@ -347,12 +352,43 @@ export class AppController {
       this.selectedRowIndex(matrix),
       "foreground",
     );
+    this.updatePrefetchPlan();
   }
 
   private async loadSummary(): Promise<void> {
     const matrix = this.selectedMatrix();
     if (!this.repo || !matrix) return;
     this.summaryValues = await this.repo.loadSummary(matrix, this.store.state.summary, "foreground");
+    this.updatePrefetchPlan();
+  }
+
+  private startBackgroundPrefetch(): void {
+    const prefetcher = this.prefetcher;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (prefetcher !== this.prefetcher) return;
+        this.updatePrefetchPlan();
+      });
+    });
+  }
+
+  private updatePrefetchPlan(): void {
+    const context = this.prefetchContext();
+    if (!context || !this.prefetcher) return;
+    this.prefetcher.update(context);
+  }
+
+  private prefetchContext(): PrefetchContext | null {
+    if (!this.manifest) return null;
+    return {
+      fieldId: this.store.state.fieldId,
+      fieldKind: this.store.state.fieldKind as FieldKind,
+      matrixId: this.store.state.matrixId,
+      sign: this.store.state.sign,
+      summary: this.store.state.summary,
+      selectedCandidateIndex: this.store.state.selectedCandidateIndex,
+      selectedTrainIndex: this.store.state.selectedTrainIndex,
+    };
   }
 
   private context(): PlotContext | null {
