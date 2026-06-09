@@ -39,7 +39,7 @@ import {
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
-import { formatNumber, getDomRefs, showMessage, type DomRefs } from "./dom";
+import { formatDisplayLabel, formatNumber, getDomRefs, showMessage, type DomRefs } from "./dom";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
 const SUMMARY_LABELS: Record<SummaryName, string> = {
@@ -422,7 +422,9 @@ export class AppController {
 
     const matrices = this.manifest.influence_matrices;
     this.dom.matrixSelect.replaceChildren(
-      ...matrices.map((matrix) => new Option(matrix.display_label || matrix.label, matrix.id)),
+      ...matrices.map(
+        (matrix) => new Option(formatDisplayLabel(matrix.display_label || matrix.label), matrix.id),
+      ),
     );
     const matrixId =
       this.manifest.default_matrix ??
@@ -458,9 +460,13 @@ export class AppController {
     if (!this.manifest) return;
     const options = Object.entries(this.manifest.fields)
       .filter(([, field]) => field.kind === kind)
-      .map(([id, field]) => new Option(field.label, id));
+      .map(([id, field]) => new Option(formatDisplayLabel(field.label), id));
     if (!options.length) {
-      options.push(...Object.entries(this.manifest.fields).map(([id, field]) => new Option(field.label, id)));
+      options.push(
+        ...Object.entries(this.manifest.fields).map(
+          ([id, field]) => new Option(formatDisplayLabel(field.label), id),
+        ),
+      );
     }
     this.dom.fieldSelect.replaceChildren(...options);
     const selected = this.store.state.fieldId;
@@ -503,7 +509,7 @@ export class AppController {
     this.raster = await this.repo.loadRaster(fieldId, "foreground");
     await this.renderRasterWithWorker();
     this.dom.mainTitle.textContent = "Model";
-    const label = this.manifest.fields[fieldId]?.label ?? "Field";
+    const label = formatDisplayLabel(this.manifest.fields[fieldId]?.label ?? "Field");
     const domain = this.manifest.fields[fieldId]?.display_domain;
     this.dom.mainRange.textContent = domain
       ? `${label} · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`

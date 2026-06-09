@@ -119,6 +119,8 @@ Vor allen Dingen hier in der Demo: Ich verwende zur Berechnung nur die top k inf
 2. Was soll/könnte noch drin sein?
 3. Welche Reihenfolge der Arrays?
 
+offtopic:
+- Manchmal clustern Influences an bestimmten regionen von boundaries. Wieso?
 
 ## Webapp ToDos
 

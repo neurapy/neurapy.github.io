@@ -100,3 +100,30 @@ export function formatNumber(value: number | null | undefined): string {
   }
   return value.toLocaleString(undefined, { maximumSignificantDigits: 5 });
 }
+
+function formatLatexExpression(expression: string): string {
+  return expression
+    .replace(
+      /\\frac\s*\{\s*\\partial\s+([^{}]+?)\s*\}\s*\{\s*\\partial\s+([^{}]+?)\s*\}/g,
+      (_match, numerator: string, denominator: string) =>
+        `∂${formatLatexExpression(numerator)}/∂${formatLatexExpression(denominator)}`,
+    )
+    .replace(/\\hat\s*\{?([A-Za-z])\}?/g, (_match, variable: string) => `${variable}\u0302`)
+    .replace(/\\partial/g, "∂")
+    .replace(/\\pi/g, "π")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\times/g, "×")
+    .replace(/\\_/g, "_")
+    .replace(/[{}]/g, "")
+    .replace(/\\/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function formatDisplayLabel(label: string | null | undefined): string {
+  if (!label) return "";
+  return label
+    .replace(/\$([^$]*)\$/g, (_match, expression: string) => formatLatexExpression(expression))
+    .replace(/\s+/g, " ")
+    .trim();
+}
