@@ -2,18 +2,18 @@
   "budget_bytes": 786432000,
   "by_kind": {
     "arrays": 844911,
-    "field_rasters": 16761856,
+    "field_rasters": 67096576,
     "global_summaries": 2072080,
-    "index": 4898,
+    "index": 4839,
     "influence_chunks": 215040000,
-    "manifest": 2755362
+    "manifest": 2742453
   },
   "by_suffix": {
     ".f32": 2839288,
     ".i16": 107571802,
-    ".json": 2760260,
-    ".u16": 123274240,
-    ".u8": 1033517
+    ".json": 2747292,
+    ".u16": 170584064,
+    ".u8": 4058413
   },
   "files": [
     {
@@ -22,47 +22,47 @@
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 131072,
+      "bytes": 524288,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_bc_2_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/pred_output_0_raster.u16"
     },
@@ -4982,7 +4982,7 @@
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 393276,
+      "bytes": 391404,
       "kind": "manifest",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/manifest.json"
     },
@@ -4992,42 +4992,42 @@
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 131072,
+      "bytes": 524288,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
@@ -9947,7 +9947,7 @@
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 392810,
+      "bytes": 390998,
       "kind": "manifest",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -9957,42 +9957,42 @@
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 131072,
+      "bytes": 524288,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
@@ -14912,7 +14912,7 @@
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 392885,
+      "bytes": 391059,
       "kind": "manifest",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -14922,47 +14922,47 @@
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 41472,
+      "bytes": 166912,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_2_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 82944,
+      "bytes": 333824,
       "kind": "field_rasters",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
@@ -19882,12 +19882,12 @@
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 393315,
+      "bytes": 391408,
       "kind": "manifest",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/manifest.json"
     },
     {
-      "bytes": 4898,
+      "bytes": 4839,
       "kind": "index",
       "path": "index.json"
     },
@@ -19897,82 +19897,82 @@
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 48640,
+      "bytes": 195584,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_2_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_3_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_4_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_5_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_1_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_2_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/pred_output_1_raster.u16"
     },
     {
-      "bytes": 97280,
+      "bytes": 391168,
       "kind": "field_rasters",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/pred_output_2_raster.u16"
     },
@@ -24892,7 +24892,7 @@
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 396996,
+      "bytes": 395082,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/manifest.json"
     },
@@ -24902,37 +24902,37 @@
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
@@ -29852,7 +29852,7 @@
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 392471,
+      "bytes": 390657,
       "kind": "manifest",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -29862,52 +29862,52 @@
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/candidate_points.f32"
     },
     {
-      "bytes": 262144,
+      "bytes": 1048576,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/field_raster_mask.u8"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_bc_0_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_bc_1_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_bc_2_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_bc_3_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_bc_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_pde_0_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_pde_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/loss_total_raster.u16"
     },
     {
-      "bytes": 524288,
+      "bytes": 2097152,
       "kind": "field_rasters",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/pred_output_0_raster.u16"
     },
@@ -34827,13 +34827,13 @@
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 393609,
+      "bytes": 391845,
       "kind": "manifest",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/manifest.json"
     }
   ],
   "root": ".",
   "schema_version": 5,
-  "total_bytes": 237479107,
+  "total_bytes": 287800859,
   "within_budget": true
 }

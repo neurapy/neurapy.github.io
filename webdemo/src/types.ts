@@ -94,7 +94,7 @@ export interface InfluenceMatrixManifest {
   row_source: "candidate_points" | "train_points";
   row_count: number;
   k: number;
-  k_web_max: number;
+  max_local_influence_points: number;
   row_chunk_size: number;
   label: string;
   display_label: string;
@@ -112,7 +112,7 @@ export interface RunManifest {
   errors: string[];
   generated_at: string;
   matrix_mode?: string;
-  k_web_max: number;
+  max_local_influence_points: number;
   row_chunk_size: number;
   axes: string[];
   bounds: AxisBounds;
@@ -156,7 +156,7 @@ export interface DataIndex {
   schema_version: 5;
   generated_at: string;
   matrix_mode?: string;
-  k_web_max?: number;
+  max_local_influence_points?: number;
   row_chunk_size?: number;
   bundle_report?: string;
   runs: IndexRunEntry[];

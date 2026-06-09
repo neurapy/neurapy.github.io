@@ -52,7 +52,7 @@ DTYPE_EXTENSIONS = {
 
 SCHEMA_VERSION = 5
 DEFAULT_RASTER_MAX_RESOLUTION = 512
-DEFAULT_K_WEB_MAX = 64
+DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
@@ -78,6 +78,7 @@ class RasterGrid:
     axes: list[str]
 
 
+# TODO: Clearer names
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build static, fully precomputed web demo artifacts."
@@ -89,7 +90,10 @@ def parse_args() -> argparse.Namespace:
         help="Problem folders to process, e.g. allen_cahn_float64 burgers_float64. Default: all.",
     )
     parser.add_argument(
-        "--k-web-max", "--k-max", dest="k_web_max", default=DEFAULT_K_WEB_MAX, type=int
+        "--max_local_influence_points",
+        default=DEFAULT_MAX_LOCAL_INFLUENCE_POINTS,
+        type=int,
+        help="Number Calculated Train-Influences per Candidate Point",
     )
     parser.add_argument("--row-chunk-size", default=DEFAULT_ROW_CHUNK_SIZE, type=int)
     parser.add_argument("--bundle-size-budget-mb", default=750, type=int)
@@ -106,7 +110,7 @@ def parse_args() -> argparse.Namespace:
         help="core keeps the public bundle compact; all exports every influence matrix.",
     )
     parser.add_argument(
-        "--matrix-workers",
+        "--workers",
         default=min(4, os.cpu_count() or 1),
         type=int,
         help="Number of worker processes for influence matrix export. Use 1 for serial.",
@@ -720,7 +724,7 @@ def process_influence_matrix(
     n_train: int,
     row_source: str,
     row_count: int,
-    k_web_max: int,
+    max_local_influence_points: int,
     row_chunk_size: int,
 ) -> dict[str, Any]:
     with np.load(path, allow_pickle=False) as data:
@@ -747,7 +751,7 @@ def process_influence_matrix(
     if scores.shape[1] != n_train:
         raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
 
-    k = min(k_web_max, scores.shape[1])
+    k = min(max_local_influence_points, scores.shape[1])
     display_scores = (-scores / float(n_train)).astype(np.float32, copy=False)
     matrix_dir = f"{rel_prefix}/{path.stem}"
     index_dtype = "uint16" if n_train <= 65535 else "uint32"
@@ -834,7 +838,7 @@ def process_influence_matrix(
             "row_source": row_source,
             "row_count": row_count,
             "k": k,
-            "k_web_max": k_web_max,
+            "max_local_influence_points": max_local_influence_points,
             "row_chunk_size": row_chunk_size,
             "label": (f"{metadata['method']}: {metadata['right_term']} -> {metadata['left_term']}"),
             "display_label": (
@@ -855,13 +859,13 @@ def process_influence_matrix_jobs(
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
-    k_web_max: int,
+    max_local_influence_points: int,
     row_chunk_size: int,
-    matrix_workers: int,
+    workers: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     results: list[dict[str, Any] | None] = [None] * len(jobs)
     errors: list[str] = []
-    workers = max(1, min(matrix_workers, len(jobs) or 1))
+    workers = max(1, min(workers, len(jobs) or 1))
 
     if workers == 1:
         for idx, matrix_path, row_source, row_count in jobs:
@@ -873,7 +877,7 @@ def process_influence_matrix_jobs(
                     n_train=n_train,
                     row_source=row_source,
                     row_count=row_count,
-                    k_web_max=k_web_max,
+                    max_local_influence_points=max_local_influence_points,
                     row_chunk_size=row_chunk_size,
                 )
                 print(f"  built {matrix_path.name}")
@@ -891,7 +895,7 @@ def process_influence_matrix_jobs(
                     n_train,
                     row_source,
                     row_count,
-                    k_web_max,
+                    max_local_influence_points,
                     row_chunk_size,
                 ): (idx, matrix_path)
                 for idx, matrix_path, row_source, row_count in jobs
@@ -1104,9 +1108,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         out_dir=out_dir,
         rel_prefix="influence",
         n_train=len(train_points),
-        k_web_max=args.k_web_max,
+        max_local_influence_points=args.max_local_influence_points,
         row_chunk_size=args.row_chunk_size,
-        matrix_workers=int(getattr(args, "matrix_workers", 1)),
+        workers=int(getattr(args, "workers", 1)),
     )
     errors.extend(processing_errors)
 
@@ -1134,7 +1138,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "errors": errors,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
-        "k_web_max": args.k_web_max,
+        "max_local_influence_points": args.max_local_influence_points,
         "row_chunk_size": args.row_chunk_size,
         "axes": ["x", "y"][: candidate_points.shape[1]],
         "bounds": (
@@ -1195,12 +1199,12 @@ def field_label(problem: str, name: str) -> str:
 def main() -> None:
     args = parse_args()
     torch.set_default_device("cpu")
-    if args.k_web_max < 1:
-        raise SystemExit("--k-web-max must be >= 1")
+    if args.max_local_influence_points < 1:
+        raise SystemExit("--max_local_influence_points must be >= 1")
     if args.row_chunk_size < 1:
         raise SystemExit("--row-chunk-size must be >= 1")
-    if args.matrix_workers < 1:
-        raise SystemExit("--matrix-workers must be >= 1")
+    if args.workers < 1:
+        raise SystemExit("--workers must be >= 1")
     if args.raster_max_resolution < 1:
         raise SystemExit("--raster-max-resolution must be >= 1")
     bundle_budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
@@ -1238,7 +1242,7 @@ def main() -> None:
         "schema_version": SCHEMA_VERSION,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
-        "k_web_max": args.k_web_max,
+        "max_local_influence_points": args.max_local_influence_points,
         "row_chunk_size": args.row_chunk_size,
         "raster_max_resolution": args.raster_max_resolution,
         "bundle_report": "bundle_report.json",

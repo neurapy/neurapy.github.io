@@ -10,12 +10,12 @@
       ]
     },
     "field_raster_mask": {
-      "bytes": 48640,
+      "bytes": 195584,
       "dtype": "uint8",
       "path": "arrays/field_raster_mask.u8",
       "shape": [
-        95,
-        512
+        191,
+        1024
       ]
     },
     "train_bc_id": {
@@ -86,22 +86,22 @@
       "rows": "y_descending",
       "sample": "pixel_center"
     },
-    "height": 95,
+    "height": 191,
     "mask": {
-      "bytes": 48640,
+      "bytes": 195584,
       "dtype": "uint8",
       "path": "arrays/field_raster_mask.u8",
       "shape": [
-        95,
-        512
+        191,
+        1024
       ]
     },
-    "max_axis_resolution": 512,
+    "max_axis_resolution": 1024,
     "shape": [
-      95,
-      512
+      191,
+      1024
     ],
-    "width": 512
+    "width": 1024
   },
   "fields": {
     "loss_bc": {
@@ -118,12 +118,12 @@
       "kind": "loss",
       "label": "BC Loss",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -141,12 +141,12 @@
       "kind": "loss",
       "label": "No-slip $u$ BC (x-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_0_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -164,12 +164,12 @@
       "kind": "loss",
       "label": "No-slip $v$ BC (y-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_1_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -187,12 +187,12 @@
       "kind": "loss",
       "label": "Inflow $u$ BC (x-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_2_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -210,12 +210,12 @@
       "kind": "loss",
       "label": "Inflow $v$ BC (y-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_3_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -233,12 +233,12 @@
       "kind": "loss",
       "label": "Outflow $u$ BC (x-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_4_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
@@ -256,202 +256,202 @@
       "kind": "loss",
       "label": "Outflow $v$ BC (y-direction)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_bc_5_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "loss_pde": {
       "display_domain": [
-        1.0286036555839928e-07,
-        0.0002533566660713403
+        1.0396674682056073e-07,
+        0.0002548307063989346
       ],
       "encoding": {
         "kind": "linear",
-        "max": 0.2852526605129242,
-        "min": 3.388207492349693e-10,
+        "max": 0.30001649260520935,
+        "min": 9.709405501823198e-11,
         "missing": 65535
       },
       "kind": "loss",
       "label": "PDE Loss",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_pde_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "loss_pde_0": {
       "display_domain": [
-        3.648273994016904e-10,
-        7.044650395982898e-05
+        3.552869126677294e-10,
+        7.149982106057042e-05
       ],
       "encoding": {
         "kind": "linear",
-        "max": 0.044868893921375275,
-        "min": 1.1349197525100134e-15,
+        "max": 0.058855991810560226,
+        "min": 1.6338951223902683e-17,
         "missing": 65535
       },
       "kind": "loss",
       "label": "PDE (continuity)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_pde_0_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "loss_pde_1": {
       "display_domain": [
-        7.452925276929534e-10,
-        0.00011582748644286764
+        6.901020166427685e-10,
+        0.00011459950517746643
       ],
       "encoding": {
         "kind": "linear",
-        "max": 0.23424750566482544,
-        "min": 3.324347478392931e-18,
+        "max": 0.2484503984451294,
+        "min": 1.5312966539916544e-19,
         "missing": 65535
       },
       "kind": "loss",
       "label": "PDE (x-momentum)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_pde_1_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "loss_pde_2": {
       "display_domain": [
-        3.5689401933769464e-10,
-        7.883165002567686e-05
+        3.791043645673398e-10,
+        7.820081111276523e-05
       ],
       "encoding": {
         "kind": "linear",
-        "max": 0.13261374831199646,
-        "min": 2.2293933641512787e-16,
+        "max": 0.14490073919296265,
+        "min": 1.997236522559901e-17,
         "missing": 65535
       },
       "kind": "loss",
       "label": "PDE (y-momentum)",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_pde_2_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "loss_total": {
       "display_domain": [
-        1.0286036555839928e-07,
-        0.0002533566660713403
+        1.0396674682056073e-07,
+        0.0002548307063989346
       ],
       "encoding": {
         "kind": "linear",
-        "max": 0.2852526605129242,
-        "min": 3.388207492349693e-10,
+        "max": 0.30001649260520935,
+        "min": 9.709405501823198e-11,
         "missing": 65535
       },
       "kind": "loss",
       "label": "Total Loss",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/loss_total_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "pred_output_0": {
       "display_domain": [
-        0.03826825022697449,
-        1.6921012449264523
+        0.0496478532999754,
+        1.6943902087211613
       ],
       "encoding": {
         "kind": "linear",
-        "max": 1.9868733882904053,
-        "min": -0.07587859034538269,
+        "max": 1.9867124557495117,
+        "min": -0.07585842162370682,
         "missing": 65535
       },
       "kind": "prediction",
       "label": "Prediction $\\hat u$",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/pred_output_0_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "pred_output_1": {
       "display_domain": [
-        -0.2065724614262581,
-        0.2240502491593359
+        -0.2065616050362587,
+        0.22370535105466843
       ],
       "encoding": {
         "kind": "linear",
-        "max": 1.0025475025177002,
-        "min": -0.9995577335357666,
+        "max": 1.004248023033142,
+        "min": -0.9997063279151917,
         "missing": 65535
       },
       "kind": "prediction",
       "label": "Prediction $\\hat v$",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/pred_output_1_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     },
     "pred_output_2": {
       "display_domain": [
-        0.013619889616966247,
-        1.8487447547912597
+        0.013297707587480546,
+        1.8486718368530275
       ],
       "encoding": {
         "kind": "linear",
-        "max": 3.208747625350952,
-        "min": -0.2759641110897064,
+        "max": 3.242786169052124,
+        "min": -0.3078787624835968,
         "missing": 65535
       },
       "kind": "prediction",
       "label": "Prediction $\\hat p$",
       "raster": {
-        "bytes": 97280,
+        "bytes": 391168,
         "dtype": "uint16",
         "path": "arrays/pred_output_2_raster.u16",
         "shape": [
-          95,
-          512
+          191,
+          1024
         ]
       }
     }
   },
   "folder": "navier_stokes_nd_float64",
-  "generated_at": "2026-06-09T16:40:34+0200",
+  "generated_at": "2026-06-09T20:19:09+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
@@ -461,9 +461,9 @@
       "display_label": "GradDot / total loss -> output 0",
       "id": "grad_dot_total_loss_output_0",
       "k": 64,
-      "k_web_max": 64,
       "label": "GradDot: total_loss -> output_0",
       "left_term": "output_0",
+      "max_local_influence_points": 64,
       "method": "GradDot",
       "n_outputs": 3,
       "num_bcs": 6,
@@ -3566,9 +3566,9 @@
       "display_label": "GradDot / total loss -> total loss",
       "id": "grad_dot_total_loss_total_loss",
       "k": 64,
-      "k_web_max": 64,
       "label": "GradDot: total_loss -> total_loss",
       "left_term": "total_loss",
+      "max_local_influence_points": 64,
       "method": "GradDot",
       "n_outputs": 3,
       "num_bcs": 6,
@@ -6671,9 +6671,9 @@
       "display_label": "PINNfluence / total loss -> output 0",
       "id": "influences_total_loss_output_0",
       "k": 64,
-      "k_web_max": 64,
       "label": "PINNfluence: total_loss -> output_0",
       "left_term": "output_0",
+      "max_local_influence_points": 64,
       "method": "PINNfluence",
       "n_outputs": 3,
       "num_bcs": 6,
@@ -9776,9 +9776,9 @@
       "display_label": "PINNfluence / total loss -> total loss",
       "id": "influences_total_loss_total_loss",
       "k": 64,
-      "k_web_max": 64,
       "label": "PINNfluence: total_loss -> total_loss",
       "left_term": "total_loss",
+      "max_local_influence_points": 64,
       "method": "PINNfluence",
       "n_outputs": 3,
       "num_bcs": 6,
@@ -12874,8 +12874,8 @@
       }
     }
   ],
-  "k_web_max": 64,
   "matrix_mode": "core",
+  "max_local_influence_points": 64,
   "n_candidate": 10000,
   "n_outputs": 3,
   "n_train": 10000,
