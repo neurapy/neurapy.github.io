@@ -19,7 +19,10 @@
             <select id="runSelect"></select>
           </label>
           <button id="resetButton" class="icon-button" title="Reset selection" aria-label="Reset selection">
-            <span aria-hidden="true">R</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M6.2 7.4A8 8 0 1 1 4 12" />
+              <path d="M6.2 7.4H3.5V4.7" />
+            </svg>
           </button>
         </div>
       </header>
@@ -27,86 +30,49 @@
       <section id="message" class="message" hidden></section>
 
       <section class="workspace">
-        <aside class="control-panel">
-          <div class="control-group">
-            <label>
-              <span>Field</span>
-              <select id="fieldSelect"></select>
-            </label>
-            <div class="segmented" id="fieldKindButtons" role="group" aria-label="Field kind">
-              <button data-kind="prediction" class="active">Prediction</button>
-              <button data-kind="loss">Loss</button>
-            </div>
-          </div>
-
-          <div class="control-group">
-            <label>
-              <span>Influence</span>
-              <select id="matrixSelect"></select>
-            </label>
-            <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
-              <button data-sign="abs" class="active">|·|</button>
-              <button data-sign="pos">+</button>
-              <button data-sign="neg">-</button>
-            </div>
-          </div>
-
-          <div class="control-group">
-            <label>
-              <span>Selection</span>
-            </label>
-            <div class="segmented" id="selectionModeButtons" role="group" aria-label="Selection mode">
-              <button data-mode="point" class="active">Point</button>
-              <button data-mode="region">Region</button>
-            </div>
-          </div>
-
-          <div class="control-group">
-            <label>
-              <span>Top k</span>
-              <output id="kOutput">25</output>
-              <input id="kSlider" type="range" min="1" max="200" value="25" />
-            </label>
-          </div>
-
-          <div class="control-group">
-            <label>
-              <span>Global</span>
-              <select id="summarySelect">
-                <option value="mean_abs">Mean |influence|</option>
-                <option value="mean_signed">Mean signed</option>
-                <option value="max_abs">Max |influence|</option>
-                <option value="positive_mass">Positive mass</option>
-                <option value="negative_mass">Negative mass</option>
-              </select>
-            </label>
-          </div>
-
-          <dl class="stats">
-            <div>
-              <dt id="selectedPointLabel">Point</dt>
-              <dd id="selectedPoint">-</dd>
-            </div>
-            <div>
-              <dt id="selectedValueLabel">Value</dt>
-              <dd id="selectedValue">-</dd>
-            </div>
-            <div>
-              <dt>Training Points</dt>
-              <dd id="trainCount">-</dd>
-            </div>
-            <div>
-              <dt>Candidate Points</dt>
-              <dd id="candidateCount">-</dd>
-            </div>
-          </dl>
-        </aside>
-
         <section id="plotGrid" class="plot-grid" data-layout="row">
           <article class="plot-panel model-panel">
             <div class="plot-header">
-              <h2 id="mainTitle">Model</h2>
-              <span id="mainRange" class="muted"></span>
+              <div class="plot-title-group">
+                <h2 id="mainTitle">Model</h2>
+                <span id="mainRange" class="muted"></span>
+              </div>
+              <div class="selection-readout" aria-live="polite">
+                <span id="selectedPointLabel" class="readout-label">Point</span>
+                <span id="selectedPoint" class="readout-value">-</span>
+                <span id="selectedValueLabel" class="readout-label">Value</span>
+                <span id="selectedValue" class="readout-value">-</span>
+              </div>
+              <div class="plot-actions model-actions">
+                <button
+                  id="modelMenuButton"
+                  class="icon-button menu-button"
+                  type="button"
+                  title="Model controls"
+                  aria-label="Model controls"
+                  aria-expanded="false"
+                  aria-controls="modelMenu"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <circle cx="5" cy="12" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="19" cy="12" r="1.6" />
+                  </svg>
+                </button>
+                <div id="modelMenu" class="plot-menu model-menu" role="menu">
+                  <label class="plot-control">
+                    <span>Field</span>
+                    <select id="fieldSelect"></select>
+                  </label>
+                  <div class="plot-control">
+                    <span>Kind</span>
+                    <div class="segmented" id="fieldKindButtons" role="group" aria-label="Field kind">
+                      <button data-kind="prediction" class="active">Prediction</button>
+                      <button data-kind="loss">Loss</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="plot-body">
               <canvas id="mainCanvas"></canvas>
@@ -123,6 +89,51 @@
               <div class="segmented train-mode" id="trainModeButtons" role="group" aria-label="Train plot mode">
                 <button data-train-mode="local" class="active">Local</button>
                 <button data-train-mode="global">Global</button>
+              </div>
+              <div class="plot-actions train-actions">
+                <button
+                  id="trainMenuButton"
+                  class="icon-button menu-button"
+                  type="button"
+                  title="Train controls"
+                  aria-label="Train controls"
+                  aria-expanded="false"
+                  aria-controls="trainMenu"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <circle cx="5" cy="12" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="19" cy="12" r="1.6" />
+                  </svg>
+                </button>
+                <div id="trainMenu" class="plot-menu train-menu" role="menu">
+                  <label class="plot-control">
+                    <span>Influence</span>
+                    <select id="matrixSelect"></select>
+                  </label>
+                  <div class="plot-control">
+                    <span>Sign</span>
+                    <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
+                      <button data-sign="abs" class="active">|·|</button>
+                      <button data-sign="pos">+</button>
+                      <button data-sign="neg">-</button>
+                    </div>
+                  </div>
+                  <label class="plot-control k-control">
+                    <span>Top k <output id="kOutput" for="kSlider">25</output></span>
+                    <input id="kSlider" type="range" min="1" max="200" value="25" />
+                  </label>
+                  <label id="summaryControl" class="plot-control">
+                    <span>Global</span>
+                    <select id="summarySelect">
+                      <option value="mean_abs">Mean |influence|</option>
+                      <option value="mean_signed">Mean signed</option>
+                      <option value="max_abs">Max |influence|</option>
+                      <option value="positive_mass">Positive mass</option>
+                      <option value="negative_mass">Negative mass</option>
+                    </select>
+                  </label>
+                </div>
               </div>
             </div>
             <div class="plot-body">

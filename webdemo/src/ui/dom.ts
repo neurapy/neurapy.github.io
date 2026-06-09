@@ -7,17 +7,19 @@ export interface DomRefs {
   matrixSelect: HTMLSelectElement;
   fieldKindButtons: HTMLElement;
   signButtons: HTMLElement;
-  selectionModeButtons: HTMLElement;
   kSlider: HTMLInputElement;
   kOutput: HTMLOutputElement;
   summarySelect: HTMLSelectElement;
+  summaryControl: HTMLElement;
   trainModeButtons: HTMLElement;
+  modelMenuButton: HTMLButtonElement;
+  modelMenu: HTMLElement;
+  trainMenuButton: HTMLButtonElement;
+  trainMenu: HTMLElement;
   selectedPointLabel: HTMLElement;
   selectedPoint: HTMLElement;
   selectedValueLabel: HTMLElement;
   selectedValue: HTMLElement;
-  trainCount: HTMLElement;
-  candidateCount: HTMLElement;
   plotGrid: HTMLElement;
   mainTitle: HTMLElement;
   mainRange: HTMLElement;
@@ -48,17 +50,19 @@ export function getDomRefs(): DomRefs {
     matrixSelect: required("#matrixSelect", HTMLSelectElement),
     fieldKindButtons: required("#fieldKindButtons", HTMLElement),
     signButtons: required("#signButtons", HTMLElement),
-    selectionModeButtons: required("#selectionModeButtons", HTMLElement),
     kSlider: required("#kSlider", HTMLInputElement),
     kOutput: required("#kOutput", HTMLOutputElement),
     summarySelect: required("#summarySelect", HTMLSelectElement),
+    summaryControl: required("#summaryControl", HTMLElement),
     trainModeButtons: required("#trainModeButtons", HTMLElement),
+    modelMenuButton: required("#modelMenuButton", HTMLButtonElement),
+    modelMenu: required("#modelMenu", HTMLElement),
+    trainMenuButton: required("#trainMenuButton", HTMLButtonElement),
+    trainMenu: required("#trainMenu", HTMLElement),
     selectedPointLabel: required("#selectedPointLabel", HTMLElement),
     selectedPoint: required("#selectedPoint", HTMLElement),
     selectedValueLabel: required("#selectedValueLabel", HTMLElement),
     selectedValue: required("#selectedValue", HTMLElement),
-    trainCount: required("#trainCount", HTMLElement),
-    candidateCount: required("#candidateCount", HTMLElement),
     plotGrid: required("#plotGrid", HTMLElement),
     mainTitle: required("#mainTitle", HTMLElement),
     mainRange: required("#mainRange", HTMLElement),

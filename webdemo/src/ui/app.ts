@@ -49,8 +49,18 @@ const SUMMARY_LABELS: Record<SummaryName, string> = {
   positive_mass: "Positive mass",
   negative_mass: "Negative mass",
 };
+const DRAG_THRESHOLD_PX = 8;
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_DISTANCE_PX = 36;
 
 type PanelName = "main" | "train";
+type ModelGesture = {
+  pointerId: number;
+  pointerType: string;
+  start: [number, number];
+  current: [number, number];
+  mode: "pending" | "region";
+};
 
 export class AppController {
   private readonly dom: DomRefs = getDomRefs();
@@ -74,7 +84,9 @@ export class AppController {
   private summaryValues: Float32Array | null = null;
   private mainViewport = null as ReturnType<typeof renderMainPlot> | null;
   private draftRegion: Bounds | null = null;
-  private regionDrag: { pointerId: number; start: [number, number]; current: [number, number] } | null = null;
+  private modelGesture: ModelGesture | null = null;
+  private touchRegionArmed = false;
+  private lastTouchTap: { time: number; point: [number, number] } | null = null;
   private latestRasterRequest = 0;
   private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
@@ -135,20 +147,6 @@ export class AppController {
         this.updateStats();
       });
     });
-    this.dom.selectionModeButtons.addEventListener("click", (event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-mode]");
-      if (!button) return;
-      const mode = button.dataset.mode === "region" ? "region" : "point";
-      this.store.dispatch({ type: "selectionMode", selectionMode: mode });
-      this.draftRegion = null;
-      this.regionDrag = null;
-      this.setActiveButtons(this.dom.selectionModeButtons, mode, "mode");
-      void this.loadInfluenceForSelection().then(() => {
-        this.schedule("main");
-        this.schedule("train");
-        this.updateStats();
-      });
-    });
     this.dom.kSlider.addEventListener("input", () => {
       this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
       this.dom.kOutput.value = String(this.store.state.k);
@@ -164,14 +162,27 @@ export class AppController {
       const trainPlotMode = button.dataset.trainMode === "global" ? "global" : "local";
       this.store.dispatch({ type: "trainPlotMode", trainPlotMode });
       this.setActiveButtons(this.dom.trainModeButtons, trainPlotMode, "trainMode");
+      this.updateTrainControlVisibility();
       this.schedule("train");
     });
+    this.dom.modelMenuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.toggleMenu("model");
+    });
+    this.dom.trainMenuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.toggleMenu("train");
+    });
+    this.dom.modelMenu.addEventListener("click", (event) => event.stopPropagation());
+    this.dom.trainMenu.addEventListener("click", (event) => event.stopPropagation());
+    document.addEventListener("click", () => this.closeMenus());
     this.dom.resetButton.addEventListener("click", () => {
       this.store.dispatch({ type: "resetSelection" });
       this.draftRegion = null;
-      this.regionDrag = null;
+      this.modelGesture = null;
+      this.touchRegionArmed = false;
+      this.lastTouchTap = null;
       this.influenceAggregate = null;
-      this.setActiveButtons(this.dom.selectionModeButtons, this.store.state.selectionMode, "mode");
       this.pickDefaultSelection();
       void this.loadInfluenceForSelection().then(() => {
         this.schedule("main");
@@ -185,8 +196,33 @@ export class AppController {
     this.dom.mainCanvas.addEventListener("pointercancel", (event) => this.handleMainPointerCancel(event));
     window.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+      this.closeMenus();
       this.clearRegionSelection();
     });
+  }
+
+  private toggleMenu(menu: "model" | "train"): void {
+    const actions =
+      menu === "model" ? this.dom.modelMenuButton.parentElement : this.dom.trainMenuButton.parentElement;
+    const isOpen = actions?.dataset.open === "true";
+    this.closeMenus();
+    this.setMenuOpen(menu, !isOpen);
+  }
+
+  private setMenuOpen(menu: "model" | "train", open: boolean): void {
+    const button = menu === "model" ? this.dom.modelMenuButton : this.dom.trainMenuButton;
+    const actions = button.parentElement;
+    if (actions) actions.dataset.open = open ? "true" : "false";
+    button.setAttribute("aria-expanded", String(open));
+  }
+
+  private closeMenus(): void {
+    this.setMenuOpen("model", false);
+    this.setMenuOpen("train", false);
+  }
+
+  private updateTrainControlVisibility(): void {
+    this.dom.summaryControl.hidden = this.store.state.trainPlotMode !== "global";
   }
 
   private observeLayout(): void {
@@ -218,7 +254,9 @@ export class AppController {
     this.influenceAggregate = null;
     this.summaryValues = null;
     this.draftRegion = null;
-    this.regionDrag = null;
+    this.modelGesture = null;
+    this.touchRegionArmed = false;
+    this.lastTouchTap = null;
     this.latestAggregateRequest += 1;
     showMessage(this.dom.message, null);
     this.dom.runMeta.textContent = `Loading ${run.display_name}`;
@@ -297,8 +335,8 @@ export class AppController {
     this.dom.kOutput.value = String(this.store.state.k);
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
-    this.setActiveButtons(this.dom.selectionModeButtons, this.store.state.selectionMode, "mode");
     this.setActiveButtons(this.dom.trainModeButtons, this.store.state.trainPlotMode, "trainMode");
+    this.updateTrainControlVisibility();
   }
 
   private populateFieldSelect(kind: "prediction" | "loss"): void {
@@ -560,12 +598,13 @@ export class AppController {
         selectedCoord: this.store.state.selectionMode === "point" ? this.store.state.selectedCoord : null,
         selectedRegion:
           this.store.state.selectionMode === "region" ? this.store.state.selectedRegion : null,
-        draftRegion: this.store.state.selectionMode === "region" ? this.draftRegion : null,
+        draftRegion: this.draftRegion,
         showCandidatePoints: true,
         showTrainPoints: true,
       });
       return;
     }
+    this.updateTrainControlVisibility();
     if (this.store.state.trainPlotMode === "local") {
       const matrix = this.selectedMatrix();
       if (!matrix) return;
@@ -611,57 +650,158 @@ export class AppController {
   }
 
   private handleMainPointerDown(event: PointerEvent): void {
-    if (this.store.state.selectionMode === "region") {
-      this.handleRegionPointerDown(event);
+    const context = this.context();
+    if (!context || !this.mainViewport) return;
+    const point = this.canvasPointer(event);
+    if (!containsViewportPoint(point[0], point[1], this.mainViewport)) return;
+    this.closeMenus();
+    event.preventDefault();
+    if (event.pointerType === "touch" && this.touchRegionArmed) {
+      this.touchRegionArmed = false;
+      this.lastTouchTap = null;
+      this.startRegionGesture(event, point);
       return;
     }
-    this.handlePointPointer(event);
+    this.captureMainPointer(event.pointerId);
+    this.modelGesture = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      start: point,
+      current: point,
+      mode: "pending",
+    };
   }
 
   private handleMainPointerMove(event: PointerEvent): void {
-    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
+    if (!this.modelGesture || event.pointerId !== this.modelGesture.pointerId) return;
     const context = this.context();
     if (!context || !this.mainViewport) return;
-    const bounds = this.mainPlotBounds(context);
-    this.regionDrag.current = this.canvasPointer(event);
+    this.modelGesture.current = this.canvasPointer(event);
+    const distance = this.gestureDistance(this.modelGesture, this.modelGesture.current);
+    if (this.modelGesture.mode === "pending") {
+      if (this.modelGesture.pointerType === "touch" || distance < DRAG_THRESHOLD_PX) return;
+      this.modelGesture.mode = "region";
+    }
+    this.updateDraftRegion(context);
+  }
+
+  private handleMainPointerUp(event: PointerEvent): void {
+    if (!this.modelGesture || event.pointerId !== this.modelGesture.pointerId) return;
+    const context = this.context();
+    const gesture = this.modelGesture;
+    const end = this.canvasPointer(event);
+    gesture.current = end;
+    this.modelGesture = null;
+    this.releaseMainPointer(event.pointerId);
+    const distance = this.gestureDistance(gesture, end);
+    if (gesture.mode === "region") {
+      const region = this.draftRegion;
+      this.draftRegion = null;
+      if (distance < DRAG_THRESHOLD_PX || !region) {
+        this.schedule("main");
+        return;
+      }
+      this.finalizeRegionSelection(region);
+      return;
+    }
+    this.draftRegion = null;
+    if (gesture.pointerType === "touch") {
+      if (distance >= DRAG_THRESHOLD_PX) {
+        this.schedule("main");
+        return;
+      }
+      if (this.isDoubleTap(end)) {
+        this.touchRegionArmed = true;
+        this.lastTouchTap = null;
+        this.schedule("main");
+        return;
+      }
+      this.lastTouchTap = { time: performance.now(), point: end };
+      this.selectPointFromPointer(event);
+      return;
+    }
+    if (distance >= DRAG_THRESHOLD_PX && context && this.mainViewport) {
+      const region = regionBoundsFromViewportDrag(
+        gesture.start,
+        end,
+        this.mainPlotBounds(context),
+        this.mainViewport,
+      );
+      this.finalizeRegionSelection(region);
+      return;
+    }
+    this.selectPointFromPointer(event);
+  }
+
+  private handleMainPointerCancel(event: PointerEvent): void {
+    if (!this.modelGesture || event.pointerId !== this.modelGesture.pointerId) return;
+    this.modelGesture = null;
+    this.draftRegion = null;
+    this.releaseMainPointer(event.pointerId);
+    this.schedule("main");
+  }
+
+  private startRegionGesture(event: PointerEvent, point: [number, number]): void {
+    const context = this.context();
+    if (!context || !this.mainViewport) return;
+    this.captureMainPointer(event.pointerId);
+    this.modelGesture = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      start: point,
+      current: point,
+      mode: "region",
+    };
+    this.updateDraftRegion(context);
+  }
+
+  private updateDraftRegion(context: PlotContext): void {
+    if (!this.modelGesture || !this.mainViewport) return;
     this.draftRegion = regionBoundsFromViewportDrag(
-      this.regionDrag.start,
-      this.regionDrag.current,
-      bounds,
+      this.modelGesture.start,
+      this.modelGesture.current,
+      this.mainPlotBounds(context),
       this.mainViewport,
     );
     this.schedule("main");
   }
 
-  private handleMainPointerUp(event: PointerEvent): void {
-    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
-    const drag = this.regionDrag;
-    const end = this.canvasPointer(event);
-    this.regionDrag = null;
-    if (this.dom.mainCanvas.hasPointerCapture(event.pointerId)) {
-      this.dom.mainCanvas.releasePointerCapture(event.pointerId);
-    }
-    const distance = Math.hypot(end[0] - drag.start[0], end[1] - drag.start[1]);
-    const region = this.draftRegion;
-    this.draftRegion = null;
-    if (distance < 8 || !region) {
-      this.schedule("main");
-      return;
-    }
-    this.finalizeRegionSelection(region);
+  private gestureDistance(
+    gesture: Pick<ModelGesture, "start">,
+    point: [number, number],
+  ): number {
+    return Math.hypot(point[0] - gesture.start[0], point[1] - gesture.start[1]);
   }
 
-  private handleMainPointerCancel(event: PointerEvent): void {
-    if (!this.regionDrag || event.pointerId !== this.regionDrag.pointerId) return;
-    this.regionDrag = null;
-    this.draftRegion = null;
-    if (this.dom.mainCanvas.hasPointerCapture(event.pointerId)) {
-      this.dom.mainCanvas.releasePointerCapture(event.pointerId);
-    }
-    this.schedule("main");
+  private isDoubleTap(point: [number, number]): boolean {
+    if (!this.lastTouchTap) return false;
+    const elapsed = performance.now() - this.lastTouchTap.time;
+    const distance = Math.hypot(
+      point[0] - this.lastTouchTap.point[0],
+      point[1] - this.lastTouchTap.point[1],
+    );
+    return elapsed <= DOUBLE_TAP_MS && distance <= DOUBLE_TAP_DISTANCE_PX;
   }
 
-  private handlePointPointer(event: PointerEvent): void {
+  private captureMainPointer(pointerId: number): void {
+    try {
+      this.dom.mainCanvas.setPointerCapture(pointerId);
+    } catch {
+      // Synthetic pointer events in tests do not always create an active pointer capture target.
+    }
+  }
+
+  private releaseMainPointer(pointerId: number): void {
+    try {
+      if (this.dom.mainCanvas.hasPointerCapture(pointerId)) {
+        this.dom.mainCanvas.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore capture state mismatches from synthetic events.
+    }
+  }
+
+  private selectPointFromPointer(event: PointerEvent): void {
     const context = this.context();
     if (!context || !this.mainViewport) return;
     const bounds = this.mainPlotBounds(context);
@@ -680,28 +820,15 @@ export class AppController {
       matrix?.row_source === "train_points"
         ? pointAt(context.points.train_points, trainIndex, context.trainDim)
         : pointAt(context.points.candidate_points, candidateIndex, context.candidateDim);
+    this.touchRegionArmed = false;
+    this.draftRegion = null;
+    this.influenceAggregate = null;
     this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
     void this.loadInfluenceForSelection().then(() => {
       this.schedule("main");
       this.schedule("train");
       this.updateStats();
     });
-  }
-
-  private handleRegionPointerDown(event: PointerEvent): void {
-    const context = this.context();
-    if (!context || !this.mainViewport) return;
-    const point = this.canvasPointer(event);
-    if (!containsViewportPoint(point[0], point[1], this.mainViewport)) return;
-    this.dom.mainCanvas.setPointerCapture(event.pointerId);
-    this.regionDrag = { pointerId: event.pointerId, start: point, current: point };
-    this.draftRegion = regionBoundsFromViewportDrag(
-      point,
-      point,
-      this.mainPlotBounds(context),
-      this.mainViewport,
-    );
-    this.schedule("main");
   }
 
   private finalizeRegionSelection(region: Bounds): void {
@@ -724,7 +851,8 @@ export class AppController {
   private clearRegionSelection(): void {
     if (!this.store.state.selectedRegion && !this.draftRegion) return;
     this.draftRegion = null;
-    this.regionDrag = null;
+    this.modelGesture = null;
+    this.touchRegionArmed = false;
     this.influenceAggregate = null;
     this.store.dispatch({ type: "regionSelection", region: null, candidateIndices: [] });
     this.latestAggregateRequest += 1;
@@ -771,17 +899,12 @@ export class AppController {
     if (!this.manifest) return;
     if (this.store.state.selectionMode === "region") {
       const region = this.store.state.selectedRegion;
-      const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
       this.dom.selectedPointLabel.textContent = "Region";
       this.dom.selectedValueLabel.textContent = "Value";
       this.dom.selectedPoint.textContent = region
         ? `x ${formatNumber(region.minX)} … ${formatNumber(region.maxX)}, y ${formatNumber(region.minY)} … ${formatNumber(region.maxY)}`
         : "-";
       this.dom.selectedValue.textContent = "-";
-      this.dom.trainCount.textContent = this.manifest.n_train.toLocaleString();
-      this.dom.candidateCount.textContent = region
-        ? `${selectedCount.toLocaleString()} / ${this.manifest.n_candidate.toLocaleString()}`
-        : this.manifest.n_candidate.toLocaleString();
       return;
     }
     const context = this.context();
@@ -798,7 +921,5 @@ export class AppController {
     this.dom.selectedValueLabel.textContent = "Value";
     this.dom.selectedPoint.textContent = `(${formatNumber(x)}, ${formatNumber(y)})`;
     this.dom.selectedValue.textContent = formatNumber(sample?.value);
-    this.dom.trainCount.textContent = this.manifest.n_train.toLocaleString();
-    this.dom.candidateCount.textContent = this.manifest.n_candidate.toLocaleString();
   }
 }

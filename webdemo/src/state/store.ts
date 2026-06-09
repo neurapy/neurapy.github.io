@@ -86,13 +86,17 @@ export function reduceState(state: AppState, action: AppAction): AppState {
     case "selection":
       return {
         ...state,
+        selectionMode: "point",
         selectedCandidateIndex: Math.max(0, Math.trunc(action.candidateIndex)),
         selectedTrainIndex: Math.max(0, Math.trunc(action.trainIndex ?? state.selectedTrainIndex)),
         selectedCoord: action.coord,
+        selectedRegion: null,
+        selectedRegionCandidateIndices: [],
       };
     case "regionSelection":
       return {
         ...state,
+        selectionMode: action.region ? "region" : "point",
         selectedRegion: action.region,
         selectedRegionCandidateIndices: action.candidateIndices.map((index) =>
           Math.max(0, Math.trunc(index)),
