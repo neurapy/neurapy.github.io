@@ -20,6 +20,7 @@ venv/
 .pytest_cache/
 .pyright/
 .ruff_cache/
+.vite/
 coverage.xml
 htmlcov/
 
@@ -41,3 +42,12 @@ htmlcov/
 logs
 raw_data/
 webdemo/data
+/node_modules/
+/dist/
+/test-results/
+/playwright-report/
+webdemo/node_modules/
+webdemo/dist/
+webdemo/test-results/
+webdemo/playwright-report/
+webdemo/public/fixtures/tiny-data/

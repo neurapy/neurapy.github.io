@@ -2,27 +2,26 @@
 
 ## How to run
 
-Serve only the static webdemo:
+Start the Vite webdemo dev server:
 
 ```bash
 make install
 make webdemo
 ```
-Alternatively and only if this fails: `python3 -m http.server 8080` from webdemo
 
-Then open <http://127.0.0.1:8080/>.
+Then open the local URL printed by Vite, usually <http://127.0.0.1:5173/>.
 
 The rest should be not necessary. But just in case something goes wrong:
 
 ## Generate Data from raw_data
 
 
-The app serves pre-generated static assets from `webdemo/data/`.
+The app serves pre-generated static assets from `webdemo/public/data/`.
 
 Build or refresh the demo bundle from the repo root:
 
 ```bash
-uv run python src/build_static_demo_data.py --matrix-mode core --k-max 150 --raster-max-resolution 1024 --overwrite --matrix-workers 8
+uv run python src/build_static_demo_data.py --matrix-mode core --k-web-max 64 --raster-max-resolution 512 --overwrite --matrix-workers 8
 ```
 
 Verify the generated assets:
@@ -30,6 +29,23 @@ Verify the generated assets:
 ```bash
 uv run python src/verify_static_demo_data.py --samples 5
 ```
+
+Build the deployable static site:
+
+```bash
+npm --prefix webdemo run build
+```
+
+The deployable artifact is `webdemo/dist/`. It is suitable for GitHub Pages as long as
+`webdemo/public/data/` is present before the build.
+
+## Publish on GitHub Pages
+
+1. Commit the frontend source and the generated `webdemo/public/data/` bundle.
+2. In GitHub, enable Pages with GitHub Actions.
+3. Use a static build action that runs `npm --prefix webdemo ci` and
+   `npm --prefix webdemo run build`, then uploads `webdemo/dist/`.
+4. Open the resulting `https://<user-or-org>.github.io/<repo>/` URL from your phone.
 
 ## No Raw Data?
 
@@ -45,6 +61,8 @@ There is also a script to automatically download those from my folder from the `
 Have fun on ICML
 
 ---
+Next:
+1. Aspect Ration richtig nutzen um Prediction + Global Influence am best möglichsten darszustellen
 ---
 ---
 

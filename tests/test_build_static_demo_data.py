@@ -66,3 +66,42 @@ def test_raster_grid_metadata_shape_and_disk_mask() -> None:
     assert grid.mask[0, 3] == 0
     assert grid.mask[1, 1] == 1
     assert grid.mask[2, 2] == 1
+
+
+def test_uint16_raster_quantization_uses_missing_sentinel() -> None:
+    values = np.array([[0.0, 0.5], [1.0, np.nan]], dtype=np.float32)
+    mask = np.array([[1, 1], [1, 0]], dtype=np.uint8)
+
+    quantized, encoding, display_domain = build_static.quantize_uint16_linear(values, mask)
+
+    assert quantized.dtype == np.uint16
+    assert quantized.shape == values.shape
+    assert quantized[0, 0] == 0
+    assert quantized[1, 0] == 65534
+    assert quantized[1, 1] == 65535
+    assert encoding == {"kind": "linear", "min": 0.0, "max": 1.0, "missing": 65535}
+    assert display_domain[0] < display_domain[1]
+
+
+def test_int16_symmetric_quantization_round_trips_with_scale() -> None:
+    values = np.array([[-2.0, 0.0, 1.0]], dtype=np.float32)
+
+    quantized, scale = build_static.quantize_int16_symmetric(values)
+    restored = quantized.astype(np.float32) * scale
+
+    assert quantized.dtype == np.int16
+    assert scale > 0
+    np.testing.assert_allclose(restored, values, atol=scale * 0.55)
+
+
+def test_bundle_report_groups_chunk_files(tmp_path) -> None:
+    (tmp_path / "index.json").write_text("{}")
+    chunk = tmp_path / "run" / "influence" / "m0" / "abs" / "chunks" / "0_values.i16"
+    chunk.parent.mkdir(parents=True)
+    np.array([1, 2, 3], dtype=np.int16).tofile(chunk)
+
+    report = build_static.build_bundle_report(tmp_path, budget_bytes=10_000)
+
+    assert report["schema_version"] == 5
+    assert report["within_budget"] is True
+    assert report["by_kind"]["influence_chunks"] == 6

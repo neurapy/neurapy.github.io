@@ -1,16 +1,21 @@
-"""Verify static PINNfluence demo artifacts against source influence files."""
+"""Verify schema-v5 static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+
+SCHEMA_VERSION = 5
+BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 
 DTYPES = {
     "float32": np.float32,
     "uint32": np.uint32,
+    "uint16": np.uint16,
     "uint8": np.uint8,
     "int16": np.int16,
 }
@@ -19,27 +24,190 @@ DTYPES = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--samples", default=5, type=int)
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent / "webdemo" / "public" / "data",
+    )
+    parser.add_argument("--bundle-size-budget-mb", default=750, type=int)
     return parser.parse_args()
 
 
-def read_json(path: Path) -> dict:
+def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
-def read_array(base: Path, spec: dict) -> np.ndarray:
+def read_array(base: Path, spec: dict[str, Any]) -> np.ndarray:
     path = base / spec["path"]
     if not path.exists():
         raise AssertionError(f"Missing array file: {path}")
-    arr = np.fromfile(path, dtype=DTYPES[spec["dtype"]])
+    dtype = spec["dtype"]
+    if dtype not in DTYPES:
+        raise AssertionError(f"{path}: unsupported dtype {dtype!r}")
+    arr = np.fromfile(path, dtype=DTYPES[dtype])
     expected = int(np.prod(spec["shape"]))
     if arr.size != expected:
         raise AssertionError(f"{path}: expected {expected} values, got {arr.size}")
     return arr.reshape(spec["shape"])
 
 
+def assert_schema_v5(payload: dict[str, Any], path: Path) -> None:
+    if payload.get("schema_version") != SCHEMA_VERSION:
+        raise AssertionError(f"{path}: schema_version must be {SCHEMA_VERSION}")
+
+
+def dequantize_values(values: np.ndarray, value_scale: float) -> np.ndarray:
+    if values.dtype != np.int16:
+        raise AssertionError(f"Chunk values must be int16, got {values.dtype}")
+    return values.astype(np.float32) * float(value_scale)
+
+
+def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
+    report_path = data_root / "bundle_report.json"
+    if not report_path.exists():
+        raise AssertionError(f"Missing bundle report: {report_path}")
+    report = read_json(report_path)
+    assert_schema_v5(report, report_path)
+    total = int(report.get("total_bytes", -1))
+    if total < 0:
+        raise AssertionError("bundle_report.json is missing total_bytes")
+    if total > budget_bytes:
+        raise AssertionError(
+            f"Deployable bundle is {total / (1024 * 1024):.1f} MB, "
+            f"above the {budget_bytes / (1024 * 1024):.1f} MB budget"
+        )
+    if not report.get("within_budget", False):
+        raise AssertionError("bundle_report.json marks the bundle as over budget")
+
+
+def verify_rasters(base: Path, manifest: dict[str, Any]) -> None:
+    field_raster = manifest.get("field_raster")
+    if manifest["fields"] and not field_raster:
+        raise AssertionError("Fields are present but field_raster metadata is missing")
+    if not field_raster:
+        return
+
+    height = int(field_raster["height"])
+    width = int(field_raster["width"])
+    shape = [height, width]
+    if field_raster.get("shape") != shape:
+        raise AssertionError(f"field_raster shape metadata {field_raster.get('shape')} != {shape}")
+    mask = read_array(base, field_raster["mask"])
+    if mask.dtype != np.uint8:
+        raise AssertionError(f"field_raster mask must be uint8, got {mask.dtype}")
+    if list(mask.shape) != shape:
+        raise AssertionError(f"field_raster mask shape {list(mask.shape)} != {shape}")
+
+    for field_id, field in manifest["fields"].items():
+        if "array" in field:
+            raise AssertionError(f"{field_id}: deprecated point field array is still present")
+        raster_spec = field.get("raster")
+        if not raster_spec:
+            raise AssertionError(f"{field_id}: raster field data is missing")
+        if raster_spec.get("dtype") != "uint16":
+            raise AssertionError(f"{field_id}: raster dtype must be uint16")
+        encoding = field.get("encoding")
+        if encoding.get("kind") != "linear":
+            raise AssertionError(f"{field_id}: raster encoding must be linear")
+        if encoding.get("missing") != 65535:
+            raise AssertionError(f"{field_id}: raster missing sentinel must be 65535")
+        display_domain = field.get("display_domain")
+        if not isinstance(display_domain, list) or len(display_domain) != 2:
+            raise AssertionError(f"{field_id}: display_domain must be [min, max]")
+        raster = read_array(base, raster_spec)
+        if raster.dtype != np.uint16:
+            raise AssertionError(f"{field_id}: raster dtype must be uint16, got {raster.dtype}")
+        if list(raster.shape) != shape:
+            raise AssertionError(f"{field_id}: raster shape {list(raster.shape)} != {shape}")
+
+
+def verify_chunk_group(
+    base: Path,
+    matrix: dict[str, Any],
+    mode: str,
+    expected_rows: int,
+    n_train: int,
+    raw_scores: np.ndarray | None,
+    rows: np.ndarray,
+) -> None:
+    group = matrix["top_chunks"][mode]
+    row_chunk_size = int(group["row_chunk_size"])
+    chunks = group["chunks"]
+    if group["chunk_count"] != len(chunks):
+        raise AssertionError(f"{matrix['id']} {mode}: chunk_count mismatch")
+    if group["values_dtype"] != "int16":
+        raise AssertionError(f"{matrix['id']} {mode}: values_dtype must be int16")
+    expected_index_dtype = "uint16" if n_train <= 65535 else "uint32"
+    if group["indices_dtype"] != expected_index_dtype:
+        raise AssertionError(
+            f"{matrix['id']} {mode}: expected {expected_index_dtype} indices, "
+            f"got {group['indices_dtype']}"
+        )
+    if "top" in matrix:
+        raise AssertionError(f"{matrix['id']}: deprecated full top arrays are still present")
+
+    covered = 0
+    for chunk in chunks:
+        if chunk["row_start"] != covered:
+            raise AssertionError(f"{matrix['id']} {mode}: non-contiguous chunk rows")
+        if int(chunk["row_count"]) > row_chunk_size:
+            raise AssertionError(f"{matrix['id']} {mode}: chunk exceeds row_chunk_size")
+        indices = read_array(base, chunk["indices"])
+        values_q = read_array(base, chunk["values"])
+        expected_shape = [int(chunk["row_count"]), int(chunk["k"])]
+        if list(indices.shape) != expected_shape:
+            raise AssertionError(f"{matrix['id']} {mode}: index shape mismatch")
+        if list(values_q.shape) != expected_shape:
+            raise AssertionError(f"{matrix['id']} {mode}: value shape mismatch")
+        if values_q.dtype != np.int16:
+            raise AssertionError(f"{matrix['id']} {mode}: values are not int16")
+        if indices.size and int(indices.max()) >= n_train:
+            raise AssertionError(f"{matrix['id']} {mode}: top index exceeds n_train")
+        covered += int(chunk["row_count"])
+    if covered != expected_rows:
+        raise AssertionError(f"{matrix['id']} {mode}: covered rows {covered} != {expected_rows}")
+
+    if raw_scores is None:
+        return
+
+    chunks_by_row = {
+        row: chunk
+        for chunk in chunks
+        for row in range(int(chunk["row_start"]), int(chunk["row_start"]) + int(chunk["row_count"]))
+    }
+    for row in rows:
+        chunk = chunks_by_row[int(row)]
+        local = int(row) - int(chunk["row_start"])
+        indices = read_array(base, chunk["indices"])[local]
+        values_q = read_array(base, chunk["values"])[local]
+        values = dequantize_values(values_q, float(chunk["value_scale"]))
+        row_scores = raw_scores[int(row)]
+        if mode == "abs":
+            rank_scores = np.abs(row_scores)
+        elif mode == "pos":
+            rank_scores = row_scores
+        else:
+            rank_scores = -row_scores
+
+        if len(np.unique(indices)) != len(indices):
+            raise AssertionError(f"{matrix['id']} {mode} row {row}: duplicate top-k index")
+        k = len(indices)
+        threshold = np.sort(rank_scores)[::-1][k - 1]
+        if np.any(rank_scores[indices] < threshold - 1e-8):
+            raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k mismatch")
+        if np.any(np.diff(rank_scores[indices]) > 1e-8):
+            raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k order mismatch")
+
+        expected_values = row_scores[indices]
+        tolerance = abs(float(chunk["value_scale"])) * 0.55 + 1e-8
+        if not np.allclose(values, expected_values, rtol=1e-5, atol=tolerance):
+            raise AssertionError(f"{matrix['id']} {mode} row {row}: quantized value mismatch")
+
+
 def verify_topk(manifest_path: Path, samples: int) -> None:
     base = manifest_path.parent
     manifest = read_json(manifest_path)
+    assert_schema_v5(manifest, manifest_path)
     n_train = manifest["n_train"]
     n_candidate = manifest["n_candidate"]
 
@@ -55,40 +223,10 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
     if "n_display" in manifest:
         raise AssertionError("Deprecated n_display metadata is still present")
 
-    field_raster = manifest.get("field_raster")
-    if manifest["fields"] and not field_raster:
-        raise AssertionError("Fields are present but field_raster metadata is missing")
-    if field_raster:
-        height = int(field_raster["height"])
-        width = int(field_raster["width"])
-        shape = [height, width]
-        if field_raster.get("shape") != shape:
-            raise AssertionError(
-                f"field_raster shape metadata {field_raster.get('shape')} != {shape}"
-            )
-        mask = read_array(base, field_raster["mask"])
-        if list(mask.shape) != shape:
-            raise AssertionError(f"field_raster mask shape {list(mask.shape)} != {shape}")
-        if mask.size != height * width:
-            raise AssertionError(f"field_raster mask length {mask.size} != {height} * {width}")
-        for field_id, field in manifest["fields"].items():
-            if "array" in field:
-                raise AssertionError(f"{field_id}: deprecated point field array is still present")
-            if "raster" not in field:
-                raise AssertionError(f"{field_id}: raster field data is missing")
-            raster = read_array(base, field["raster"])
-            if list(raster.shape) != shape:
-                raise AssertionError(f"{field_id}: raster shape {list(raster.shape)} != {shape}")
-            if raster.size != height * width:
-                raise AssertionError(
-                    f"{field_id}: raster length {raster.size} != {height} * {width}"
-                )
+    verify_rasters(base, manifest)
 
     for matrix in manifest["influence_matrices"]:
-        row_source = matrix.get(
-            "row_source",
-            "train_points" if matrix.get("self_influence") else "candidate_points",
-        )
+        row_source = matrix["row_source"]
         if row_source == "candidate_points":
             expected_rows = n_candidate
         elif row_source == "train_points":
@@ -112,54 +250,25 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
                     f"{matrix['id']}: source columns {raw_scores.shape[1]} != {n_train}"
                 )
 
-        rows = np.linspace(0, expected_rows - 1, min(samples, expected_rows))
-        rows = rows.astype(int)
-
+        rows = np.linspace(0, expected_rows - 1, min(samples, expected_rows)).astype(int)
         for mode in ("abs", "pos", "neg"):
-            indices = read_array(base, matrix["top"][mode]["indices"])
-            values = read_array(base, matrix["top"][mode]["values"])
-            assert indices.shape == values.shape
-            assert indices.shape[0] == expected_rows
-            if indices.size:
-                assert int(indices.max()) < n_train
-
-            if raw_scores is None:
-                continue
-            for row in rows:
-                k = indices.shape[1]
-                row_scores = raw_scores[row]
-                if mode == "abs":
-                    rank_scores = np.abs(row_scores)
-                elif mode == "pos":
-                    rank_scores = row_scores
-                else:
-                    rank_scores = -row_scores
-                got = indices[row]
-
-                if len(np.unique(got)) != len(got):
-                    raise AssertionError(f"{matrix['id']} {mode} row {row}: duplicate top-k index")
-                threshold = np.sort(rank_scores)[::-1][k - 1]
-                if np.any(rank_scores[got] < threshold - 1e-8):
-                    raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k mismatch")
-                if np.any(np.diff(rank_scores[got]) > 1e-8):
-                    raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k order mismatch")
-
-                expected_values = row_scores[got]
-                if not np.allclose(values[row], expected_values, rtol=1e-5, atol=1e-8):
-                    raise AssertionError(f"{matrix['id']} {mode} row {row}: value mismatch")
+            verify_chunk_group(base, matrix, mode, expected_rows, n_train, raw_scores, rows)
 
 
 def main() -> None:
     args = parse_args()
-    webdata_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
-    index_path = webdata_root / "index.json"
+    data_root = args.data_root
+    budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
+    index_path = data_root / "index.json"
     index = read_json(index_path)
+    assert_schema_v5(index, index_path)
+    verify_bundle_report(data_root, budget_bytes)
     checked = 0
     for run in index["runs"]:
         manifest_rel = run.get("manifest")
         if not manifest_rel:
             continue
-        manifest_path = webdata_root / manifest_rel
+        manifest_path = data_root / manifest_rel
         print(f"Checking {manifest_path}")
         verify_topk(manifest_path, args.samples)
         checked += 1

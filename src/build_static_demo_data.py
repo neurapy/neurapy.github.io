@@ -38,12 +38,24 @@ CORE_MATRIX_IDS = {
 DTYPES = {
     "float32": np.float32,
     "uint32": np.uint32,
+    "uint16": np.uint16,
     "uint8": np.uint8,
     "int16": np.int16,
 }
+DTYPE_EXTENSIONS = {
+    "float32": "f32",
+    "uint32": "u32",
+    "uint16": "u16",
+    "uint8": "u8",
+    "int16": "i16",
+}
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 DEFAULT_RASTER_MAX_RESOLUTION = 512
+DEFAULT_K_WEB_MAX = 64
+DEFAULT_ROW_CHUNK_SIZE = 256
+BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
+DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
 
 
 @dataclass
@@ -76,7 +88,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Problem folders to process, e.g. allen_cahn_float64 burgers_float64. Default: all.",
     )
-    parser.add_argument("--k-max", default=200, type=int)
+    parser.add_argument(
+        "--k-web-max", "--k-max", dest="k_web_max", default=DEFAULT_K_WEB_MAX, type=int
+    )
+    parser.add_argument("--row-chunk-size", default=DEFAULT_ROW_CHUNK_SIZE, type=int)
+    parser.add_argument("--bundle-size-budget-mb", default=750, type=int)
     parser.add_argument(
         "--raster-max-resolution",
         default=DEFAULT_RASTER_MAX_RESOLUTION,
@@ -104,7 +120,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-incomplete",
         action="store_true",
-        help="Do not include incomplete runs in webdemo/data/index.json.",
+        help="Do not include incomplete runs in webdemo/public/data/index.json.",
     )
     parser.add_argument(
         "--force-run",
@@ -138,8 +154,112 @@ def write_array(
     }
 
 
+def robust_display_domain(values: np.ndarray, mask: np.ndarray | None = None) -> list[float]:
+    values = np.asarray(values, dtype=np.float32).reshape(-1)
+    if mask is not None:
+        values = values[np.asarray(mask, dtype=bool).reshape(-1)]
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return [0.0, 1.0]
+    low, high = np.quantile(values.astype(np.float64), [0.02, 0.98])
+    if not np.isfinite(low) or not np.isfinite(high) or low == high:
+        center = float(values[0]) if values.size else 0.0
+        low = center - 1.0
+        high = center + 1.0
+    return [float(low), float(high)]
+
+
+def quantize_uint16_linear(
+    values: np.ndarray,
+    mask: np.ndarray | None = None,
+    missing: int = 65535,
+) -> tuple[np.ndarray, dict[str, Any], list[float]]:
+    values = np.asarray(values, dtype=np.float32)
+    flat_values = values.reshape(-1)
+    valid = np.isfinite(flat_values)
+    if mask is not None:
+        valid &= np.asarray(mask, dtype=bool).reshape(-1)
+    if np.any(valid):
+        vmin = float(np.nanmin(flat_values[valid]))
+        vmax = float(np.nanmax(flat_values[valid]))
+    else:
+        vmin = 0.0
+        vmax = 1.0
+    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin == vmax:
+        vmax = vmin + 1.0
+    span = vmax - vmin
+    quantized = np.full(flat_values.shape, missing, dtype=np.uint16)
+    scaled = np.rint(np.clip((flat_values[valid] - vmin) / span, 0.0, 1.0) * 65534.0)
+    quantized[valid] = scaled.astype(np.uint16)
+    encoding = {"kind": "linear", "min": vmin, "max": vmax, "missing": missing}
+    return quantized.reshape(values.shape), encoding, robust_display_domain(values, mask)
+
+
+def quantize_int16_symmetric(values: np.ndarray) -> tuple[np.ndarray, float]:
+    values = np.asarray(values, dtype=np.float32)
+    if values.size == 0:
+        return values.astype(np.int16), 1.0
+    max_abs = float(np.nanmax(np.abs(values)))
+    scale = max_abs / 32767.0 if np.isfinite(max_abs) and max_abs > 0 else 1.0
+    quantized = np.rint(values / scale)
+    quantized = np.clip(quantized, -32767, 32767).astype(np.int16)
+    return quantized, float(scale)
+
+
+def bundle_file_kind(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".json":
+        if path.name == "manifest.json":
+            return "manifest"
+        if path.name == "index.json":
+            return "index"
+        return "json"
+    if suffix in {".f32", ".u32", ".u16", ".u8", ".i16"}:
+        parts = set(path.parts)
+        if "chunks" in parts:
+            return "influence_chunks"
+        if path.name.startswith("summary_"):
+            return "global_summaries"
+        if "raster" in path.stem:
+            return "field_rasters"
+        return "arrays"
+    return suffix.removeprefix(".") or "other"
+
+
+def build_bundle_report(root: Path, budget_bytes: int = BUNDLE_SIZE_BUDGET_BYTES) -> dict[str, Any]:
+    by_kind: dict[str, int] = {}
+    by_suffix: dict[str, int] = {}
+    files: list[dict[str, Any]] = []
+    total = 0
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        size = path.stat().st_size
+        rel = path.relative_to(root).as_posix()
+        kind = bundle_file_kind(path)
+        suffix = path.suffix.lower() or "<none>"
+        by_kind[kind] = by_kind.get(kind, 0) + size
+        by_suffix[suffix] = by_suffix.get(suffix, 0) + size
+        files.append({"path": rel, "bytes": size, "kind": kind})
+        total += size
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "root": ".",
+        "total_bytes": total,
+        "budget_bytes": budget_bytes,
+        "within_budget": total <= budget_bytes,
+        "by_kind": dict(sorted(by_kind.items())),
+        "by_suffix": dict(sorted(by_suffix.items())),
+        "files": files,
+    }
+
+
 def slug_path(path: Path) -> str:
     return path.as_posix()
+
+
+def dtype_extension(dtype: str) -> str:
+    return DTYPE_EXTENSIONS[dtype]
 
 
 def problem_from_folder(folder: Path) -> str:
@@ -600,7 +720,8 @@ def process_influence_matrix(
     n_train: int,
     row_source: str,
     row_count: int,
-    k_max: int,
+    k_web_max: int,
+    row_chunk_size: int,
 ) -> dict[str, Any]:
     with np.load(path, allow_pickle=False) as data:
         scores = np.asarray(data["scores"], dtype=np.float32)
@@ -627,26 +748,51 @@ def process_influence_matrix(
     if scores.shape[1] != n_train:
         raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
 
-    k = min(k_max, scores.shape[1])
+    k = min(k_web_max, scores.shape[1])
     display_scores = (-scores / float(n_train)).astype(np.float32, copy=False)
     matrix_dir = f"{rel_prefix}/{path.stem}"
+    index_dtype = "uint16" if n_train <= 65535 else "uint32"
 
-    top_entries: dict[str, Any] = {}
+    top_chunks: dict[str, Any] = {}
     for mode in ("abs", "pos", "neg"):
         indices, values = topk_sorted(display_scores, k, mode)
-        top_entries[mode] = {
-            "indices": write_array(
-                out_dir,
-                f"{matrix_dir}/top_{mode}_indices.u32",
-                indices,
-                "uint32",
-            ),
-            "values": write_array(
-                out_dir,
-                f"{matrix_dir}/top_{mode}_values.f32",
-                values,
-                "float32",
-            ),
+        chunk_entries = []
+        for chunk_id, start in enumerate(range(0, row_count, row_chunk_size)):
+            stop = min(row_count, start + row_chunk_size)
+            chunk_indices = indices[start:stop]
+            chunk_values = values[start:stop]
+            quantized_values, value_scale = quantize_int16_symmetric(chunk_values)
+            chunk_entries.append(
+                {
+                    "id": chunk_id,
+                    "row_start": start,
+                    "row_count": stop - start,
+                    "k": k,
+                    "value_scale": value_scale,
+                    "indices": write_array(
+                        out_dir,
+                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_indices.{dtype_extension(index_dtype)}",
+                        chunk_indices,
+                        index_dtype,
+                    ),
+                    "values": write_array(
+                        out_dir,
+                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_values.i16",
+                        quantized_values,
+                        "int16",
+                    ),
+                }
+            )
+        top_chunks[mode] = {
+            "row_chunk_size": row_chunk_size,
+            "chunk_count": len(chunk_entries),
+            "indices_dtype": index_dtype,
+            "values_dtype": "int16",
+            "value_encoding": {
+                "kind": "symmetric_linear",
+                "scale_by": "chunk.value_scale",
+            },
+            "chunks": chunk_entries,
         }
 
     abs_scores = np.abs(display_scores)
@@ -689,6 +835,8 @@ def process_influence_matrix(
             "row_source": row_source,
             "row_count": row_count,
             "k": k,
+            "k_web_max": k_web_max,
+            "row_chunk_size": row_chunk_size,
             "label": (f"{metadata['method']}: {metadata['right_term']} -> {metadata['left_term']}"),
             "display_label": (
                 f"{metadata['method']} / "
@@ -696,7 +844,7 @@ def process_influence_matrix(
                 f"{metadata['left_term'].replace('_', ' ')}"
                 f"{' (self)' if metadata['self_influence'] else ''}"
             ),
-            "top": top_entries,
+            "top_chunks": top_chunks,
             "summary": summary,
         }
     )
@@ -708,7 +856,8 @@ def process_influence_matrix_jobs(
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
-    k_max: int,
+    k_web_max: int,
+    row_chunk_size: int,
     matrix_workers: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     results: list[dict[str, Any] | None] = [None] * len(jobs)
@@ -725,7 +874,8 @@ def process_influence_matrix_jobs(
                     n_train=n_train,
                     row_source=row_source,
                     row_count=row_count,
-                    k_max=k_max,
+                    k_web_max=k_web_max,
+                    row_chunk_size=row_chunk_size,
                 )
                 print(f"  built {matrix_path.name}")
             except Exception as exc:
@@ -742,7 +892,8 @@ def process_influence_matrix_jobs(
                     n_train,
                     row_source,
                     row_count,
-                    k_max,
+                    k_web_max,
+                    row_chunk_size,
                 ): (idx, matrix_path)
                 for idx, matrix_path, row_source, row_count in jobs
             }
@@ -920,12 +1071,18 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                 raise ValueError(
                     f"{name}: raster length {raster_values.size} != {raster_grid.height} * {raster_grid.width}"
                 )
+            quantized, encoding, display_domain = quantize_uint16_linear(
+                raster_values.reshape(raster_grid.height, raster_grid.width),
+                raster_grid.mask,
+            )
             entry["raster"] = write_array(
                 out_dir,
-                f"arrays/{name}_raster.f32",
-                raster_values.reshape(raster_grid.height, raster_grid.width),
-                "float32",
+                f"arrays/{name}_raster.u16",
+                quantized,
+                "uint16",
             )
+            entry["encoding"] = encoding
+            entry["display_domain"] = display_domain
         field_entries[name] = entry
 
     matrix_jobs: list[tuple[int, Path, str, int]] = []
@@ -949,7 +1106,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         out_dir=out_dir,
         rel_prefix="influence",
         n_train=len(train_points),
-        k_max=args.k_max,
+        k_web_max=args.k_web_max,
+        row_chunk_size=args.row_chunk_size,
         matrix_workers=int(getattr(args, "matrix_workers", 1)),
     )
     errors.extend(processing_errors)
@@ -957,6 +1115,15 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     available_terms = sorted(
         {entry["left_term"] for entry in influence_entries}
         | {entry["right_term"] for entry in influence_entries}
+    )
+    default_field = (
+        "pred_output_0" if "pred_output_0" in field_entries else (next(iter(field_entries), None))
+    )
+    matrix_ids = {entry["id"] for entry in influence_entries}
+    default_matrix = (
+        DEFAULT_MATRIX_ID
+        if DEFAULT_MATRIX_ID in matrix_ids
+        else (influence_entries[0]["id"] if influence_entries else None)
     )
 
     manifest = {
@@ -974,7 +1141,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         },
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
-        "k_max": args.k_max,
+        "k_web_max": args.k_web_max,
+        "row_chunk_size": args.row_chunk_size,
         "axes": ["x", "y"][: candidate_points.shape[1]],
         "bounds": (
             raster_grid.bounds
@@ -988,6 +1156,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "num_bcs": num_bcs,
         "available_terms": available_terms,
         "term_labels": {term: term_label(run.problem, term) for term in available_terms},
+        "default_field": default_field,
+        "default_matrix": default_matrix,
         "arrays": arrays,
         "field_raster": field_raster_entry,
         "fields": field_entries,
@@ -1002,6 +1172,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "display_name": manifest["display_name"],
         "status": manifest["status"],
         "manifest": slug_path(Path(run.folder.name) / run.run_prefix / "manifest.json"),
+        "default_field": default_field,
+        "default_matrix": default_matrix,
         "n_candidate": manifest["n_candidate"],
         "n_train": manifest["n_train"],
         "n_matrices": len(influence_entries),
@@ -1030,15 +1202,18 @@ def field_label(problem: str, name: str) -> str:
 def main() -> None:
     args = parse_args()
     torch.set_default_device("cpu")
-    if args.k_max < 1:
-        raise SystemExit("--k-max must be >= 1")
+    if args.k_web_max < 1:
+        raise SystemExit("--k-web-max must be >= 1")
+    if args.row_chunk_size < 1:
+        raise SystemExit("--row-chunk-size must be >= 1")
     if args.matrix_workers < 1:
         raise SystemExit("--matrix-workers must be >= 1")
     if args.raster_max_resolution < 1:
         raise SystemExit("--raster-max-resolution must be >= 1")
+    bundle_budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
 
     args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
-    args.out_root = Path(__file__).resolve().parent.parent / "webdemo" / "data"
+    args.out_root = Path(__file__).resolve().parent.parent / "webdemo" / "public" / "data"
     runs = filter_runs(discover_runs(args.data_root), args)
     if not runs:
         raise SystemExit("No runs matched the requested filters")
@@ -1059,6 +1234,8 @@ def main() -> None:
                     "display_name": display_problem_name(run.problem),
                     "status": "failed",
                     "manifest": None,
+                    "default_field": None,
+                    "default_matrix": None,
                     "errors": [str(exc)],
                 }
             )
@@ -1069,11 +1246,20 @@ def main() -> None:
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "data_root": str(args.data_root),
         "matrix_mode": args.matrix_mode,
-        "k_max": args.k_max,
+        "k_web_max": args.k_web_max,
+        "row_chunk_size": args.row_chunk_size,
         "raster_max_resolution": args.raster_max_resolution,
+        "bundle_report": "bundle_report.json",
         "runs": index_entries,
     }
     write_json(args.out_root / "index.json", index)
+    report = build_bundle_report(args.out_root, bundle_budget_bytes)
+    write_json(args.out_root / "bundle_report.json", report)
+    if not report["within_budget"]:
+        raise SystemExit(
+            f"Deployable bundle is {report['total_bytes'] / (1024 * 1024):.1f} MB, "
+            f"above the {args.bundle_size_budget_mb} MB budget"
+        )
     print(f"\nWrote {args.out_root / 'index.json'}")
 
 

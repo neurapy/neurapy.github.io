@@ -45,11 +45,12 @@ def lean_manifest(base: Path) -> dict[str, Any]:
     )
     raster = write_array(
         base,
-        "arrays/loss_total_raster.f32",
-        np.arange(4, dtype=np.float32).reshape(2, 2),
-        "float32",
+        "arrays/loss_total_raster.u16",
+        np.arange(4, dtype=np.uint16).reshape(2, 2),
+        "uint16",
     )
     return {
+        "schema_version": 5,
         "n_candidate": 1,
         "n_train": 1,
         "arrays": {
@@ -67,6 +68,13 @@ def lean_manifest(base: Path) -> dict[str, Any]:
                 "label": "Loss",
                 "kind": "loss",
                 "raster": raster,
+                "encoding": {
+                    "kind": "linear",
+                    "min": 0.0,
+                    "max": 1.0,
+                    "missing": 65535,
+                },
+                "display_domain": [0.0, 1.0],
             }
         },
         "influence_matrices": [],
@@ -77,6 +85,15 @@ def test_verify_accepts_raster_only_fields(tmp_path: Path) -> None:
     manifest_path = write_manifest(tmp_path, lean_manifest(tmp_path))
 
     verify_static.verify_topk(manifest_path, samples=1)
+
+
+def test_verify_rejects_schema_v4_manifest(tmp_path: Path) -> None:
+    manifest = lean_manifest(tmp_path)
+    manifest["schema_version"] = 4
+    manifest_path = write_manifest(tmp_path, manifest)
+
+    with pytest.raises(AssertionError, match="schema_version"):
+        verify_static.verify_topk(manifest_path, samples=1)
 
 
 def test_verify_rejects_deprecated_display_arrays(tmp_path: Path) -> None:
@@ -114,4 +131,18 @@ def test_verify_rejects_deprecated_point_field_array(tmp_path: Path) -> None:
     manifest_path = write_manifest(tmp_path, manifest)
 
     with pytest.raises(AssertionError, match="deprecated point field array"):
+        verify_static.verify_topk(manifest_path, samples=1)
+
+
+def test_verify_rejects_float32_raster(tmp_path: Path) -> None:
+    manifest = lean_manifest(tmp_path)
+    manifest["fields"]["loss_total"]["raster"] = write_array(
+        tmp_path,
+        "arrays/loss_total_raster.f32",
+        np.arange(4, dtype=np.float32).reshape(2, 2),
+        "float32",
+    )
+    manifest_path = write_manifest(tmp_path, manifest)
+
+    with pytest.raises(AssertionError, match="raster dtype must be uint16"):
         verify_static.verify_topk(manifest_path, samples=1)
