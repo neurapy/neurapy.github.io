@@ -316,7 +316,6 @@
         1200
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 4800,
@@ -3422,7 +3421,6 @@
         1200
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 4800,
@@ -6528,7 +6526,6 @@
         1200
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_influence_scores/influences_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 4800,
@@ -9634,7 +9631,6 @@
         1200
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_influence_scores/influences_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 4800,
@@ -12728,11 +12724,6 @@
   "row_chunk_size": 256,
   "run_id": "drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft",
   "schema_version": 5,
-  "source": {
-    "checkpoint": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_full.pt",
-    "influence_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_influence_scores",
-    "validation_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_validation"
-  },
   "status": "complete",
   "term_labels": {
     "output_0": "$\\hat u$",
@@ -12842,7 +12833,6 @@
         1127,
         1179
       ]
-    },
-    "path": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft_validation"
+    }
   }
 }

@@ -728,7 +728,6 @@ def process_influence_matrix(
         candidate_points = np.asarray(data["candidate_points"])
         metadata: dict[str, Any] = {
             "id": path.stem,
-            "source_file": str(path),
             "method": "GradDot" if path.stem.startswith("grad_dot") else "PINNfluence",
             "left_term": str(data["left_term"]),
             "right_term": str(data["right_term"]),
@@ -923,7 +922,6 @@ def validation_summary(validation_dir: Path | None) -> dict[str, Any]:
                 loo_indices.setdefault(method, []).append(int(idx_text))
     return {
         "available": True,
-        "path": str(validation_dir),
         "counts": counts,
         "loo_indices": {k: sorted(v) for k, v in loo_indices.items()},
     }
@@ -1134,11 +1132,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "display_name": display_problem_name(run.problem),
         "status": status if not errors else ("partial" if complete else "incomplete"),
         "errors": errors,
-        "source": {
-            "checkpoint": str(run.checkpoint) if run.checkpoint else None,
-            "influence_dir": str(run.influence_dir) if run.influence_dir else None,
-            "validation_dir": str(run.validation_dir) if run.validation_dir else None,
-        },
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
         "k_web_max": args.k_web_max,
@@ -1244,7 +1237,6 @@ def main() -> None:
     index = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "data_root": str(args.data_root),
         "matrix_mode": args.matrix_mode,
         "k_web_max": args.k_web_max,
         "row_chunk_size": args.row_chunk_size,

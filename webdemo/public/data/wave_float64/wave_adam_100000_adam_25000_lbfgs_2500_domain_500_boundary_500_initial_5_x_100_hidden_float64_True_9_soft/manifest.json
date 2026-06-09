@@ -339,7 +339,6 @@
         3500
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 14000,
@@ -3445,7 +3444,6 @@
         3500
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 14000,
@@ -6551,7 +6549,6 @@
         3500
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_influence_scores/influences_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 14000,
@@ -9657,7 +9654,6 @@
         3500
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_influence_scores/influences_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 14000,
@@ -12751,11 +12747,6 @@
   "row_chunk_size": 256,
   "run_id": "wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft",
   "schema_version": 5,
-  "source": {
-    "checkpoint": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_full.pt",
-    "influence_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_influence_scores",
-    "validation_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_validation"
-  },
   "status": "complete",
   "term_labels": {
     "output_0": "$\\hat u$",
@@ -12865,7 +12856,6 @@
         3337,
         3441
       ]
-    },
-    "path": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft_validation"
+    }
   }
 }

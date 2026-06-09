@@ -218,7 +218,6 @@ async function build() {
     influence_matrices: [
       {
         id: "m0",
-        source_file: "fixtures/source_missing.npz",
         method: "PINNfluence",
         left_term: "total_loss",
         right_term: "total_loss",

@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path(__file__).resolve().parent.parent / "webdemo" / "public" / "data",
     )
+    parser.add_argument(
+        "--raw-data-root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent / "raw_data",
+    )
     parser.add_argument("--bundle-size-budget-mb", default=750, type=int)
     return parser.parse_args()
 
@@ -204,7 +209,26 @@ def verify_chunk_group(
             raise AssertionError(f"{matrix['id']} {mode} row {row}: quantized value mismatch")
 
 
-def verify_topk(manifest_path: Path, samples: int) -> None:
+def source_file_for_matrix(
+    manifest: dict[str, Any], matrix: dict[str, Any], raw_data_root: Path
+) -> Path:
+    if matrix.get("source_file"):
+        return Path(matrix["source_file"])
+    return (
+        raw_data_root
+        / manifest["folder"]
+        / f"{manifest['run_id']}_influence_scores"
+        / f"{matrix['id']}.npz"
+    )
+
+
+def verify_topk(
+    manifest_path: Path,
+    samples: int,
+    raw_data_root: Path | None = None,
+) -> None:
+    if raw_data_root is None:
+        raw_data_root = Path(__file__).resolve().parent.parent / "raw_data"
     base = manifest_path.parent
     manifest = read_json(manifest_path)
     assert_schema_v5(manifest, manifest_path)
@@ -234,7 +258,7 @@ def verify_topk(manifest_path: Path, samples: int) -> None:
         else:
             raise AssertionError(f"{matrix['id']}: unknown row_source {row_source!r}")
 
-        source = Path(matrix["source_file"])
+        source = source_file_for_matrix(manifest, matrix, raw_data_root)
         raw_scores = None
         if not source.exists():
             print(f"  source missing, shape-only check: {matrix['id']}")
@@ -270,7 +294,7 @@ def main() -> None:
             continue
         manifest_path = data_root / manifest_rel
         print(f"Checking {manifest_path}")
-        verify_topk(manifest_path, args.samples)
+        verify_topk(manifest_path, args.samples, args.raw_data_root)
         checked += 1
     print(f"Verified {checked} static demo run(s)")
 

@@ -82,7 +82,6 @@ export interface InfluenceTopChunks {
 
 export interface InfluenceMatrixManifest {
   id: string;
-  source_file?: string;
   method: string;
   left_term: string;
   right_term: string;

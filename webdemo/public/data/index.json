@@ -1,6 +1,5 @@
 {
   "bundle_report": "bundle_report.json",
-  "data_root": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data",
   "generated_at": "2026-06-09T16:43:11+0200",
   "k_web_max": 64,
   "matrix_mode": "core",

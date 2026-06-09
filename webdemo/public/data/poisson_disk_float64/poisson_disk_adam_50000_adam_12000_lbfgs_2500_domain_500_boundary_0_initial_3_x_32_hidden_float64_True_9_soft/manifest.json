@@ -270,7 +270,6 @@
         3001
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 12004,
@@ -3376,7 +3375,6 @@
         3001
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_influence_scores/grad_dot_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 12004,
@@ -6482,7 +6480,6 @@
         3001
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_influence_scores/influences_total_loss_output_0.npz",
       "summary": {
         "max_abs": {
           "bytes": 12004,
@@ -9588,7 +9585,6 @@
         3001
       ],
       "self_influence": false,
-      "source_file": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_influence_scores/influences_total_loss_total_loss.npz",
       "summary": {
         "max_abs": {
           "bytes": 12004,
@@ -12682,11 +12678,6 @@
   "row_chunk_size": 256,
   "run_id": "poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft",
   "schema_version": 5,
-  "source": {
-    "checkpoint": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_full.pt",
-    "influence_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_influence_scores",
-    "validation_dir": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_validation"
-  },
   "status": "complete",
   "term_labels": {
     "output_0": "$\\hat u$",
@@ -12796,7 +12787,6 @@
         2858,
         2950
       ]
-    },
-    "path": "/home/dolderer/projects/work/0608_pinnfluence_vis/raw_data/poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft_validation"
+    }
   }
 }
