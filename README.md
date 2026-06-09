@@ -28,13 +28,13 @@ uv run python src/build_static_demo_data.py --matrix-mode core --k-web-max 64 --
 Verify the generated assets:
 
 ```bash
-uv run python src/verify_static_demo_data.py --samples 5
+make verify-data
 ```
 
 Build the deployable static site:
 
 ```bash
-npm --prefix webdemo run build
+make webdemo-build
 ```
 
 The deployable artifact is `webdemo/dist/`. It is suitable for GitHub Pages as long as
@@ -73,14 +73,14 @@ git push origin main
 Then check the deployment:
 
 ```bash
-gh run list --repo neurapy/neurapy.github.io --workflow pages.yml --limit 1
-gh run watch --repo neurapy/neurapy.github.io
+make deploy-status
+make deploy-watch
 ```
 
 If needed, trigger a deployment manually:
 
 ```bash
-gh workflow run pages.yml --repo neurapy/neurapy.github.io --ref main
+make deploy
 ```
 
 ## No Raw Data?
