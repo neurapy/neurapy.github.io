@@ -1,8 +1,8 @@
 {
   "bundle_report": "bundle_report.json",
-  "generated_at": "2026-06-09T20:26:07+0200",
+  "generated_at": "2026-06-09T22:45:09+0200",
   "matrix_mode": "core",
-  "max_local_influence_points": 64,
+  "max_local_influence_points": 256,
   "raster_max_resolution": 1024,
   "row_chunk_size": 256,
   "runs": [

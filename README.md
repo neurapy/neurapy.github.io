@@ -101,6 +101,12 @@ Have fun on ICML
 ---
 
 # Notes
+## Fragen für Aleks
+
+1. Regional Influences:
+Paper verwendet Summe oder? Aber das hängt ja stark von der Anzahl der Punkte ab. Wäre Average nicht besser.
+Vor allen Dingen hier in der Demo: Ich verwende zur berechnung nur die top k influences. Average wäre doch grade da besser.
+
 
 ## Webapp ToDos
 

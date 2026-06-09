@@ -78,7 +78,6 @@ class RasterGrid:
     axes: list[str]
 
 
-# TODO: Clearer names
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build static, fully precomputed web demo artifacts."
@@ -91,15 +90,15 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--max_local_influence_points",
-        default=DEFAULT_MAX_LOCAL_INFLUENCE_POINTS,
+        default=64,
         type=int,
         help="Number Calculated Train-Influences per Candidate Point",
     )
-    parser.add_argument("--row-chunk-size", default=DEFAULT_ROW_CHUNK_SIZE, type=int)
-    parser.add_argument("--bundle-size-budget-mb", default=750, type=int)
+    parser.add_argument("--row-chunk-size", default=256, type=int)  # NOTE:
+    parser.add_argument("--bundle-size-budget-mb", default=750, type=int)  # NOTE:
     parser.add_argument(
         "--raster-max-resolution",
-        default=DEFAULT_RASTER_MAX_RESOLUTION,
+        default=512,
         type=int,
         help="Maximum pixel resolution of the longer axis for 2D prediction/loss rasters.",
     )
@@ -542,9 +541,7 @@ def geom_min_max(geom: Any, fallback_points: np.ndarray) -> tuple[np.ndarray, np
 
 
 def raster_dimensions(
-    mins: np.ndarray,
-    maxs: np.ndarray,
-    max_axis_resolution: int = DEFAULT_RASTER_MAX_RESOLUTION,
+    mins: np.ndarray, maxs: np.ndarray, max_axis_resolution=1024
 ) -> tuple[int, int]:
     if max_axis_resolution < 1:
         raise ValueError("max_axis_resolution must be >= 1")
