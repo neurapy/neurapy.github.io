@@ -10,16 +10,16 @@ describe("app state reducer", () => {
   it("switches the influence background explicitly", () => {
     expect(initialState.backgroundMode).toBe("points");
 
-    const linear = reduceState(initialState, {
+    const smooth = reduceState(initialState, {
       type: "backgroundMode",
-      backgroundMode: "linear",
+      backgroundMode: "smooth",
     });
-    const cell = reduceState(linear, {
+    const cell = reduceState(smooth, {
       type: "backgroundMode",
       backgroundMode: "cell",
     });
 
-    expect(linear.backgroundMode).toBe("linear");
+    expect(smooth.backgroundMode).toBe("smooth");
     expect(cell.backgroundMode).toBe("cell");
   });
 

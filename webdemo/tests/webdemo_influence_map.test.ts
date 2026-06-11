@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeCellsInfluenceLayer,
+  computeKernelDensityInfluenceField,
   computeLinearInfluenceField,
   influenceEntriesForBackground,
   MAX_VISIBLE_INFLUENCE_LINES,
@@ -151,6 +152,26 @@ describe("influence map interpolation methods", () => {
     expect(layer.renderedCount).toBe(2);
     expect(layer.cellCount).toBe(2);
     expect(layer.maxAbs).toBe(2);
+  });
+
+  it("KDE smooths signed influence samples into a raster field", () => {
+    const field = computeKernelDensityInfluenceField({
+      points: new Float32Array([0.25, 0.5, 0.75, 0.5]),
+      dim: 2,
+      bounds,
+      viewport,
+      indices: new Uint16Array([0, 1]),
+      values: new Float32Array([2, -2]),
+      gridWidth: 101,
+      gridHeight: 101,
+    });
+
+    expect(field.kind).toBe("raster");
+    expect(field.renderedCount).toBe(2);
+    expect(field.maxAbs).toBeGreaterThan(0);
+    expect(sample(field, 25, 50)).toBeGreaterThan(0);
+    expect(sample(field, 75, 50)).toBeLessThan(0);
+    expect(Math.abs(sample(field, 50, 50))).toBeLessThan(0.35);
   });
 
   it("robust color scaling handles outliers and all-zero fields", () => {

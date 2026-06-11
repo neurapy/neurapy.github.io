@@ -73,8 +73,8 @@ import {
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
 const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
   points: "Points",
-  linear: "Linear",
-  cell: "Cell",
+  smooth: "Smooth",
+  cell: "Cells",
 };
 const DRAG_THRESHOLD_PX = 8;
 const DOUBLE_TAP_MS = 350;
@@ -189,7 +189,7 @@ export class AppController {
       if (!button) return;
       const value = button.dataset.backgroundMode;
       const backgroundMode: BackgroundMode =
-        value === "linear" || value === "cell" ? value : "points";
+        value === "smooth" || value === "cell" ? value : "points";
       this.store.dispatch({ type: "backgroundMode", backgroundMode });
       this.setActiveButtons(this.dom.backgroundButtons, backgroundMode, "backgroundMode");
       this.refreshResponsiveLayout();

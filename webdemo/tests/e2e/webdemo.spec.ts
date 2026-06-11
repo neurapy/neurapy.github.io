@@ -370,6 +370,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
     "Points",
     "Linear",
     "Cell",
+    "KDE",
   ]);
   await expect(page.locator("button[data-background-mode='points']")).toHaveClass(/active/);
   await expect(page.locator("#kControl")).toBeVisible();
@@ -384,6 +385,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   for (const [mode, label] of [
     ["linear", "Linear"],
     ["cell", "Cell"],
+    ["kde", "KDE"],
   ] as const) {
     await page.locator(`button[data-background-mode='${mode}']`).click();
     await expect(page.locator(`button[data-background-mode='${mode}']`)).toHaveClass(/active/);
@@ -446,6 +448,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#backgroundControl")).toBeVisible();
   await expect(page.locator("#methodControl")).toHaveCount(0);
   await expectVisibleControlsInsidePanels(page);
+  await page.locator("button[data-background-mode='cell']").click();
+  await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectContourPaths(page, "train");
   await expect(page.locator("#globalCanvas")).toHaveCount(0);
@@ -584,8 +588,9 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
     "Points",
     "Linear",
     "Cell",
+    "KDE",
   ]);
-  for (const mode of ["cell", "linear", "points"]) {
+  for (const mode of ["cell", "kde", "linear", "points"]) {
     await page.locator(`button[data-background-mode='${mode}']`).click();
     await expectNonblankCanvas(page, "#trainCanvas");
   }

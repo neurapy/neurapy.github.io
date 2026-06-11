@@ -9,7 +9,7 @@ export type TypedArray =
 export type Priority = "foreground" | "background";
 export type FieldKind = "prediction" | "loss";
 export type InfluenceSign = "abs" | "pos" | "neg";
-export type BackgroundMode = "points" | "linear" | "cell";
+export type BackgroundMode = "points" | "smooth" | "cell";
 export type SelectionMode = "point" | "region";
 export type ModelQuality = "good" | "bad";
 

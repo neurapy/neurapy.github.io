@@ -91,8 +91,6 @@ export interface CellsInfluenceLayer {
   cellCount: number;
 }
 
-export type InfluenceMapLayer = InfluenceField | CellsInfluenceLayer;
-
 interface InfluenceFieldArgs {
   points: Float32Array;
   dim: number;
@@ -479,72 +477,144 @@ function delaunayEdgeSpacing(
   return median(distances) || Math.sqrt(Math.max(1, width * height) / Math.max(1, samples.length));
 }
 
-function triangleLongestEdge(a: InfluenceSample, b: InfluenceSample, c: InfluenceSample): number {
-  const ab = Math.hypot(a.x - b.x, a.y - b.y);
-  const bc = Math.hypot(b.x - c.x, b.y - c.y);
-  const ca = Math.hypot(c.x - a.x, c.y - a.y);
-  return Math.max(ab, bc, ca);
-}
-
-function barycentricWeights(
-  x: number,
-  y: number,
-  a: InfluenceSample,
-  b: InfluenceSample,
-  c: InfluenceSample,
-): [number, number, number] | null {
-  const denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-  if (Math.abs(denominator) < 1e-12) return null;
-  const wa = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / denominator;
-  const wb = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / denominator;
-  return [wa, wb, 1 - wa - wb];
-}
-
-export function computeLinearInfluenceField(args: InfluenceFieldArgs): InfluenceMapLayer {
-  const sampleSet = collectInfluenceSamples(args);
-  const { width, height, samples, renderedCount } = sampleSet;
-  if (samples.length < 3) {
-    return computeCellsInfluenceLayer(args);
-  }
-
-  const values = new Float32Array(width * height);
-  const support = new Float32Array(width * height);
+function smoothBandwidth(samples: InfluenceSample[], width: number, height: number): number {
+  const maxBandwidth = Math.max(3, Math.min(width, height) * 0.18);
+  if (samples.length < 2) return clampNumber(Math.min(width, height) * 0.08, 3, maxBandwidth);
   const delaunay = Delaunay.from(
     samples,
     (sample) => sample.x,
     (sample) => sample.y,
   );
-  const triangles = delaunay.triangles;
-  if (!triangles.length) return computeCellsInfluenceLayer(args);
   const spacing = delaunayEdgeSpacing(samples, delaunay, width, height);
-  const maxTriangleEdge = spacing > 0 ? spacing * 2.5 : Infinity;
+  return clampNumber(spacing * 1.35, 3, maxBandwidth);
+}
 
-  for (let triangle = 0; triangle < triangles.length; triangle += 3) {
-    const a = samples[triangles[triangle]];
-    const b = samples[triangles[triangle + 1]];
-    const c = samples[triangles[triangle + 2]];
-    if (!a || !b || !c) continue;
-    if (triangleLongestEdge(a, b, c) > maxTriangleEdge) continue;
-    const minCol = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x)));
-    const maxCol = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)));
-    const minRow = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y)));
-    const maxRow = Math.min(height - 1, Math.ceil(Math.max(a.y, b.y, c.y)));
-    for (let row = minRow; row <= maxRow; row += 1) {
-      const rowOffset = row * width;
-      for (let col = minCol; col <= maxCol; col += 1) {
-        const weights = barycentricWeights(col, row, a, b, c);
-        if (!weights) continue;
-        const [wa, wb, wc] = weights;
-        if (wa < -1e-6 || wb < -1e-6 || wc < -1e-6) continue;
-        const offset = rowOffset + col;
-        values[offset] = wa * a.value + wb * b.value + wc * c.value;
-        support[offset] = 1;
+function gaussianKernel(sigma: number): Float32Array {
+  const radius = Math.max(1, Math.ceil(sigma * 3));
+  const kernel = new Float32Array(radius * 2 + 1);
+  const invTwoSigmaSq = 1 / (2 * sigma * sigma);
+  let sum = 0;
+  for (let index = 0; index < kernel.length; index += 1) {
+    const distance = index - radius;
+    const weight = Math.exp(-(distance * distance) * invTwoSigmaSq);
+    kernel[index] = weight;
+    sum += weight;
+  }
+  if (sum > 0) {
+    for (let index = 0; index < kernel.length; index += 1) kernel[index] /= sum;
+  }
+  return kernel;
+}
+
+function addBilinearSample(args: {
+  values: Float32Array;
+  support: Float32Array;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  value: number;
+}): void {
+  const x0 = clampNumber(Math.floor(args.x), 0, args.width - 1);
+  const y0 = clampNumber(Math.floor(args.y), 0, args.height - 1);
+  const x1 = Math.min(args.width - 1, x0 + 1);
+  const y1 = Math.min(args.height - 1, y0 + 1);
+  const tx = x1 === x0 ? 0 : args.x - x0;
+  const ty = y1 === y0 ? 0 : args.y - y0;
+  const weights = [
+    [x0, y0, (1 - tx) * (1 - ty)],
+    [x1, y0, tx * (1 - ty)],
+    [x0, y1, (1 - tx) * ty],
+    [x1, y1, tx * ty],
+  ] as const;
+
+  for (const [x, y, weight] of weights) {
+    if (weight <= 0) continue;
+    const offset = y * args.width + x;
+    args.values[offset] += args.value * weight;
+    args.support[offset] += weight;
+  }
+}
+
+function convolveSeparable(
+  input: Float32Array,
+  width: number,
+  height: number,
+  kernel: Float32Array,
+): Float32Array {
+  const radius = Math.floor(kernel.length / 2);
+  const temp = new Float32Array(input.length);
+  const output = new Float32Array(input.length);
+
+  for (let row = 0; row < height; row += 1) {
+    const rowOffset = row * width;
+    for (let col = 0; col < width; col += 1) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k += 1) {
+        const sourceCol = col + k;
+        if (sourceCol < 0 || sourceCol >= width) continue;
+        sum += input[rowOffset + sourceCol] * kernel[k + radius];
       }
+      temp[rowOffset + col] = sum;
     }
   }
 
-  const field = finalizeInfluenceField({ width, height, values, support, renderedCount });
-  return field.maxAbs > 0 ? field : computeCellsInfluenceLayer(args);
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k += 1) {
+        const sourceRow = row + k;
+        if (sourceRow < 0 || sourceRow >= height) continue;
+        sum += temp[sourceRow * width + col] * kernel[k + radius];
+      }
+      output[row * width + col] = sum;
+    }
+  }
+
+  return output;
+}
+
+export function computeSmoothInfluenceField(args: InfluenceFieldArgs): InfluenceField {
+  const sampleSet = collectInfluenceSamples(args);
+  const { width, height, samples, renderedCount } = sampleSet;
+  const numerator = new Float32Array(width * height);
+  const support = new Float32Array(width * height);
+  if (!samples.length) {
+    return finalizeInfluenceField({ width, height, values: numerator, support, renderedCount });
+  }
+
+  for (const sample of samples) {
+    addBilinearSample({
+      values: numerator,
+      support,
+      width,
+      height,
+      x: sample.x,
+      y: sample.y,
+      value: sample.value,
+    });
+  }
+
+  const kernel = gaussianKernel(smoothBandwidth(samples, width, height));
+  const smoothedNumerator = convolveSeparable(numerator, width, height, kernel);
+  const smoothedSupport = convolveSeparable(support, width, height, kernel);
+  const minSupport = 1e-4;
+  for (let index = 0; index < smoothedNumerator.length; index += 1) {
+    if (smoothedSupport[index] <= minSupport) {
+      smoothedNumerator[index] = 0;
+      smoothedSupport[index] = 0;
+      continue;
+    }
+    smoothedNumerator[index] /= smoothedSupport[index];
+  }
+
+  return finalizeInfluenceField({
+    width,
+    height,
+    values: smoothedNumerator,
+    support: smoothedSupport,
+    renderedCount,
+  });
 }
 
 export function resizeSvg(svg: SVGSVGElement, width: number, height: number): void {
@@ -1220,7 +1290,7 @@ function renderInfluenceBackground(args: {
   const field =
     args.backgroundMode === "cell"
       ? computeCellsInfluenceLayer(fieldArgs)
-      : computeLinearInfluenceField(fieldArgs);
+      : computeSmoothInfluenceField(fieldArgs);
   if (field.kind === "cells") {
     drawCellsInfluenceLayer({ ctx: args.ctx, viewport: args.viewport, field });
   } else {
