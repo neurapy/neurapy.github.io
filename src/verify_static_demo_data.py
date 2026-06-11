@@ -56,6 +56,16 @@ def read_array(base: Path, spec: dict[str, Any]) -> np.ndarray:
     return arr.reshape(spec["shape"])
 
 
+def deterministic_spread_indices(total: int, count: int, label: str) -> np.ndarray:
+    if count < 0:
+        raise AssertionError(f"{label} count must be >= 0")
+    if count > total:
+        raise AssertionError(f"{label} count {count} exceeds source count {total}")
+    if count == 0:
+        return np.arange(0, dtype=np.int64)
+    return np.linspace(0, total - 1, count, dtype=np.int64)
+
+
 def assert_schema_v5(payload: dict[str, Any], path: Path) -> None:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise AssertionError(f"{path}: schema_version must be {SCHEMA_VERSION}")
@@ -234,11 +244,18 @@ def verify_topk(
     assert_schema_v5(manifest, manifest_path)
     n_train = manifest["n_train"]
     n_candidate = manifest["n_candidate"]
+    source_n_train = int(manifest.get("source_n_train", n_train))
+    source_n_candidate = int(manifest.get("source_n_candidate", n_candidate))
+    point_selection = manifest.get("point_selection", "deterministic_spread")
+    if point_selection != "deterministic_spread":
+        raise AssertionError(f"Unsupported point_selection {point_selection!r}")
 
     candidate_points = read_array(base, manifest["arrays"]["candidate_points"])
     train_points = read_array(base, manifest["arrays"]["train_points"])
     assert candidate_points.shape[0] == n_candidate
     assert train_points.shape[0] == n_train
+    train_indices = deterministic_spread_indices(source_n_train, n_train, "train")
+    candidate_indices = deterministic_spread_indices(source_n_candidate, n_candidate, "candidate")
 
     deprecated_arrays = {"display_points", "display_to_candidate", "display_to_train"}
     found_deprecated = sorted(deprecated_arrays & set(manifest["arrays"]))
@@ -257,6 +274,8 @@ def verify_topk(
             expected_rows = n_train
         else:
             raise AssertionError(f"{matrix['id']}: unknown row_source {row_source!r}")
+        source_rows = source_n_train if row_source == "train_points" else source_n_candidate
+        source_row_indices = train_indices if row_source == "train_points" else candidate_indices
 
         source = source_file_for_matrix(manifest, matrix, raw_data_root)
         raw_scores = None
@@ -264,14 +283,25 @@ def verify_topk(
             print(f"  source missing, shape-only check: {matrix['id']}")
         else:
             with np.load(source, allow_pickle=False) as raw:
-                raw_scores = -raw["scores"].astype(np.float32) / float(n_train)
+                source_scores = raw["scores"].astype(np.float32)
+            if source_scores.shape[0] != source_rows:
+                raise AssertionError(
+                    f"{matrix['id']}: source rows {source_scores.shape[0]} != {source_rows}"
+                )
+            if source_scores.shape[1] != source_n_train:
+                raise AssertionError(
+                    f"{matrix['id']}: source columns {source_scores.shape[1]} != {source_n_train}"
+                )
+            raw_scores = -source_scores[np.ix_(source_row_indices, train_indices)] / float(
+                source_n_train
+            )
             if raw_scores.shape[0] != expected_rows:
                 raise AssertionError(
-                    f"{matrix['id']}: source rows {raw_scores.shape[0]} != {expected_rows}"
+                    f"{matrix['id']}: sliced rows {raw_scores.shape[0]} != {expected_rows}"
                 )
             if raw_scores.shape[1] != n_train:
                 raise AssertionError(
-                    f"{matrix['id']}: source columns {raw_scores.shape[1]} != {n_train}"
+                    f"{matrix['id']}: sliced columns {raw_scores.shape[1]} != {n_train}"
                 )
 
         rows = np.linspace(0, expected_rows - 1, min(samples, expected_rows)).astype(int)

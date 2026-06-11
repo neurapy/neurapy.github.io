@@ -72,13 +72,16 @@ If you have `raw_data/` but `webdemo/public/data` is missing:
 ```bash
 uv run python src/build_static_demo_data.py \
 --matrix-mode core \
---max_local_influence_points 64 \
+--max_local_influence_points 1000 \
+--n-candidate 1000 \
+--n-train 1000 \
 --raster-max-resolution 1024 \
 --overwrite \
 --workers 8 \
 
 # matrix-mode all generates more plots
 # max_local_influence_points is  max number of influence point per candidate_point
+# n-candidate / n-train control how many existing raw points are exported
 # raster-max-resolution is resolution of precomputed prediction / loss graphs on the longest axis
 
 make verify-data # Verification step
@@ -124,5 +127,4 @@ Have fun on ICML
 
 
 - Manchmal clustern Influences an bestimmten regionen von boundaries. Wieso?
-
 

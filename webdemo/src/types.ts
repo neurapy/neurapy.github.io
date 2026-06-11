@@ -119,6 +119,9 @@ export interface RunManifest {
   bounds: AxisBounds;
   n_candidate: number;
   n_train: number;
+  source_n_candidate?: number;
+  source_n_train?: number;
+  point_selection?: "deterministic_spread";
   n_outputs: number;
   num_pdes: number;
   num_bcs: number;
@@ -144,6 +147,8 @@ export interface IndexRunEntry {
   problem: string;
   n_candidate: number;
   n_train: number;
+  source_n_candidate?: number;
+  source_n_train?: number;
   status: RunManifest["status"];
   manifest: string | null;
   default_field: string | null;
@@ -158,6 +163,9 @@ export interface DataIndex {
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points?: number;
+  n_candidate?: number | null;
+  n_train?: number | null;
+  point_selection?: "deterministic_spread";
   row_chunk_size?: number;
   bundle_report?: string;
   runs: IndexRunEntry[];

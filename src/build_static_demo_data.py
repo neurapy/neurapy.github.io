@@ -94,6 +94,22 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Number Calculated Train-Influences per Candidate Point",
     )
+    parser.add_argument(
+        "--n-candidate",
+        "--n_candidate",
+        dest="n_candidate",
+        default=None,
+        type=int,
+        help="Number of candidate points to export. Default: all available candidate points.",
+    )
+    parser.add_argument(
+        "--n-train",
+        "--n_train",
+        dest="n_train",
+        default=None,
+        type=int,
+        help="Number of train points to export. Default: all available train points.",
+    )
     parser.add_argument("--row-chunk-size", default=256, type=int)  # NOTE:
     parser.add_argument("--bundle-size-budget-mb", default=750, type=int)  # NOTE:
     parser.add_argument(
@@ -155,6 +171,18 @@ def write_array(
         "shape": list(arr.shape),
         "bytes": path.stat().st_size,
     }
+
+
+def deterministic_spread_indices(total: int, count: int | None, label: str) -> np.ndarray:
+    if total < 0:
+        raise ValueError(f"{label} total must be >= 0")
+    if count is None:
+        return np.arange(total, dtype=np.int64)
+    if count < 1:
+        raise ValueError(f"{label} count must be >= 1")
+    if count > total:
+        raise ValueError(f"Requested {count} {label} points, but only {total} are available")
+    return np.linspace(0, total - 1, count, dtype=np.int64)
 
 
 def robust_display_domain(values: np.ndarray, mask: np.ndarray | None = None) -> list[float]:
@@ -719,14 +747,17 @@ def process_influence_matrix(
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
+    source_n_train: int,
+    train_indices: np.ndarray,
     row_source: str,
     row_count: int,
+    row_indices: np.ndarray,
     max_local_influence_points: int,
     row_chunk_size: int,
 ) -> dict[str, Any]:
     with np.load(path, allow_pickle=False) as data:
-        scores = np.asarray(data["scores"], dtype=np.float32)
-        candidate_points = np.asarray(data["candidate_points"])
+        source_scores = np.asarray(data["scores"], dtype=np.float32)
+        source_candidate_points = np.asarray(data["candidate_points"])
         metadata: dict[str, Any] = {
             "id": path.stem,
             "method": "GradDot" if path.stem.startswith("grad_dot") else "PINNfluence",
@@ -736,11 +767,23 @@ def process_influence_matrix(
             "num_bcs": int(data["num_bcs"]),
             "n_outputs": int(data["n_outputs"]),
             "self_influence": bool(data["self_influence"]),
-            "scores_shape": list(scores.shape),
         }
 
-    if scores.ndim != 2:
-        raise ValueError(f"Expected 2D scores in {path}, got {scores.shape}")
+    if source_scores.ndim != 2:
+        raise ValueError(f"Expected 2D scores in {path}, got {source_scores.shape}")
+    if source_scores.shape[1] != source_n_train:
+        raise ValueError(
+            f"{path.name}: source score columns {source_scores.shape[1]} "
+            f"!= source_n_train {source_n_train}"
+        )
+    if len(train_indices) and int(train_indices.max()) >= source_scores.shape[1]:
+        raise ValueError(f"{path.name}: train selection exceeds source score columns")
+    if len(row_indices) and int(row_indices.max()) >= source_scores.shape[0]:
+        raise ValueError(f"{path.name}: row selection exceeds source score rows")
+
+    scores = source_scores[np.ix_(row_indices, train_indices)]
+    candidate_points = source_candidate_points[row_indices]
+
     if scores.shape[0] != row_count:
         raise ValueError(
             f"{path.name}: score rows {scores.shape[0]} != {row_source} count {row_count}"
@@ -749,7 +792,7 @@ def process_influence_matrix(
         raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
 
     k = min(max_local_influence_points, scores.shape[1])
-    display_scores = (-scores / float(n_train)).astype(np.float32, copy=False)
+    display_scores = (-scores / float(source_n_train)).astype(np.float32, copy=False)
     matrix_dir = f"{rel_prefix}/{path.stem}"
     index_dtype = "uint16" if n_train <= 65535 else "uint32"
 
@@ -831,7 +874,10 @@ def process_influence_matrix(
 
     metadata.update(
         {
+            "scores_shape": list(scores.shape),
+            "source_scores_shape": list(source_scores.shape),
             "candidate_points_shape": list(candidate_points.shape),
+            "source_candidate_points_shape": list(source_candidate_points.shape),
             "row_source": row_source,
             "row_count": row_count,
             "k": k,
@@ -852,10 +898,12 @@ def process_influence_matrix(
 
 
 def process_influence_matrix_jobs(
-    jobs: list[tuple[int, Path, str, int]],
+    jobs: list[tuple[int, Path, str, int, np.ndarray]],
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
+    source_n_train: int,
+    train_indices: np.ndarray,
     max_local_influence_points: int,
     row_chunk_size: int,
     workers: int,
@@ -865,15 +913,18 @@ def process_influence_matrix_jobs(
     workers = max(1, min(workers, len(jobs) or 1))
 
     if workers == 1:
-        for idx, matrix_path, row_source, row_count in jobs:
+        for idx, matrix_path, row_source, row_count, row_indices in jobs:
             try:
                 results[idx] = process_influence_matrix(
                     matrix_path,
                     out_dir=out_dir,
                     rel_prefix=rel_prefix,
                     n_train=n_train,
+                    source_n_train=source_n_train,
+                    train_indices=train_indices,
                     row_source=row_source,
                     row_count=row_count,
+                    row_indices=row_indices,
                     max_local_influence_points=max_local_influence_points,
                     row_chunk_size=row_chunk_size,
                 )
@@ -890,12 +941,15 @@ def process_influence_matrix_jobs(
                     out_dir,
                     rel_prefix,
                     n_train,
+                    source_n_train,
+                    train_indices,
                     row_source,
                     row_count,
+                    row_indices,
                     max_local_influence_points,
                     row_chunk_size,
                 ): (idx, matrix_path)
-                for idx, matrix_path, row_source, row_count in jobs
+                for idx, matrix_path, row_source, row_count, row_indices in jobs
             }
             for future in as_completed(futures):
                 idx, matrix_path = futures[future]
@@ -985,6 +1039,16 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         if candidate_meta is not None
         else np.zeros((0, train_points.shape[1] if train_points.size else 2))
     )
+    source_train_points = train_points
+    source_candidate_points = candidate_points
+    source_n_train = len(source_train_points)
+    source_n_candidate = len(source_candidate_points)
+    train_indices = deterministic_spread_indices(source_n_train, args.n_train, "train")
+    candidate_indices = deterministic_spread_indices(
+        source_n_candidate, args.n_candidate, "candidate"
+    )
+    train_points = source_train_points[train_indices]
+    candidate_points = source_candidate_points[candidate_indices]
     num_pdes = int(first_meta["num_pdes"]) if first_meta else 0
     num_bcs = int(first_meta["num_bcs"]) if first_meta else 0
     n_outputs = (
@@ -1021,10 +1085,12 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
             errors.append(f"Field precomputation failed: {exc}")
 
     if data is not None:
-        train_kind, train_bc_id = infer_train_labels(data, len(train_points))
+        source_train_kind, source_train_bc_id = infer_train_labels(data, source_n_train)
     else:
-        train_kind = np.zeros(len(train_points), dtype=np.uint8)
-        train_bc_id = np.full(len(train_points), -1, dtype=np.int16)
+        source_train_kind = np.zeros(source_n_train, dtype=np.uint8)
+        source_train_bc_id = np.full(source_n_train, -1, dtype=np.int16)
+    train_kind = source_train_kind[train_indices]
+    train_bc_id = source_train_bc_id[train_indices]
 
     arrays: dict[str, Any] = {
         "candidate_points": write_array(
@@ -1084,19 +1150,22 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
             entry["display_domain"] = display_domain
         field_entries[name] = entry
 
-    matrix_jobs: list[tuple[int, Path, str, int]] = []
+    matrix_jobs: list[tuple[int, Path, str, int, np.ndarray]] = []
     for matrix_path in matrix_files:
         try:
             meta = load_matrix_metadata(matrix_path)
             row_source = "train_points" if meta["self_influence"] else "candidate_points"
+            row_indices = train_indices if meta["self_influence"] else candidate_indices
             row_points = train_points if meta["self_influence"] else candidate_points
             validate_points_match(
                 matrix_path,
                 f"{row_source} row points",
-                meta["candidate_points"],
+                meta["candidate_points"][row_indices],
                 row_points,
             )
-            matrix_jobs.append((len(matrix_jobs), matrix_path, row_source, len(row_points)))
+            matrix_jobs.append(
+                (len(matrix_jobs), matrix_path, row_source, len(row_points), row_indices)
+            )
         except Exception as exc:
             errors.append(f"{matrix_path.name}: {exc}")
 
@@ -1105,6 +1174,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         out_dir=out_dir,
         rel_prefix="influence",
         n_train=len(train_points),
+        source_n_train=source_n_train,
+        train_indices=train_indices,
         max_local_influence_points=args.max_local_influence_points,
         row_chunk_size=args.row_chunk_size,
         workers=int(getattr(args, "workers", 1)),
@@ -1145,6 +1216,9 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         ),
         "n_candidate": len(candidate_points),
         "n_train": len(train_points),
+        "source_n_candidate": source_n_candidate,
+        "source_n_train": source_n_train,
+        "point_selection": "deterministic_spread",
         "n_outputs": n_outputs,
         "num_pdes": num_pdes,
         "num_bcs": num_bcs,
@@ -1170,6 +1244,8 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "default_matrix": default_matrix,
         "n_candidate": manifest["n_candidate"],
         "n_train": manifest["n_train"],
+        "source_n_candidate": manifest["source_n_candidate"],
+        "source_n_train": manifest["source_n_train"],
         "n_matrices": len(influence_entries),
         "n_fields": len(field_entries),
         "errors": errors,
@@ -1204,6 +1280,10 @@ def main() -> None:
         raise SystemExit("--workers must be >= 1")
     if args.raster_max_resolution < 1:
         raise SystemExit("--raster-max-resolution must be >= 1")
+    if args.n_candidate is not None and args.n_candidate < 1:
+        raise SystemExit("--n-candidate must be >= 1")
+    if args.n_train is not None and args.n_train < 1:
+        raise SystemExit("--n-train must be >= 1")
     bundle_budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
 
     args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
@@ -1240,6 +1320,9 @@ def main() -> None:
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
         "max_local_influence_points": args.max_local_influence_points,
+        "n_candidate": args.n_candidate,
+        "n_train": args.n_train,
+        "point_selection": "deterministic_spread",
         "row_chunk_size": args.row_chunk_size,
         "raster_max_resolution": args.raster_max_resolution,
         "bundle_report": "bundle_report.json",

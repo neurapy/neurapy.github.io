@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+build_static = pytest.importorskip("build_static_demo_data")
 verify_static = pytest.importorskip("verify_static_demo_data")
 
 
@@ -146,3 +147,65 @@ def test_verify_rejects_float32_raster(tmp_path: Path) -> None:
 
     with pytest.raises(AssertionError, match="raster dtype must be uint16"):
         verify_static.verify_topk(manifest_path, samples=1)
+
+
+def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) -> None:
+    base = tmp_path / "data" / "folder" / "run"
+    base.mkdir(parents=True)
+    raw_root = tmp_path / "raw"
+    raw_matrix = raw_root / "folder" / "run_influence_scores" / "matrix.npz"
+    raw_matrix.parent.mkdir(parents=True)
+
+    source_scores = np.arange(30, dtype=np.float32).reshape(5, 6)
+    source_candidates = np.column_stack([np.arange(5), np.arange(5) + 0.5])
+    np.savez_compressed(
+        raw_matrix,
+        scores=source_scores,
+        candidate_points=source_candidates,
+        num_pdes=1,
+        num_bcs=0,
+        n_outputs=1,
+        left_term="output_0",
+        right_term="total_loss",
+        self_influence=False,
+    )
+
+    candidate_indices = build_static.deterministic_spread_indices(5, 3, "candidate")
+    train_indices = build_static.deterministic_spread_indices(6, 3, "train")
+    matrix = build_static.process_influence_matrix(
+        raw_matrix,
+        out_dir=base,
+        rel_prefix="influence",
+        n_train=3,
+        source_n_train=6,
+        train_indices=train_indices,
+        row_source="candidate_points",
+        row_count=3,
+        row_indices=candidate_indices,
+        max_local_influence_points=2,
+        row_chunk_size=2,
+    )
+
+    candidate_points = source_candidates[candidate_indices].astype(np.float32)
+    train_points = np.column_stack([np.arange(6), np.arange(6) + 1.0])[train_indices]
+    manifest = {
+        "schema_version": 5,
+        "folder": "folder",
+        "run_id": "run",
+        "n_candidate": 3,
+        "n_train": 3,
+        "source_n_candidate": 5,
+        "source_n_train": 6,
+        "point_selection": "deterministic_spread",
+        "arrays": {
+            "candidate_points": write_array(
+                base, "arrays/candidate_points.f32", candidate_points, "float32"
+            ),
+            "train_points": write_array(base, "arrays/train_points.f32", train_points, "float32"),
+        },
+        "fields": {},
+        "influence_matrices": [matrix],
+    }
+    manifest_path = write_manifest(base, manifest)
+
+    verify_static.verify_topk(manifest_path, samples=2, raw_data_root=raw_root)
