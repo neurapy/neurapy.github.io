@@ -94,29 +94,29 @@ async function build() {
   }
 
   const rowIndices = [
-    [1, 3, 0],
-    [4, 2, 1],
-    [3, 0, 2],
-    [4, 1, 3],
+    [1, 2, 3, 0],
+    [4, 2, 1, 3],
+    [3, 0, 2, 1],
+    [4, 1, 3, 2],
   ];
   const rowValues = {
     abs: [
-      [300, -220, 100],
-      [260, 180, -90],
-      [-310, 120, 80],
-      [280, -150, 75],
+      [300, 180, -220, 100],
+      [260, 180, -90, 70],
+      [-310, 120, 80, -65],
+      [280, -150, 75, 55],
     ],
     pos: [
-      [300, 100, 60],
-      [260, 180, 40],
-      [120, 80, 30],
-      [280, 75, 50],
+      [300, 180, 100, 60],
+      [260, 180, 70, 40],
+      [120, 80, 45, 30],
+      [280, 75, 55, 50],
     ],
     neg: [
-      [-220, -120, -40],
-      [-90, -60, -20],
-      [-310, -140, -70],
-      [-150, -110, -30],
+      [-220, -120, -80, -40],
+      [-90, -60, -35, -20],
+      [-310, -140, -95, -70],
+      [-150, -110, -65, -30],
     ],
   };
 
@@ -130,19 +130,19 @@ async function build() {
         id: chunkId,
         row_start: chunkId * 2,
         row_count: 2,
-        k: 3,
+        k: 4,
         value_scale: 0.001,
         indices: await writeArray(
           join(runRoot, "influence", "m0", sign, "chunks", `${chunkId}_indices.u16`),
           new Uint16Array(rows.flat()),
           "uint16",
-          [2, 3],
+          [2, 4],
         ),
         values: await writeArray(
           join(runRoot, "influence", "m0", sign, "chunks", `${chunkId}_values.i16`),
           new Int16Array(vals.flat()),
           "int16",
-          [2, 3],
+          [2, 4],
         ),
       });
     }
@@ -166,7 +166,7 @@ async function build() {
     errors: [],
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
-    max_local_influence_points: 3,
+    max_local_influence_points: 4,
     row_chunk_size: 2,
     axes: ["x", "y"],
     bounds: { x: [0, 1], y: [0, 1] },
@@ -229,8 +229,8 @@ async function build() {
         candidate_points_shape: [4, 2],
         row_source: "candidate_points",
         row_count: 4,
-        k: 3,
-        max_local_influence_points: 3,
+        k: 4,
+        max_local_influence_points: 4,
         row_chunk_size: 2,
         label: "PINNfluence: total_loss -> total_loss",
         display_label: "PINNfluence / total loss -> total loss",
@@ -247,7 +247,7 @@ async function build() {
     schema_version: 5,
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
-    max_local_influence_points: 3,
+    max_local_influence_points: 4,
     row_chunk_size: 2,
     bundle_report: "bundle_report.json",
     runs: [

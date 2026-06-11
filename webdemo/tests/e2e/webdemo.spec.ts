@@ -21,6 +21,22 @@ async function expectNonblankCanvas(page: Page, selector: string): Promise<void>
   await expect.poll(() => canvasIsNonblank(page, selector), { timeout: 10_000 }).toBe(true);
 }
 
+async function canvasSignature(page: Page, selector: string): Promise<number> {
+  return page.locator(selector).evaluate((canvas) => {
+    const element = canvas as HTMLCanvasElement;
+    const ctx = element.getContext("2d");
+    if (!ctx || element.width === 0 || element.height === 0) return 0;
+    const data = ctx.getImageData(0, 0, element.width, element.height).data;
+    let hash = 2166136261;
+    const stride = Math.max(4, Math.floor(data.length / 4096) * 4);
+    for (let index = 0; index < data.length; index += stride) {
+      hash ^= data[index] + (data[index + 1] << 8) + (data[index + 2] << 16) + (data[index + 3] << 24);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  });
+}
+
 async function dragMainRegion(page: Page): Promise<void> {
   const box = await page.locator("#mainCanvas").boundingBox();
   if (!box) throw new Error("Missing main canvas bounds");
@@ -141,6 +157,51 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  await openControlsIfMenu(page, "train");
+  await expect(page.locator("#mapControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toBeHidden();
+  await expect(page.locator("#influenceMapToggle")).not.toBeChecked();
+  const pointSignature = await canvasSignature(page, "#trainCanvas");
+  await page.locator("#influenceMapToggle").check();
+  await expect(page.locator("#influenceMapToggle")).toBeChecked();
+  await expect(page.locator("#methodControl")).toBeVisible();
+  await expect(page.locator("#influenceMapMethodSelect")).toHaveValue("linear");
+  await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
+    "Linear",
+    "Cells",
+    "Blur",
+  ]);
+  await expect(page.locator("#kControl")).toBeHidden();
+  await expect(page.locator("#trainRange")).toHaveText(/Local map · Linear · all exported influences \(\d+\)/);
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(pointSignature);
+
+  const methodSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
+  for (const [method, label] of [
+    ["cells", "Cells"],
+    ["gaussian", "Blur"],
+  ] as const) {
+    await page.locator("#influenceMapMethodSelect").selectOption(method);
+    await expect(page.locator("#trainRange")).toHaveText(
+      new RegExp(`Local map · ${label} · all exported influences \\(\\d+\\)`),
+    );
+    await expectNonblankCanvas(page, "#trainCanvas");
+    await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(methodSignatures.at(-1));
+    methodSignatures.push(await canvasSignature(page, "#trainCanvas"));
+  }
+  expect(new Set(methodSignatures).size).toBe(methodSignatures.length);
+
+  const absMapSignature = methodSignatures.at(-1)!;
+  await page.locator("button[data-sign='pos']").click();
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(absMapSignature);
+  const posMapSignature = await canvasSignature(page, "#trainCanvas");
+  await page.locator("button[data-sign='neg']").click();
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(posMapSignature);
+  await expectVisibleControlsInsidePanels(page);
+  await page.locator("#influenceMapToggle").uncheck();
+  await expect(page.locator("#kControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toBeHidden();
+  await expect(page.locator("#trainRange")).toHaveText(/^Local/);
 
   const mainBox = await page.locator(".model-panel").boundingBox();
   const trainBox = await page.locator("#trainPanel").boundingBox();
@@ -176,6 +237,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("button[data-train-mode='global']")).toHaveClass(/active/);
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toBeHidden();
   await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -185,6 +247,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeHidden();
+  await expect(page.locator("#methodControl")).toBeHidden();
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
   await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
@@ -204,6 +267,25 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator(".control-group")).toHaveCount(0);
   await expect(page.locator(".plot-panel")).toHaveCount(2);
   await expect(page.locator("#globalPanel")).toHaveCount(0);
+  await openControlsIfMenu(page, "train");
+  await expect(page.locator("#mapControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toBeHidden();
+  await page.locator("#influenceMapToggle").check();
+  await expect(page.locator("#methodControl")).toBeVisible();
+  await expect(page.locator("#trainRange")).toHaveText(/Local map · Linear · all exported influences \(\d+\)/);
+  await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
+    "Linear",
+    "Cells",
+    "Blur",
+  ]);
+  for (const method of ["cells", "gaussian", "linear"]) {
+    await page.locator("#influenceMapMethodSelect").selectOption(method);
+    await expectNonblankCanvas(page, "#trainCanvas");
+  }
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expectVisibleControlsInsidePanels(page);
+  await page.locator("#influenceMapToggle").uncheck();
+  await expect(page.locator("#methodControl")).toBeHidden();
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -225,6 +307,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await page.locator("button[data-train-mode='global']").click();
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toBeHidden();
   await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("#trainPanel")).toBeVisible();
   await expect(page.locator("#trainRange")).toHaveText(/Global ·/);

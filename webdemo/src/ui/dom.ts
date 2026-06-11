@@ -7,8 +7,13 @@ export interface DomRefs {
   matrixSelect: HTMLSelectElement;
   fieldKindButtons: HTMLElement;
   signButtons: HTMLElement;
+  kControl: HTMLElement;
   kSlider: HTMLInputElement;
   kOutput: HTMLOutputElement;
+  mapControl: HTMLElement;
+  influenceMapToggle: HTMLInputElement;
+  methodControl: HTMLElement;
+  influenceMapMethodSelect: HTMLSelectElement;
   summarySelect: HTMLSelectElement;
   summaryControl: HTMLElement;
   trainModeButtons: HTMLElement;
@@ -53,8 +58,13 @@ export function getDomRefs(): DomRefs {
     matrixSelect: required("#matrixSelect", HTMLSelectElement),
     fieldKindButtons: required("#fieldKindButtons", HTMLElement),
     signButtons: required("#signButtons", HTMLElement),
+    kControl: required("#kControl", HTMLElement),
     kSlider: required("#kSlider", HTMLInputElement),
     kOutput: required("#kOutput", HTMLOutputElement),
+    mapControl: required("#mapControl", HTMLElement),
+    influenceMapToggle: required("#influenceMapToggle", HTMLInputElement),
+    methodControl: required("#methodControl", HTMLElement),
+    influenceMapMethodSelect: required("#influenceMapMethodSelect", HTMLSelectElement),
     summarySelect: required("#summarySelect", HTMLSelectElement),
     summaryControl: required("#summaryControl", HTMLElement),
     trainModeButtons: required("#trainModeButtons", HTMLElement),

@@ -5,6 +5,7 @@ import type {
   FieldKind,
   IndexRunEntry,
   InfluenceAggregate,
+  InfluenceMapMethod,
   InfluenceMatrixManifest,
   InfluenceRow,
   PointArrays,
@@ -36,6 +37,7 @@ import {
   renderLocalInfluencePlot,
   renderMainPlot,
   renderRegionalInfluencePlot,
+  type InfluenceDisplayMode,
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
@@ -48,6 +50,11 @@ const SUMMARY_LABELS: Record<SummaryName, string> = {
   max_abs: "Max |influence|",
   positive_mass: "Positive mass",
   negative_mass: "Negative mass",
+};
+const INFLUENCE_MAP_METHOD_LABELS: Record<InfluenceMapMethod, string> = {
+  linear: "Linear",
+  cells: "Cells",
+  gaussian: "Blur",
 };
 const DRAG_THRESHOLD_PX = 8;
 const DOUBLE_TAP_MS = 350;
@@ -154,6 +161,23 @@ export class AppController {
       this.dom.kOutput.value = String(this.store.state.k);
       this.schedule("train");
     });
+    this.dom.influenceMapToggle.addEventListener("change", () => {
+      this.store.dispatch({
+        type: "influenceMapEnabled",
+        influenceMapEnabled: this.dom.influenceMapToggle.checked,
+      });
+      this.updateTrainControlVisibility();
+      this.refreshResponsiveLayout();
+      this.schedule("train");
+    });
+    this.dom.influenceMapMethodSelect.addEventListener("change", () => {
+      const value = this.dom.influenceMapMethodSelect.value;
+      const influenceMapMethod: InfluenceMapMethod =
+        value === "cells" || value === "gaussian" ? value : "linear";
+      this.store.dispatch({ type: "influenceMapMethod", influenceMapMethod });
+      this.refreshResponsiveLayout();
+      this.schedule("train");
+    });
     this.dom.summarySelect.addEventListener("change", () => {
       this.store.dispatch({ type: "summary", summary: this.dom.summarySelect.value as SummaryName });
       void this.loadSummary().then(() => this.schedule("train"));
@@ -224,7 +248,14 @@ export class AppController {
   }
 
   private updateTrainControlVisibility(): void {
-    this.dom.summaryControl.hidden = this.store.state.trainPlotMode !== "global";
+    const localMode = this.store.state.trainPlotMode === "local";
+    const localMapMode = localMode && this.store.state.influenceMapEnabled;
+    this.dom.summaryControl.hidden = localMode;
+    this.dom.mapControl.hidden = !localMode;
+    this.dom.methodControl.hidden = !localMapMode;
+    this.dom.kControl.hidden = localMapMode;
+    this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
+    this.dom.influenceMapMethodSelect.value = this.store.state.influenceMapMethod;
   }
 
   private refreshResponsiveLayout(): boolean {
@@ -453,6 +484,8 @@ export class AppController {
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
     this.setActiveButtons(this.dom.trainModeButtons, this.store.state.trainPlotMode, "trainMode");
+    this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
+    this.dom.influenceMapMethodSelect.value = this.store.state.influenceMapMethod;
     this.updateTrainControlVisibility();
   }
 
@@ -729,22 +762,36 @@ export class AppController {
     if (this.store.state.trainPlotMode === "local") {
       const matrix = this.selectedMatrix();
       if (!matrix) return;
+      const influenceMode: InfluenceDisplayMode = this.store.state.influenceMapEnabled
+        ? "map"
+        : "points";
       this.dom.trainTitle.textContent = "Train";
       if (this.store.state.selectionMode === "region") {
         const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
-        const maxAbs = renderRegionalInfluencePlot({
+        const stats = renderRegionalInfluencePlot({
           canvas: this.dom.trainCanvas,
           svg: this.dom.trainSvg,
           context,
           aggregate: this.influenceAggregate,
           k: this.store.state.k,
+          mode: influenceMode,
+          method: this.store.state.influenceMapMethod,
         });
+        const label = influenceMode === "map" ? "Local region map" : "Local region";
+        const methodSuffix =
+          influenceMode === "map"
+            ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
+            : "";
+        const mapSuffix =
+          influenceMode === "map"
+            ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
+            : "";
         this.dom.trainRange.textContent = this.store.state.selectedRegion
-          ? `Local region · sum over ${selectedCount.toLocaleString()} candidates${maxAbs ? ` · max |sum I| ${formatNumber(maxAbs)}` : ""}`
+          ? `${label}${methodSuffix} · sum over ${selectedCount.toLocaleString()} candidates${mapSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
           : "";
         return;
       }
-      const maxAbs = renderLocalInfluencePlot({
+      const stats = renderLocalInfluencePlot({
         canvas: this.dom.trainCanvas,
         svg: this.dom.trainSvg,
         context,
@@ -753,8 +800,22 @@ export class AppController {
         selectedCandidateIndex: this.store.state.selectedCandidateIndex,
         selectedTrainIndex: this.store.state.selectedTrainIndex,
         k: this.store.state.k,
+        sign: this.store.state.sign,
+        mode: influenceMode,
+        method: this.store.state.influenceMapMethod,
       });
-      this.dom.trainRange.textContent = maxAbs ? `Local · max |I| ${formatNumber(maxAbs)}` : "Local";
+      const label = influenceMode === "map" ? "Local map" : "Local";
+      const methodSuffix =
+        influenceMode === "map"
+          ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
+          : "";
+      const mapSuffix =
+        influenceMode === "map"
+          ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
+          : "";
+      this.dom.trainRange.textContent = stats.maxAbs
+        ? `${label}${methodSuffix}${mapSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
+        : `${label}${methodSuffix}${mapSuffix}`;
       return;
     }
     const domain = renderGlobalPlot({

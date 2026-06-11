@@ -383,6 +383,14 @@ select {
   flex-basis: 150px;
 }
 
+.map-control {
+  flex-basis: 48px;
+}
+
+.method-control {
+  flex-basis: 102px;
+}
+
 .plot-actions[data-control-layout="bar"] .field-control,
 .plot-actions[data-control-layout="bar"] .matrix-control,
 .plot-actions[data-control-layout="bar"] .summary-control {
@@ -399,6 +407,16 @@ select {
 
 .plot-actions[data-control-layout="bar"] .k-control {
   flex-basis: min(100%, 160px);
+}
+
+.plot-actions[data-control-layout="bar"] .map-control {
+  flex-grow: 0;
+  flex-basis: 48px;
+}
+
+.plot-actions[data-control-layout="bar"] .method-control {
+  flex-grow: 0;
+  flex-basis: 102px;
 }
 
 .plot-actions[data-control-layout="menu"] .plot-control {
@@ -447,6 +465,55 @@ select {
 .plot-actions[data-control-layout="inline"] .k-control,
 .plot-actions[data-control-layout="bar"] .k-control {
   min-width: 130px;
+}
+
+.plot-actions[data-control-layout="inline"] .map-control,
+.plot-actions[data-control-layout="bar"] .map-control {
+  min-width: 44px;
+}
+
+.plot-actions[data-control-layout="inline"] .method-control,
+.plot-actions[data-control-layout="bar"] .method-control {
+  min-width: 92px;
+}
+
+.train-menu .matrix-control {
+  flex-basis: 150px;
+}
+
+.train-menu .sign-control {
+  flex-basis: 104px;
+}
+
+.train-menu .k-control {
+  flex-basis: 112px;
+}
+
+.plot-actions[data-control-layout="bar"] .train-menu .matrix-control {
+  flex-basis: min(100%, 150px);
+}
+
+.plot-actions[data-control-layout="bar"] .train-menu .sign-control {
+  flex-basis: min(100%, 104px);
+}
+
+.plot-actions[data-control-layout="bar"] .train-menu .k-control {
+  flex-basis: min(100%, 112px);
+}
+
+.plot-actions[data-control-layout="inline"] .train-menu .matrix-control,
+.plot-actions[data-control-layout="bar"] .train-menu .matrix-control {
+  min-width: 140px;
+}
+
+.plot-actions[data-control-layout="inline"] .train-menu .sign-control,
+.plot-actions[data-control-layout="bar"] .train-menu .sign-control {
+  min-width: 96px;
+}
+
+.plot-actions[data-control-layout="inline"] .train-menu .k-control,
+.plot-actions[data-control-layout="bar"] .train-menu .k-control {
+  min-width: 104px;
 }
 
 .model-menu .plot-control:first-child {
@@ -529,6 +596,48 @@ output {
 
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+.switch-input {
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  cursor: pointer;
+  position: relative;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.switch-input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(25, 38, 52, 0.22);
+  transition: transform 120ms ease;
+}
+
+.switch-input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.switch-input:checked::before {
+  transform: translateX(16px);
+}
+
+.switch-input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 @media (max-width: 1040px) {

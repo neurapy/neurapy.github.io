@@ -1,4 +1,4 @@
-import type { Bounds, InfluenceSign, SelectionMode, SummaryName } from "../types";
+import type { Bounds, InfluenceMapMethod, InfluenceSign, SelectionMode, SummaryName } from "../types";
 
 export interface AppState {
   runId: string | null;
@@ -15,6 +15,8 @@ export interface AppState {
   selectedRegion: Bounds | null;
   selectedRegionCandidateIndices: number[];
   trainPlotMode: "local" | "global";
+  influenceMapEnabled: boolean;
+  influenceMapMethod: InfluenceMapMethod;
 }
 
 export type AppAction =
@@ -38,6 +40,8 @@ export type AppAction =
       candidateIndices: number[];
     }
   | { type: "trainPlotMode"; trainPlotMode: AppState["trainPlotMode"] }
+  | { type: "influenceMapEnabled"; influenceMapEnabled: boolean }
+  | { type: "influenceMapMethod"; influenceMapMethod: InfluenceMapMethod }
   | { type: "resetSelection" };
 
 export const initialState: AppState = {
@@ -55,6 +59,8 @@ export const initialState: AppState = {
   selectedRegion: null,
   selectedRegionCandidateIndices: [],
   trainPlotMode: "local",
+  influenceMapEnabled: false,
+  influenceMapMethod: "linear",
 };
 
 export function reduceState(state: AppState, action: AppAction): AppState {
@@ -104,6 +110,10 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       };
     case "trainPlotMode":
       return { ...state, trainPlotMode: action.trainPlotMode };
+    case "influenceMapEnabled":
+      return { ...state, influenceMapEnabled: action.influenceMapEnabled };
+    case "influenceMapMethod":
+      return { ...state, influenceMapMethod: action.influenceMapMethod };
     case "resetSelection":
       return {
         ...state,

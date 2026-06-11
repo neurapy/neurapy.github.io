@@ -317,7 +317,7 @@ describe("chunk row aggregation", () => {
     expect(Array.from(aggregate.rowIndices)).toEqual([0, 1]);
     expect(Array.from(aggregate.indices)).toEqual([1, 2, 0]);
     expect(Array.from(aggregate.values)).toEqual([
-      expect.closeTo(0.25),
+      expect.closeTo(-0.25),
       expect.closeTo(0.15),
       expect.closeTo(0.1),
     ]);
@@ -330,10 +330,10 @@ describe("chunk row aggregation", () => {
 
     const aggregate = await repo.loadInfluenceAggregate(matrix, "abs", [1, 2]);
 
-    expect(Array.from(aggregate.indices)).toEqual([0, 2, 1]);
+    expect(Array.from(aggregate.indices)).toEqual([0, 1, 2]);
     expect(Array.from(aggregate.values)).toEqual([
       expect.closeTo(0.3),
-      expect.closeTo(0.25),
+      expect.closeTo(-0.05),
       expect.closeTo(0.05),
     ]);
     expect(globalThis.fetch).toHaveBeenCalledTimes(4);

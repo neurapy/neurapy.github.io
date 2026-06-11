@@ -119,9 +119,21 @@
                       <button data-sign="neg">-</button>
                     </div>
                   </div>
-                  <label class="plot-control k-control">
+                  <label id="kControl" class="plot-control k-control">
                     <span>Top k <output id="kOutput" for="kSlider">25</output></span>
                     <input id="kSlider" type="range" min="1" max="200" value="25" />
+                  </label>
+                  <label id="mapControl" class="plot-control map-control">
+                    <span>Map</span>
+                    <input id="influenceMapToggle" class="switch-input" type="checkbox" role="switch" />
+                  </label>
+                  <label id="methodControl" class="plot-control method-control">
+                    <span>Method</span>
+                    <select id="influenceMapMethodSelect">
+                      <option value="linear">Linear</option>
+                      <option value="cells">Cells</option>
+                      <option value="gaussian">Blur</option>
+                    </select>
                   </label>
                   <label id="summaryControl" class="plot-control summary-control">
                     <span>Global</span>

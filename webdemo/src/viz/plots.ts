@@ -2,23 +2,25 @@ import {
   Delaunay,
   axisBottom,
   axisLeft,
+  color as parseD3Color,
   format,
   pointer,
-  scaleSqrt,
   select,
 } from "d3";
 import type {
   Bounds,
   InfluenceAggregate,
+  InfluenceMapMethod,
   InfluenceMatrixManifest,
   InfluenceRow,
+  InfluenceSign,
   PointArrays,
   PlotViewport,
   RasterData,
   RunManifest,
 } from "../types";
 import { clearCanvas, prepareCanvas } from "./canvas";
-import { divergingColorScale, fieldColorScale, finiteExtent, sequentialColorScale } from "./color";
+import { divergingColorScale, finiteExtent, sequentialColorScale } from "./color";
 import {
   boundsFromAxisMap,
   clampIndex,
@@ -42,6 +44,480 @@ export interface PlotContext {
   bounds: Bounds;
   candidateDim: number;
   trainDim: number;
+}
+
+export type InfluenceDisplayMode = "points" | "map";
+
+export interface InfluenceRenderStats {
+  maxAbs: number;
+  renderedCount: number;
+  mode: InfluenceDisplayMode;
+  scaleMax: number;
+}
+
+export interface InfluenceField {
+  kind: "raster";
+  width: number;
+  height: number;
+  values: Float32Array;
+  support: Float32Array;
+  maxAbs: number;
+  scaleMax: number;
+  renderedCount: number;
+}
+
+export interface GaussianInfluenceField extends InfluenceField {
+  sigma: number;
+}
+
+export interface InfluenceSample {
+  x: number;
+  y: number;
+  value: number;
+}
+
+export interface CellsInfluenceLayer {
+  kind: "cells";
+  width: number;
+  height: number;
+  samples: InfluenceSample[];
+  maxAbs: number;
+  scaleMax: number;
+  renderedCount: number;
+  cellCount: number;
+}
+
+export type InfluenceMapLayer = InfluenceField | CellsInfluenceLayer;
+
+interface InfluenceFieldArgs {
+  points: Float32Array;
+  dim: number;
+  bounds: Bounds;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  gridWidth?: number;
+  gridHeight?: number;
+}
+
+interface InfluenceSampleSet {
+  width: number;
+  height: number;
+  samples: InfluenceSample[];
+  renderedCount: number;
+}
+
+const FIXED_INFLUENCE_RADIUS = 4;
+const MIN_MAP_GRID_CELL_SIZE_PX = 2;
+const MAX_MAP_GRID_CELL_SIZE_PX = 6;
+const MAX_MAP_GRID_CELLS = 50_000;
+const GAUSSIAN_SUPPORT_SIGMAS = 3;
+const MIN_GAUSSIAN_SUPPORT = 1e-6;
+const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function emptyInfluenceStats(mode: InfluenceDisplayMode): InfluenceRenderStats {
+  return { maxAbs: 0, renderedCount: 0, mode, scaleMax: 1 };
+}
+
+function maxAbsValue(values: ArrayLike<number>, count = values.length): number {
+  let maxAbs = 0;
+  for (let index = 0; index < count; index += 1) {
+    const value = values[index];
+    if (Number.isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
+  }
+  return maxAbs;
+}
+
+function influenceGridSize(args: {
+  viewport: PlotViewport;
+  gridWidth?: number;
+  gridHeight?: number;
+}): { width: number; height: number } {
+  if (args.gridWidth || args.gridHeight) {
+    return {
+      width: Math.max(
+        1,
+        Math.round(args.gridWidth ?? args.viewport.width / MIN_MAP_GRID_CELL_SIZE_PX),
+      ),
+      height: Math.max(
+        1,
+        Math.round(args.gridHeight ?? args.viewport.height / MIN_MAP_GRID_CELL_SIZE_PX),
+      ),
+    };
+  }
+  const area = Math.max(1, args.viewport.width * args.viewport.height);
+  const cellSize = clampNumber(
+    Math.sqrt(area / MAX_MAP_GRID_CELLS),
+    MIN_MAP_GRID_CELL_SIZE_PX,
+    MAX_MAP_GRID_CELL_SIZE_PX,
+  );
+  return {
+    width: Math.max(1, Math.ceil(args.viewport.width / cellSize)),
+    height: Math.max(1, Math.ceil(args.viewport.height / cellSize)),
+  };
+}
+
+function gridCoordFromViewport(
+  sx: number,
+  sy: number,
+  viewport: PlotViewport,
+  width: number,
+  height: number,
+): [number, number] {
+  return [
+    width === 1 ? 0 : ((sx - viewport.x) / Math.max(1, viewport.width)) * (width - 1),
+    height === 1 ? 0 : ((sy - viewport.y) / Math.max(1, viewport.height)) * (height - 1),
+  ];
+}
+
+function collectInfluenceSamples(args: InfluenceFieldArgs): InfluenceSampleSet {
+  const { width, height } = influenceGridSize(args);
+  const dim = Math.max(1, args.dim);
+  const trainCount = Math.floor(args.points.length / dim);
+  const count = Math.min(args.indices.length, args.values.length);
+  const tolerance = DUPLICATE_MERGE_TOLERANCE_GRID_PX;
+  const toleranceSq = tolerance * tolerance;
+  const buckets = new Map<string, number[]>();
+  const groups: Array<{
+    xSum: number;
+    ySum: number;
+    valueSum: number;
+    count: number;
+  }> = [];
+  let renderedCount = 0;
+
+  const bucketKey = (bucketX: number, bucketY: number): string => `${bucketX},${bucketY}`;
+  const addToBucket = (groupIndex: number, x: number, y: number) => {
+    const bucketX = Math.floor(x / tolerance);
+    const bucketY = Math.floor(y / tolerance);
+    const key = bucketKey(bucketX, bucketY);
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.push(groupIndex);
+    } else {
+      buckets.set(key, [groupIndex]);
+    }
+  };
+
+  for (let entry = 0; entry < count; entry += 1) {
+    const pointIndex = Math.trunc(args.indices[entry]);
+    const value = args.values[entry];
+    if (!Number.isFinite(value) || pointIndex < 0 || pointIndex >= trainCount) continue;
+    const [x, y] = pointAt(args.points, pointIndex, dim);
+    const [sx, sy] = projectPointToViewport(x, y, args.bounds, args.viewport);
+    if (
+      sx < args.viewport.x ||
+      sx > args.viewport.right ||
+      sy < args.viewport.y ||
+      sy > args.viewport.bottom
+    ) {
+      continue;
+    }
+    const [gx, gy] = gridCoordFromViewport(sx, sy, args.viewport, width, height);
+    renderedCount += 1;
+
+    const bucketX = Math.floor(gx / tolerance);
+    const bucketY = Math.floor(gy / tolerance);
+    let mergeIndex = -1;
+    for (let ny = bucketY - 1; ny <= bucketY + 1 && mergeIndex < 0; ny += 1) {
+      for (let nx = bucketX - 1; nx <= bucketX + 1 && mergeIndex < 0; nx += 1) {
+        const bucket = buckets.get(bucketKey(nx, ny));
+        if (!bucket) continue;
+        for (const groupIndex of bucket) {
+          const group = groups[groupIndex];
+          const groupX = group.xSum / group.count;
+          const groupY = group.ySum / group.count;
+          const dx = gx - groupX;
+          const dy = gy - groupY;
+          if (dx * dx + dy * dy <= toleranceSq) {
+            mergeIndex = groupIndex;
+            break;
+          }
+        }
+      }
+    }
+
+    if (mergeIndex >= 0) {
+      const group = groups[mergeIndex];
+      group.xSum += gx;
+      group.ySum += gy;
+      group.valueSum += value;
+      group.count += 1;
+      continue;
+    }
+
+    const groupIndex = groups.length;
+    groups.push({ xSum: gx, ySum: gy, valueSum: value, count: 1 });
+    addToBucket(groupIndex, gx, gy);
+  }
+
+  return {
+    width,
+    height,
+    renderedCount,
+    samples: groups.map((group) => ({
+      x: group.xSum / group.count,
+      y: group.ySum / group.count,
+      value: group.valueSum / group.count,
+    })),
+  };
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  values.sort((a, b) => a - b);
+  const mid = Math.floor(values.length / 2);
+  return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+}
+
+export function robustAbsScaleMax(
+  values: ArrayLike<number>,
+  support?: ArrayLike<number>,
+  minSupport = 0,
+): number {
+  const absValues: number[] = [];
+  let maxAbs = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    if (support && support[index] <= minSupport) continue;
+    const value = values[index];
+    if (!Number.isFinite(value)) continue;
+    const abs = Math.abs(value);
+    maxAbs = Math.max(maxAbs, abs);
+    if (abs > 0) absValues.push(abs);
+  }
+  if (!absValues.length) return maxAbs > 0 ? maxAbs : 1;
+  absValues.sort((a, b) => a - b);
+  const percentileIndex = Math.min(
+    absValues.length - 1,
+    Math.max(0, Math.floor((absValues.length - 1) * 0.98)),
+  );
+  const scaleMax = absValues[percentileIndex];
+  return Number.isFinite(scaleMax) && scaleMax > 0 ? scaleMax : maxAbs > 0 ? maxAbs : 1;
+}
+
+function finalizeInfluenceField(args: {
+  width: number;
+  height: number;
+  values: Float32Array;
+  support: Float32Array;
+  renderedCount: number;
+  minSupport?: number;
+}): InfluenceField {
+  const minSupport = args.minSupport ?? 0;
+  let maxAbs = 0;
+  for (let index = 0; index < args.values.length; index += 1) {
+    if (args.support[index] <= minSupport) continue;
+    const value = args.values[index];
+    if (Number.isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
+  }
+  return {
+    kind: "raster",
+    width: args.width,
+    height: args.height,
+    values: args.values,
+    support: args.support,
+    maxAbs,
+    scaleMax: robustAbsScaleMax(args.values, args.support, minSupport),
+    renderedCount: args.renderedCount,
+  };
+}
+
+function exactCellSampleArgs(args: InfluenceFieldArgs): InfluenceFieldArgs {
+  return {
+    ...args,
+    gridWidth: Math.max(1, Math.round(args.gridWidth ?? args.viewport.width)),
+    gridHeight: Math.max(1, Math.round(args.gridHeight ?? args.viewport.height)),
+  };
+}
+
+export function computeCellsInfluenceLayer(args: InfluenceFieldArgs): CellsInfluenceLayer {
+  const sampleSet = collectInfluenceSamples(exactCellSampleArgs(args));
+  const values = Float32Array.from(sampleSet.samples, (sample) => sample.value);
+  return {
+    kind: "cells",
+    width: sampleSet.width,
+    height: sampleSet.height,
+    samples: sampleSet.samples,
+    maxAbs: maxAbsValue(values),
+    scaleMax: robustAbsScaleMax(values),
+    renderedCount: sampleSet.renderedCount,
+    cellCount: sampleSet.samples.length,
+  };
+}
+
+export function adaptiveInfluenceSigma(
+  viewport: Pick<PlotViewport, "width" | "height">,
+  trainCount: number,
+): number {
+  const area = Math.max(1, viewport.width * viewport.height);
+  const spacing = Math.sqrt(area / Math.max(1, trainCount));
+  return clampNumber(spacing * 1.35, 6, 24);
+}
+
+export function computeGaussianInfluenceField(args: {
+  points: Float32Array;
+  dim: number;
+  bounds: Bounds;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  sigma?: number;
+  gridWidth?: number;
+  gridHeight?: number;
+}): GaussianInfluenceField {
+  const trainCount = Math.floor(args.points.length / Math.max(1, args.dim));
+  const sampleSet = collectInfluenceSamples(args);
+  const { width, height, samples, renderedCount } = sampleSet;
+  const sigma = args.sigma ?? adaptiveInfluenceSigma(args.viewport, trainCount);
+  const values = new Float32Array(width * height);
+  const support = new Float32Array(width * height);
+  const weighted = new Float32Array(width * height);
+  const sigmaX = Math.max(0.001, (sigma * width) / Math.max(1, args.viewport.width));
+  const sigmaY = Math.max(0.001, (sigma * height) / Math.max(1, args.viewport.height));
+  const supportX = Math.ceil(sigmaX * GAUSSIAN_SUPPORT_SIGMAS);
+  const supportY = Math.ceil(sigmaY * GAUSSIAN_SUPPORT_SIGMAS);
+
+  for (const sample of samples) {
+    const minCol = Math.max(0, Math.floor(sample.x - supportX));
+    const maxCol = Math.min(width - 1, Math.ceil(sample.x + supportX));
+    const minRow = Math.max(0, Math.floor(sample.y - supportY));
+    const maxRow = Math.min(height - 1, Math.ceil(sample.y + supportY));
+    for (let row = minRow; row <= maxRow; row += 1) {
+      const dy = (row - sample.y) / sigmaY;
+      const rowOffset = row * width;
+      for (let col = minCol; col <= maxCol; col += 1) {
+        const dx = (col - sample.x) / sigmaX;
+        const weight = Math.exp(-0.5 * (dx * dx + dy * dy));
+        const offset = rowOffset + col;
+        weighted[offset] += sample.value * weight;
+        support[offset] += weight;
+      }
+    }
+  }
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (support[index] <= MIN_GAUSSIAN_SUPPORT) continue;
+    values[index] = weighted[index] / support[index];
+  }
+
+  const field = finalizeInfluenceField({
+    width,
+    height,
+    values,
+    support,
+    renderedCount,
+    minSupport: MIN_GAUSSIAN_SUPPORT,
+  });
+  return {
+    ...field,
+    sigma,
+  };
+}
+
+function delaunayEdgeSpacing(
+  samples: InfluenceSample[],
+  delaunay: Delaunay<InfluenceSample>,
+  width: number,
+  height: number,
+): number {
+  const nearest = new Float32Array(samples.length);
+  nearest.fill(Infinity);
+  const seen = new Set<string>();
+  const addEdge = (left: number, right: number) => {
+    if (left === right) return;
+    const min = Math.min(left, right);
+    const max = Math.max(left, right);
+    const key = `${min}:${max}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const a = samples[min];
+    const b = samples[max];
+    if (!a || !b) return;
+    const length = Math.hypot(a.x - b.x, a.y - b.y);
+    nearest[left] = Math.min(nearest[left], length);
+    nearest[right] = Math.min(nearest[right], length);
+  };
+
+  const triangles = delaunay.triangles;
+  for (let triangle = 0; triangle < triangles.length; triangle += 3) {
+    addEdge(triangles[triangle], triangles[triangle + 1]);
+    addEdge(triangles[triangle + 1], triangles[triangle + 2]);
+    addEdge(triangles[triangle + 2], triangles[triangle]);
+  }
+  const distances = Array.from(nearest).filter((distance) => Number.isFinite(distance));
+  return median(distances) || Math.sqrt(Math.max(1, width * height) / Math.max(1, samples.length));
+}
+
+function triangleLongestEdge(a: InfluenceSample, b: InfluenceSample, c: InfluenceSample): number {
+  const ab = Math.hypot(a.x - b.x, a.y - b.y);
+  const bc = Math.hypot(b.x - c.x, b.y - c.y);
+  const ca = Math.hypot(c.x - a.x, c.y - a.y);
+  return Math.max(ab, bc, ca);
+}
+
+function barycentricWeights(
+  x: number,
+  y: number,
+  a: InfluenceSample,
+  b: InfluenceSample,
+  c: InfluenceSample,
+): [number, number, number] | null {
+  const denominator = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  if (Math.abs(denominator) < 1e-12) return null;
+  const wa = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / denominator;
+  const wb = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / denominator;
+  return [wa, wb, 1 - wa - wb];
+}
+
+export function computeLinearInfluenceField(args: InfluenceFieldArgs): InfluenceMapLayer {
+  const sampleSet = collectInfluenceSamples(args);
+  const { width, height, samples, renderedCount } = sampleSet;
+  if (samples.length < 3) {
+    return computeCellsInfluenceLayer(args);
+  }
+
+  const values = new Float32Array(width * height);
+  const support = new Float32Array(width * height);
+  const delaunay = Delaunay.from(
+    samples,
+    (sample) => sample.x,
+    (sample) => sample.y,
+  );
+  const triangles = delaunay.triangles;
+  if (!triangles.length) return computeCellsInfluenceLayer(args);
+  const spacing = delaunayEdgeSpacing(samples, delaunay, width, height);
+  const maxTriangleEdge = spacing > 0 ? spacing * 2.5 : Infinity;
+
+  for (let triangle = 0; triangle < triangles.length; triangle += 3) {
+    const a = samples[triangles[triangle]];
+    const b = samples[triangles[triangle + 1]];
+    const c = samples[triangles[triangle + 2]];
+    if (!a || !b || !c) continue;
+    if (triangleLongestEdge(a, b, c) > maxTriangleEdge) continue;
+    const minCol = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x)));
+    const maxCol = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)));
+    const minRow = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y)));
+    const maxRow = Math.min(height - 1, Math.ceil(Math.max(a.y, b.y, c.y)));
+    for (let row = minRow; row <= maxRow; row += 1) {
+      const rowOffset = row * width;
+      for (let col = minCol; col <= maxCol; col += 1) {
+        const weights = barycentricWeights(col, row, a, b, c);
+        if (!weights) continue;
+        const [wa, wb, wc] = weights;
+        if (wa < -1e-6 || wb < -1e-6 || wc < -1e-6) continue;
+        const offset = rowOffset + col;
+        values[offset] = wa * a.value + wb * b.value + wc * c.value;
+        support[offset] = 1;
+      }
+    }
+  }
+
+  const field = finalizeInfluenceField({ width, height, values, support, renderedCount });
+  return field.maxAbs > 0 ? field : computeCellsInfluenceLayer(args);
 }
 
 export function resizeSvg(svg: SVGSVGElement, width: number, height: number): void {
@@ -218,6 +694,180 @@ function drawRegionOverlay(
   ctx.restore();
 }
 
+function drawFixedInfluenceMarkers(args: {
+  ctx: CanvasRenderingContext2D;
+  context: PlotContext;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  scaleMax: number;
+}): void {
+  const color = divergingColorScale([-args.scaleMax, args.scaleMax]);
+  const count = Math.min(args.indices.length, args.values.length);
+  const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const trainIndex = Math.trunc(args.indices[index]);
+    if (trainIndex < 0 || trainIndex >= trainCount) continue;
+    const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
+    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    args.ctx.beginPath();
+    args.ctx.arc(sx, sy, FIXED_INFLUENCE_RADIUS, 0, Math.PI * 2);
+    args.ctx.fillStyle = color(args.values[index]);
+    args.ctx.fill();
+    args.ctx.lineWidth = 1.2;
+    args.ctx.strokeStyle = "#182230";
+    args.ctx.stroke();
+  }
+}
+
+export function influenceEntriesForMap(
+  indices: ArrayLike<number>,
+  values: ArrayLike<number>,
+  sign: InfluenceSign,
+): { indices: ArrayLike<number>; values: ArrayLike<number> } {
+  if (sign === "abs") return { indices, values };
+  const filteredIndices: number[] = [];
+  const filteredValues: number[] = [];
+  const count = Math.min(indices.length, values.length);
+  for (let index = 0; index < count; index += 1) {
+    const value = values[index];
+    if ((sign === "pos" && value <= 0) || (sign === "neg" && value >= 0)) continue;
+    filteredIndices.push(indices[index]);
+    filteredValues.push(value);
+  }
+  return {
+    indices: filteredIndices,
+    values: filteredValues,
+  };
+}
+
+function drawInfluenceFieldLayer(args: {
+  ctx: CanvasRenderingContext2D;
+  viewport: PlotViewport;
+  field: InfluenceField;
+}): void {
+  const { field } = args;
+  if (!field.renderedCount) return;
+
+  const imageCanvas = document.createElement("canvas");
+  imageCanvas.width = field.width;
+  imageCanvas.height = field.height;
+  const imageCtx = imageCanvas.getContext("2d");
+  if (!imageCtx) return;
+  const imageData = imageCtx.createImageData(field.width, field.height);
+  const color = divergingColorScale([-field.scaleMax, field.scaleMax]);
+
+  for (let index = 0; index < field.values.length; index += 1) {
+    if (field.support[index] <= MIN_GAUSSIAN_SUPPORT) continue;
+    const value = field.values[index];
+    const parsed = parseD3Color(color(value));
+    if (!parsed) continue;
+    const rgb = parsed.rgb();
+    const rgbaOffset = index * 4;
+    const strength = field.scaleMax ? Math.min(1, Math.abs(value) / field.scaleMax) : 0;
+    imageData.data[rgbaOffset] = rgb.r;
+    imageData.data[rgbaOffset + 1] = rgb.g;
+    imageData.data[rgbaOffset + 2] = rgb.b;
+    imageData.data[rgbaOffset + 3] = Math.round(132 + strength * 82);
+  }
+
+  imageCtx.putImageData(imageData, 0, 0);
+  args.ctx.save();
+  args.ctx.imageSmoothingEnabled = true;
+  args.ctx.drawImage(
+    imageCanvas,
+    args.viewport.x,
+    args.viewport.y,
+    args.viewport.width,
+    args.viewport.height,
+  );
+  args.ctx.restore();
+}
+
+function drawCellsInfluenceLayer(args: {
+  ctx: CanvasRenderingContext2D;
+  viewport: PlotViewport;
+  field: CellsInfluenceLayer;
+}): void {
+  const { field } = args;
+  if (!field.cellCount) return;
+  const delaunay = Delaunay.from(
+    field.samples,
+    (sample) => sample.x,
+    (sample) => sample.y,
+  );
+  const voronoi = delaunay.voronoi([0, 0, field.width, field.height]);
+  const color = divergingColorScale([-field.scaleMax, field.scaleMax]);
+
+  args.ctx.save();
+  args.ctx.translate(args.viewport.x, args.viewport.y);
+  args.ctx.scale(
+    args.viewport.width / Math.max(1, field.width),
+    args.viewport.height / Math.max(1, field.height),
+  );
+  for (let index = 0; index < field.samples.length; index += 1) {
+    const polygon = voronoi.cellPolygon(index);
+    if (!polygon?.length) continue;
+    const sample = field.samples[index];
+    const parsed = parseD3Color(color(sample.value));
+    if (!parsed) continue;
+    const rgb = parsed.rgb();
+    const strength = field.scaleMax ? Math.min(1, Math.abs(sample.value) / field.scaleMax) : 0;
+    args.ctx.beginPath();
+    polygon.forEach(([x, y], pointIndex) => {
+      if (pointIndex === 0) {
+        args.ctx.moveTo(x, y);
+      } else {
+        args.ctx.lineTo(x, y);
+      }
+    });
+    args.ctx.closePath();
+    args.ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.5 + strength * 0.32})`;
+    args.ctx.fill();
+  }
+
+  const markerSize = Math.max(
+    1,
+    Math.min(2.2, Math.sqrt((field.width * field.height) / Math.max(1, field.samples.length)) * 0.04),
+  );
+  args.ctx.globalAlpha = 0.42;
+  args.ctx.fillStyle = "#17202a";
+  for (const sample of field.samples) {
+    args.ctx.fillRect(sample.x - markerSize / 2, sample.y - markerSize / 2, markerSize, markerSize);
+  }
+  args.ctx.restore();
+}
+
+function renderInfluenceMapLayer(args: {
+  ctx: CanvasRenderingContext2D;
+  context: PlotContext;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  method: InfluenceMapMethod;
+}): InfluenceMapLayer {
+  const fieldArgs = {
+    points: args.context.points.train_points,
+    dim: args.context.trainDim,
+    bounds: args.context.bounds,
+    viewport: args.viewport,
+    indices: args.indices,
+    values: args.values,
+  };
+  const field =
+    args.method === "gaussian"
+      ? computeGaussianInfluenceField(fieldArgs)
+      : args.method === "cells"
+        ? computeCellsInfluenceLayer(fieldArgs)
+        : computeLinearInfluenceField(fieldArgs);
+  if (field.kind === "cells") {
+    drawCellsInfluenceLayer({ ctx: args.ctx, viewport: args.viewport, field });
+  } else {
+    drawInfluenceFieldLayer({ ctx: args.ctx, viewport: args.viewport, field });
+  }
+  return field;
+}
+
 export function renderLocalInfluencePlot(args: {
   canvas: HTMLCanvasElement;
   svg: SVGSVGElement;
@@ -227,7 +877,10 @@ export function renderLocalInfluencePlot(args: {
   selectedCandidateIndex: number;
   selectedTrainIndex: number;
   k: number;
-}): number {
+  sign: InfluenceSign;
+  mode: InfluenceDisplayMode;
+  method: InfluenceMapMethod;
+}): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const viewport = plotViewport(args.context.bounds, width, height);
@@ -239,7 +892,6 @@ export function renderLocalInfluencePlot(args: {
     size: 2,
   });
 
-  if (!args.row) return 0;
   const rowSourcePoints =
     args.matrix.row_source === "train_points"
       ? args.context.points.train_points
@@ -249,40 +901,58 @@ export function renderLocalInfluencePlot(args: {
     args.matrix.row_source === "train_points" ? args.selectedTrainIndex : args.selectedCandidateIndex;
   const rowPoint = pointAt(rowSourcePoints, clampIndex(rowIndex, args.matrix.row_count), rowDim);
   const [rowSx, rowSy] = projectPointToViewport(rowPoint[0], rowPoint[1], args.context.bounds, viewport);
-  const values = args.row.values.subarray(0, Math.min(args.k, args.row.values.length));
-  const indices = args.row.indices.subarray(0, values.length);
-  const maxAbs = Math.max(0, ...Array.from(values, (value) => Math.abs(value)));
-  const radius = scaleSqrt().domain([0, maxAbs || 1]).range([3, 13]);
-  const color = divergingColorScale([-maxAbs || -1, maxAbs || 1]);
-
-  ctx.save();
-  ctx.globalAlpha = 0.34;
-  ctx.strokeStyle = "#526070";
-  ctx.lineWidth = 1;
-  const linkCount = Math.min(50, indices.length);
-  for (let index = linkCount - 1; index >= 0; index -= 1) {
-    const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
-    ctx.beginPath();
-    ctx.moveTo(rowSx, rowSy);
-    ctx.lineTo(sx, sy);
-    ctx.stroke();
+  if (!args.row) {
+    drawPointMarker(ctx, rowSx, rowSy, 7);
+    return emptyInfluenceStats(args.mode);
   }
-  ctx.restore();
+  const valueCount =
+    args.mode === "map"
+      ? args.row.values.length
+      : Math.min(args.k, args.row.values.length);
+  const values = args.row.values.subarray(0, valueCount);
+  const indices = args.row.indices.subarray(0, valueCount);
+  const renderEntries =
+    args.mode === "map" ? influenceEntriesForMap(indices, values, args.sign) : { indices, values };
+  const maxAbs = maxAbsValue(renderEntries.values);
+  let scaleMax = maxAbs || 1;
 
-  for (let index = indices.length - 1; index >= 0; index -= 1) {
-    const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
-    ctx.beginPath();
-    ctx.arc(sx, sy, radius(Math.abs(values[index])), 0, Math.PI * 2);
-    ctx.fillStyle = color(values[index]);
-    ctx.fill();
-    ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "#182230";
-    ctx.stroke();
+  if (args.mode === "map") {
+    const field = renderInfluenceMapLayer({
+      ctx,
+      context: args.context,
+      viewport,
+      indices: renderEntries.indices,
+      values: renderEntries.values,
+      method: args.method,
+    });
+    scaleMax = field.scaleMax;
+  } else {
+    ctx.save();
+    ctx.globalAlpha = 0.34;
+    ctx.strokeStyle = "#526070";
+    ctx.lineWidth = 1;
+    const linkCount = Math.min(50, indices.length);
+    for (let index = linkCount - 1; index >= 0; index -= 1) {
+      const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
+      const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
+      ctx.beginPath();
+      ctx.moveTo(rowSx, rowSy);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+    drawFixedInfluenceMarkers({
+      ctx,
+      context: args.context,
+      viewport,
+      indices,
+      values,
+      scaleMax,
+    });
   }
+
   drawPointMarker(ctx, rowSx, rowSy, 7);
-  return maxAbs;
+  return { maxAbs, renderedCount: renderEntries.values.length, mode: args.mode, scaleMax };
 }
 
 export function renderRegionalInfluencePlot(args: {
@@ -291,7 +961,9 @@ export function renderRegionalInfluencePlot(args: {
   context: PlotContext;
   aggregate: InfluenceAggregate | null;
   k: number;
-}): number {
+  mode: InfluenceDisplayMode;
+  method: InfluenceMapMethod;
+}): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const viewport = plotViewport(args.context.bounds, width, height);
@@ -303,25 +975,37 @@ export function renderRegionalInfluencePlot(args: {
     size: 2,
   });
 
-  if (!args.aggregate) return 0;
-  const values = args.aggregate.values.subarray(0, Math.min(args.k, args.aggregate.values.length));
-  const indices = args.aggregate.indices.subarray(0, values.length);
-  const maxAbs = Math.max(0, ...Array.from(values, (value) => Math.abs(value)));
-  const radius = scaleSqrt().domain([0, maxAbs || 1]).range([3, 15]);
-  const color = divergingColorScale([-maxAbs || -1, maxAbs || 1]);
+  if (!args.aggregate) return emptyInfluenceStats(args.mode);
+  const valueCount =
+    args.mode === "map"
+      ? args.aggregate.values.length
+      : Math.min(args.k, args.aggregate.values.length);
+  const values = args.aggregate.values.subarray(0, valueCount);
+  const indices = args.aggregate.indices.subarray(0, valueCount);
+  const maxAbs = maxAbsValue(values);
+  let scaleMax = maxAbs || 1;
 
-  for (let index = indices.length - 1; index >= 0; index -= 1) {
-    const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
-    ctx.beginPath();
-    ctx.arc(sx, sy, radius(Math.abs(values[index])), 0, Math.PI * 2);
-    ctx.fillStyle = color(values[index]);
-    ctx.fill();
-    ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "#182230";
-    ctx.stroke();
+  if (args.mode === "map") {
+    const field = renderInfluenceMapLayer({
+      ctx,
+      context: args.context,
+      viewport,
+      indices,
+      values,
+      method: args.method,
+    });
+    scaleMax = field.scaleMax;
+  } else {
+    drawFixedInfluenceMarkers({
+      ctx,
+      context: args.context,
+      viewport,
+      indices,
+      values,
+      scaleMax,
+    });
   }
-  return maxAbs;
+  return { maxAbs, renderedCount: valueCount, mode: args.mode, scaleMax };
 }
 
 export function renderGlobalPlot(args: {

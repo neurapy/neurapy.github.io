@@ -1,10 +1,10 @@
 {
   "bundle_report": "bundle_report.json",
-  "generated_at": "2026-06-11T03:07:30+0200",
+  "generated_at": "2026-06-11T03:22:58+0200",
   "matrix_mode": "core",
-  "max_local_influence_points": 1000,
+  "max_local_influence_points": 3500,
   "n_candidate": 1000,
-  "n_train": 1000,
+  "n_train": 3500,
   "point_selection": "deterministic_spread",
   "raster_max_resolution": 1024,
   "row_chunk_size": 256,
@@ -19,7 +19,7 @@
       "n_candidate": 1000,
       "n_fields": 8,
       "n_matrices": 4,
-      "n_train": 1000,
+      "n_train": 3500,
       "problem": "allen_cahn",
       "run_id": "allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft",
       "source_n_candidate": 10000,
@@ -36,7 +36,7 @@
       "n_candidate": 1000,
       "n_fields": 7,
       "n_matrices": 4,
-      "n_train": 1000,
+      "n_train": 3500,
       "problem": "burgers",
       "run_id": "burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft",
       "source_n_candidate": 10000,
@@ -44,38 +44,30 @@
       "status": "complete"
     },
     {
-      "default_field": "pred_output_0",
-      "default_matrix": "influences_total_loss_total_loss",
+      "default_field": null,
+      "default_matrix": null,
       "display_name": "Diffusion",
-      "errors": [],
+      "errors": [
+        "Requested 3500 train points, but only 1200 are available"
+      ],
       "folder": "diffusion_float64",
-      "manifest": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/manifest.json",
-      "n_candidate": 1000,
-      "n_fields": 7,
-      "n_matrices": 4,
-      "n_train": 1000,
+      "manifest": null,
       "problem": "diffusion",
       "run_id": "diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft",
-      "source_n_candidate": 10000,
-      "source_n_train": 1200,
-      "status": "complete"
+      "status": "failed"
     },
     {
-      "default_field": "pred_output_0",
-      "default_matrix": "influences_total_loss_total_loss",
+      "default_field": null,
+      "default_matrix": null,
       "display_name": "Drift Diffusion",
-      "errors": [],
+      "errors": [
+        "Requested 3500 train points, but only 1200 are available"
+      ],
       "folder": "drift_diffusion_float64",
-      "manifest": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/manifest.json",
-      "n_candidate": 1000,
-      "n_fields": 8,
-      "n_matrices": 4,
-      "n_train": 1000,
+      "manifest": null,
       "problem": "drift_diffusion",
       "run_id": "drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft",
-      "source_n_candidate": 10000,
-      "source_n_train": 1200,
-      "status": "complete"
+      "status": "failed"
     },
     {
       "default_field": "pred_output_0",
@@ -87,7 +79,7 @@
       "n_candidate": 1000,
       "n_fields": 15,
       "n_matrices": 4,
-      "n_train": 1000,
+      "n_train": 3500,
       "problem": "navier_stokes_nd",
       "run_id": "navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft",
       "source_n_candidate": 10000,
@@ -95,21 +87,17 @@
       "status": "complete"
     },
     {
-      "default_field": "pred_output_0",
-      "default_matrix": "influences_total_loss_total_loss",
+      "default_field": null,
+      "default_matrix": null,
       "display_name": "Poisson Disk",
-      "errors": [],
+      "errors": [
+        "Requested 3500 train points, but only 3001 are available"
+      ],
       "folder": "poisson_disk_float64",
-      "manifest": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/manifest.json",
-      "n_candidate": 1000,
-      "n_fields": 6,
-      "n_matrices": 4,
-      "n_train": 1000,
+      "manifest": null,
       "problem": "poisson_disk",
       "run_id": "poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft",
-      "source_n_candidate": 10000,
-      "source_n_train": 3001,
-      "status": "complete"
+      "status": "failed"
     },
     {
       "default_field": "pred_output_0",
@@ -121,7 +109,7 @@
       "n_candidate": 1000,
       "n_fields": 9,
       "n_matrices": 4,
-      "n_train": 1000,
+      "n_train": 3500,
       "problem": "wave",
       "run_id": "wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft",
       "source_n_candidate": 10000,

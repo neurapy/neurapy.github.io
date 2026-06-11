@@ -218,7 +218,7 @@ export function dequantizeInt16Values(values: Int16Array, scale: number): Float3
 }
 
 function aggregateContribution(value: number, sign: InfluenceSign): number {
-  if (sign === "abs") return Math.abs(value);
+  if (sign === "abs") return value;
   if (sign === "pos") return value > 0 ? value : 0;
   return value < 0 ? value : 0;
 }
