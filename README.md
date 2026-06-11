@@ -102,6 +102,8 @@ Have fun on ICML
 
 # Notes
 
+## Schreiben an Aleks
+- Schick mir bitte die Folder names mit GOOD and BAD model. Und falls es gibt, zu diesen Modellen auch aufgesplittet nach den IC Gesplitteten Graphs. (Falls es sie nicht gibt, generiere ich sie selbst.)
 
 ## TODOS nach ALeks quatschen
 - Aleks schickt mir Folder names für GOOD und BAD model. 
@@ -109,74 +111,18 @@ Have fun on ICML
 -> Good / Bad switcher in der TOP BAR
 - Kontur in Train rein
 - Evtl. Den Nach Loss Terms gesplittete Global Influence POlot
+- Impressum & Datenschutzerklärung rein (Aleks schätzt die IT schickt nochma was)
+- Drift Diffusion 1:1
+- Selfhosting configuren? Warte auf was die it zu aleks sagt zu wie wir hosten
+- Evtl. Kommt graddot raus, warten auf was Rene und Jonas sagen. 
+- Loss nicht mehr nach unterschiedlichen Terms aufsplitten
+- Checkbox, und ansonsten nichts preloaden.
+- Axis Labels und Colorbar
+- When you click outside the Graph, select a Boundary Point!!
+- Extra selector to not increase Influence points in size.
 
-## Layout
-
-2 Möglichkeiten
-1.: 1 Plot und local influences werden direkt drin displayed
-2.: Train + Candidate Plots. 
 
 
-
-## Fragen für Aleks
-
-Infos:
-
-Für die lokale Demo, falls ihr ein Laptop oder PC da hinstellen könnt, kannst du es mit vollen Top-K Generieren.
-
-Fragen
-
-1. Regional Influences:
-Paper verwendet Summe oder? Aber das hängt ja stark von der Anzahl der Punkte ab. Wäre Average nicht besser.
-Vor allen Dingen hier in der Demo: Ich verwende zur Berechnung nur die top k influences. Average wäre doch grade da besser.
-2. Was soll/könnte noch drin sein?
-3. Welche Reihenfolge der Arrays?
-
-offtopic:
 - Manchmal clustern Influences an bestimmten regionen von boundaries. Wieso?
 
-## Webapp ToDos
 
-### Implement
-- Checkbox, und ansonsten nichts preloaden.
-1. Aspect Ration richtig nutzen um Prediction + Global Influence am best möglichsten darszustellen
-- Die Bilder müssen richtig scalen!
-- Das was Aleks geschrieben hat
-- Region Influence
-- Mobile version
-- Sinnvolle Defaults ausgewählt
-
-- Arrow
-- text wie Prediction û · 0.0015868 … 0.31018 Verschwindet in Mobile (Und ist auch unötig)
-- Axis Labels
-- Colorbar und range der predictions
-- TIle Titel anpassen
-- Reihenfolge Matrizen
-
-### Performance Optims
-
-1. Erst die Sachen laden, die man sieht. 
-2. Point wise Influence Matrix Lazy im Hintergrund laden. Immer, wenn wir einen einzelnen Batch haben wollen und die jeweilige Problemmatrix
-noch nicht haben, dann fetchen wir nur diesen Batch.
-
-### Webdemo
-
-Der nächste Schritt ist, dass ich mir genau überlege, was ich alles brauche. Ich habe bereits eine gute Base. 
-Es sollte eine .js Webdemo werden. Das gibt mir die meisten Freiheiten.
-Der hintergrund sollte precomputed sein. Darüber sollten die Trainingspunkte markiert sein. Ich sollte darauf klicken können und in einer anderen Grafik ändern sich die Influences. Slider für Top K. Etc. 
-
-Aleks:
-
-```
-* ziel: github.io seite fürs paper 
-    * mit links zu arxiv, code, demo
-    * oder demo direkt drauf
-* Auf jeden Fall dabei:
-    * Point selection
-    * Und Visualisierung von top k influential points 
-        * Alternativ Visualisierung aller Influences
-    * Visualisierung der Influence des gegebenen Punktes
-* Figure 4: auch region selection wäre supi
-* Figure 5: loss decomposition sollte drinnen sein
-
-```
