@@ -10,7 +10,6 @@ import type {
   RasterData,
   RasterFieldManifest,
   RunManifest,
-  SummaryName,
   TypedArray,
 } from "../types";
 import { assertDType, typedArrayFromBuffer } from "./dtypes";
@@ -101,17 +100,6 @@ export class DataRepository {
     };
   }
 
-  async loadSummary(
-    matrix: InfluenceMatrixManifest,
-    name: SummaryName,
-    priority: Priority = "foreground",
-  ): Promise<Float32Array> {
-    const spec = matrix.summary[name];
-    if (!spec) throw new Error(`${matrix.id}: summary ${name} is unavailable`);
-    assertDType(spec, "float32");
-    return this.loadArray<Float32Array>(spec, priority);
-  }
-
   async loadInfluenceRow(
     matrix: InfluenceMatrixManifest,
     sign: InfluenceSign,
@@ -130,12 +118,15 @@ export class DataRepository {
     const localRow = rowIndex - chunk.row_start;
     const [indicesArray, rawArray] = await Promise.all([
       this.loadArray<Uint16Array | Uint32Array>(chunk.indices, priority),
-      this.loadArray<Int16Array>(chunk.values, priority),
+      this.loadArray<Int16Array | Float32Array>(chunk.values, priority),
     ]);
     const offset = localRow * chunk.k;
     const indices = indicesArray.subarray(offset, offset + chunk.k) as Uint16Array | Uint32Array;
     const rawValues = rawArray.subarray(offset, offset + chunk.k);
-    const values = dequantizeInt16Values(rawValues, chunk.value_scale);
+    const values =
+      rawValues instanceof Float32Array
+        ? new Float32Array(rawValues)
+        : dequantizeInt16Values(rawValues, chunk.value_scale ?? 1);
     return {
       rowIndex,
       indices,
@@ -177,13 +168,16 @@ export class DataRepository {
       Array.from(rowsByChunk.entries()).map(async ([chunk, rows]) => {
         const [indicesArray, rawArray] = await Promise.all([
           this.loadArray<Uint16Array | Uint32Array>(chunk.indices, priority),
-          this.loadArray<Int16Array>(chunk.values, priority),
+          this.loadArray<Int16Array | Float32Array>(chunk.values, priority),
         ]);
         for (const row of rows) {
           const offset = (row - chunk.row_start) * chunk.k;
           for (let index = 0; index < chunk.k; index += 1) {
             const trainIndex = indicesArray[offset + index];
-            const value = rawArray[offset + index] * chunk.value_scale;
+            const value =
+              rawArray instanceof Float32Array
+                ? rawArray[offset + index]
+                : rawArray[offset + index] * (chunk.value_scale ?? 1);
             const contribution = aggregateContribution(value, sign);
             if (!contribution) continue;
             sums.set(trainIndex, (sums.get(trainIndex) ?? 0) + contribution);

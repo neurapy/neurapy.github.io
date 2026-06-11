@@ -11,7 +11,6 @@ import type {
   PointArrays,
   RasterData,
   RunManifest,
-  SummaryName,
 } from "../types";
 import { DataRepository } from "../data/arrays";
 import { loadIndex, loadRunManifest, resolveIndexUrl } from "../data/manifest";
@@ -33,7 +32,6 @@ import {
   buildDelaunay,
   pointerInDomain,
   rasterSampleAtCoord,
-  renderGlobalPlot,
   renderLocalInfluencePlot,
   renderMainPlot,
   renderRegionalInfluencePlot,
@@ -44,13 +42,6 @@ import {
 import { formatDisplayLabel, formatNumber, getDomRefs, showMessage, type DomRefs } from "./dom";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
-const SUMMARY_LABELS: Record<SummaryName, string> = {
-  mean_abs: "Mean |influence|",
-  mean_signed: "Mean signed",
-  max_abs: "Max |influence|",
-  positive_mass: "Positive mass",
-  negative_mass: "Negative mass",
-};
 const INFLUENCE_MAP_METHOD_LABELS: Record<InfluenceMapMethod, string> = {
   linear: "Linear",
   cells: "Cells",
@@ -88,7 +79,6 @@ export class AppController {
   private rasterResult: RasterRenderResult | null = null;
   private influenceRow: InfluenceRow | null = null;
   private influenceAggregate: InfluenceAggregate | null = null;
-  private summaryValues: Float32Array | null = null;
   private mainViewport = null as ReturnType<typeof renderMainPlot> | null;
   private draftRegion: Bounds | null = null;
   private modelGesture: ModelGesture | null = null;
@@ -110,7 +100,7 @@ export class AppController {
       this.populateRunSelect();
       const firstRun = this.index.runs.find((run) => run.manifest);
       if (!firstRun?.manifest) {
-        throw new Error("No complete v5 run manifest is available");
+        throw new Error("No complete v6 run manifest is available");
       }
       await this.loadRun(firstRun);
     } catch (error) {
@@ -131,7 +121,7 @@ export class AppController {
     });
     this.dom.matrixSelect.addEventListener("change", () => {
       this.store.dispatch({ type: "matrix", matrixId: this.dom.matrixSelect.value });
-      void Promise.all([this.loadInfluenceForSelection(), this.loadSummary()]).then(() => {
+      void this.loadInfluenceForSelection().then(() => {
         this.schedule("train");
         this.updateStats();
       });
@@ -173,20 +163,6 @@ export class AppController {
       const value = this.dom.influenceMapMethodSelect.value;
       const influenceMapMethod: InfluenceMapMethod = value === "cells" ? value : "linear";
       this.store.dispatch({ type: "influenceMapMethod", influenceMapMethod });
-      this.refreshResponsiveLayout();
-      this.schedule("train");
-    });
-    this.dom.summarySelect.addEventListener("change", () => {
-      this.store.dispatch({ type: "summary", summary: this.dom.summarySelect.value as SummaryName });
-      void this.loadSummary().then(() => this.schedule("train"));
-    });
-    this.dom.trainModeButtons.addEventListener("click", (event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-train-mode]");
-      if (!button) return;
-      const trainPlotMode = button.dataset.trainMode === "global" ? "global" : "local";
-      this.store.dispatch({ type: "trainPlotMode", trainPlotMode });
-      this.setActiveButtons(this.dom.trainModeButtons, trainPlotMode, "trainMode");
-      this.updateTrainControlVisibility();
       this.refreshResponsiveLayout();
       this.schedule("train");
     });
@@ -246,10 +222,8 @@ export class AppController {
   }
 
   private updateTrainControlVisibility(): void {
-    const localMode = this.store.state.trainPlotMode === "local";
-    const localMapMode = localMode && this.store.state.influenceMapEnabled;
-    this.dom.summaryControl.hidden = localMode;
-    this.dom.mapControl.hidden = !localMode;
+    const localMapMode = this.store.state.influenceMapEnabled;
+    this.dom.mapControl.hidden = false;
     this.dom.methodControl.hidden = !localMapMode;
     this.dom.kControl.hidden = localMapMode;
     this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
@@ -396,7 +370,6 @@ export class AppController {
     this.rasterResult = null;
     this.influenceRow = null;
     this.influenceAggregate = null;
-    this.summaryValues = null;
     this.draftRegion = null;
     this.modelGesture = null;
     this.touchRegionArmed = false;
@@ -423,7 +396,6 @@ export class AppController {
     await Promise.all([
       this.loadRaster(this.store.state.fieldId),
       this.loadInfluenceForSelection(),
-      this.loadSummary(),
     ]);
     this.dom.runMeta.textContent = `${this.manifest.display_name} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
     this.refreshResponsiveLayout();
@@ -465,12 +437,6 @@ export class AppController {
       this.store.dispatch({ type: "matrix", matrixId });
     }
 
-    this.dom.summarySelect.replaceChildren(
-      ...(Object.entries(SUMMARY_LABELS) as [SummaryName, string][]).map(
-        ([name, label]) => new Option(label, name),
-      ),
-    );
-    this.dom.summarySelect.value = this.store.state.summary;
     const maxK = Math.max(
       1,
       this.selectedMatrix()?.max_local_influence_points ?? this.manifest.max_local_influence_points,
@@ -481,7 +447,6 @@ export class AppController {
     this.dom.kOutput.value = String(this.store.state.k);
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
-    this.setActiveButtons(this.dom.trainModeButtons, this.store.state.trainPlotMode, "trainMode");
     this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
     this.dom.influenceMapMethodSelect.value = this.store.state.influenceMapMethod;
     this.updateTrainControlVisibility();
@@ -640,13 +605,6 @@ export class AppController {
     this.updatePrefetchPlan();
   }
 
-  private async loadSummary(): Promise<void> {
-    const matrix = this.selectedMatrix();
-    if (!this.repo || !matrix) return;
-    this.summaryValues = await this.repo.loadSummary(matrix, this.store.state.summary, "foreground");
-    this.updatePrefetchPlan();
-  }
-
   private startBackgroundPrefetch(): void {
     const prefetcher = this.prefetcher;
     requestAnimationFrame(() => {
@@ -670,7 +628,6 @@ export class AppController {
       fieldKind: this.store.state.fieldKind as FieldKind,
       matrixId: this.store.state.matrixId,
       sign: this.store.state.sign,
-      summary: this.store.state.summary,
       selectedCandidateIndex: this.store.state.selectedCandidateIndex,
       selectedTrainIndex: this.store.state.selectedTrainIndex,
       selectionMode: this.store.state.selectionMode,
@@ -758,56 +715,26 @@ export class AppController {
       return;
     }
     this.updateTrainControlVisibility();
-    if (this.store.state.trainPlotMode === "local") {
-      const matrix = this.selectedMatrix();
-      if (!matrix) return;
-      const influenceMode: InfluenceDisplayMode = this.store.state.influenceMapEnabled
-        ? "map"
-        : "points";
-      this.dom.trainTitle.textContent = "Train";
-      if (this.store.state.selectionMode === "region") {
-        const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
-        const stats = renderRegionalInfluencePlot({
-          canvas: this.dom.trainCanvas,
-          svg: this.dom.trainSvg,
-          context,
-          raster: this.raster,
-          rasterResult: this.rasterResult,
-          aggregate: this.influenceAggregate,
-          k: this.store.state.k,
-          mode: influenceMode,
-          method: this.store.state.influenceMapMethod,
-        });
-        const label = influenceMode === "map" ? "Local region map" : "Local region";
-        const methodSuffix =
-          influenceMode === "map"
-            ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
-            : "";
-        const mapSuffix =
-          influenceMode === "map"
-            ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
-            : "";
-        this.dom.trainRange.textContent = this.store.state.selectedRegion
-          ? `${label}${methodSuffix} · sum over ${selectedCount.toLocaleString()} candidates${mapSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
-          : "";
-        return;
-      }
-      const stats = renderLocalInfluencePlot({
+    const matrix = this.selectedMatrix();
+    if (!matrix) return;
+    const influenceMode: InfluenceDisplayMode = this.store.state.influenceMapEnabled
+      ? "map"
+      : "points";
+    this.dom.trainTitle.textContent = "Train";
+    if (this.store.state.selectionMode === "region") {
+      const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
+      const stats = renderRegionalInfluencePlot({
         canvas: this.dom.trainCanvas,
         svg: this.dom.trainSvg,
         context,
         raster: this.raster,
         rasterResult: this.rasterResult,
-        matrix,
-        row: this.influenceRow,
-        selectedCandidateIndex: this.store.state.selectedCandidateIndex,
-        selectedTrainIndex: this.store.state.selectedTrainIndex,
+        aggregate: this.influenceAggregate,
         k: this.store.state.k,
-        sign: this.store.state.sign,
         mode: influenceMode,
         method: this.store.state.influenceMapMethod,
       });
-      const label = influenceMode === "map" ? "Local map" : "Local";
+      const label = influenceMode === "map" ? "Local region map" : "Local region";
       const methodSuffix =
         influenceMode === "map"
           ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
@@ -816,24 +743,38 @@ export class AppController {
         influenceMode === "map"
           ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
           : "";
-      this.dom.trainRange.textContent = stats.maxAbs
-        ? `${label}${methodSuffix}${mapSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
-        : `${label}${methodSuffix}${mapSuffix}`;
+      this.dom.trainRange.textContent = this.store.state.selectedRegion
+        ? `${label}${methodSuffix} · sum over ${selectedCount.toLocaleString()} candidates${mapSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
+        : "";
       return;
     }
-    const domain = renderGlobalPlot({
+    const stats = renderLocalInfluencePlot({
       canvas: this.dom.trainCanvas,
       svg: this.dom.trainSvg,
       context,
       raster: this.raster,
       rasterResult: this.rasterResult,
-      values: this.summaryValues,
-      diverging:
-        this.store.state.summary === "mean_signed" ||
-        this.store.state.summary === "negative_mass",
+      matrix,
+      row: this.influenceRow,
+      selectedCandidateIndex: this.store.state.selectedCandidateIndex,
+      selectedTrainIndex: this.store.state.selectedTrainIndex,
+      k: this.store.state.k,
+      sign: this.store.state.sign,
+      mode: influenceMode,
+      method: this.store.state.influenceMapMethod,
     });
-    this.dom.trainTitle.textContent = "Train";
-    this.dom.trainRange.textContent = `Global · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`;
+    const label = influenceMode === "map" ? "Local map" : "Local";
+    const methodSuffix =
+      influenceMode === "map"
+        ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
+        : "";
+    const mapSuffix =
+      influenceMode === "map"
+        ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
+        : "";
+    this.dom.trainRange.textContent = stats.maxAbs
+      ? `${label}${methodSuffix}${mapSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
+      : `${label}${methodSuffix}${mapSuffix}`;
   }
 
   private handleMainPointerDown(event: PointerEvent): void {

@@ -48,7 +48,7 @@ DTYPE_EXTENSIONS = {
     "int16": "i16",
 }
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 DEFAULT_RASTER_MAX_RESOLUTION = 512
 DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
@@ -247,8 +247,6 @@ def bundle_file_kind(path: Path) -> str:
         parts = set(path.parts)
         if "chunks" in parts:
             return "influence_chunks"
-        if path.name.startswith("summary_"):
-            return "global_summaries"
         if "raster" in path.stem:
             return "field_rasters"
         return "arrays"
@@ -742,6 +740,10 @@ def topk_sorted(values: np.ndarray, k: int, mode: str) -> tuple[np.ndarray, np.n
     return indices.astype(np.uint32), top_values.astype(np.float32)
 
 
+def float32_chunks(values: np.ndarray) -> np.ndarray:
+    return np.asarray(values, dtype=np.float32)
+
+
 def process_influence_matrix(
     path: Path,
     out_dir: Path,
@@ -792,7 +794,7 @@ def process_influence_matrix(
         raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
 
     k = min(max_local_influence_points, scores.shape[1])
-    display_scores = (-scores / float(source_n_train)).astype(np.float32, copy=False)
+    display_scores = (scores / float(source_n_train)).astype(np.float32, copy=False)
     matrix_dir = f"{rel_prefix}/{path.stem}"
     index_dtype = "uint16" if n_train <= 65535 else "uint32"
 
@@ -804,14 +806,12 @@ def process_influence_matrix(
             stop = min(row_count, start + row_chunk_size)
             chunk_indices = indices[start:stop]
             chunk_values = values[start:stop]
-            quantized_values, value_scale = quantize_int16_symmetric(chunk_values)
             chunk_entries.append(
                 {
                     "id": chunk_id,
                     "row_start": start,
                     "row_count": stop - start,
                     "k": k,
-                    "value_scale": value_scale,
                     "indices": write_array(
                         out_dir,
                         f"{matrix_dir}/{mode}/chunks/{chunk_id}_indices.{dtype_extension(index_dtype)}",
@@ -820,9 +820,9 @@ def process_influence_matrix(
                     ),
                     "values": write_array(
                         out_dir,
-                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_values.i16",
-                        quantized_values,
-                        "int16",
+                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_values.f32",
+                        float32_chunks(chunk_values),
+                        "float32",
                     ),
                 }
             )
@@ -830,47 +830,10 @@ def process_influence_matrix(
             "row_chunk_size": row_chunk_size,
             "chunk_count": len(chunk_entries),
             "indices_dtype": index_dtype,
-            "values_dtype": "int16",
-            "value_encoding": {
-                "kind": "symmetric_linear",
-                "scale_by": "chunk.value_scale",
-            },
+            "values_dtype": "float32",
+            "value_encoding": {"kind": "identity"},
             "chunks": chunk_entries,
         }
-
-    abs_scores = np.abs(display_scores)
-    summary = {
-        "mean_signed": write_array(
-            out_dir,
-            f"{matrix_dir}/summary_mean_signed.f32",
-            display_scores.mean(axis=0),
-            "float32",
-        ),
-        "mean_abs": write_array(
-            out_dir,
-            f"{matrix_dir}/summary_mean_abs.f32",
-            abs_scores.mean(axis=0),
-            "float32",
-        ),
-        "max_abs": write_array(
-            out_dir,
-            f"{matrix_dir}/summary_max_abs.f32",
-            abs_scores.max(axis=0),
-            "float32",
-        ),
-        "positive_mass": write_array(
-            out_dir,
-            f"{matrix_dir}/summary_positive_mass.f32",
-            np.clip(display_scores, 0, None).sum(axis=0),
-            "float32",
-        ),
-        "negative_mass": write_array(
-            out_dir,
-            f"{matrix_dir}/summary_negative_mass.f32",
-            np.clip(display_scores, None, 0).sum(axis=0),
-            "float32",
-        ),
-    }
 
     metadata.update(
         {
@@ -891,7 +854,6 @@ def process_influence_matrix(
                 f"{' (self)' if metadata['self_influence'] else ''}"
             ),
             "top_chunks": top_chunks,
-            "summary": summary,
         }
     )
     return metadata

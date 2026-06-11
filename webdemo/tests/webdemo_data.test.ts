@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { DataRepository, dequantizeInt16Values, dequantizeUint16Raster } from "../src/data/arrays";
-import { assertV5RunManifest } from "../src/data/manifest";
+import { assertV6RunManifest } from "../src/data/manifest";
 import { typedArrayFromBuffer } from "../src/data/dtypes";
 import { PriorityLoader } from "../src/data/loader";
 import {
@@ -60,7 +60,7 @@ function installDeferredFetch(): DeferredFetchCall[] {
 }
 
 const manifest = {
-  schema_version: 5,
+  schema_version: 6,
   problem: "fixture",
   folder: "fixture_float64",
   run_id: "fixture_run",
@@ -127,17 +127,16 @@ const manifest = {
           row_chunk_size: 2,
           chunk_count: 1,
           indices_dtype: "uint16",
-          values_dtype: "int16",
-          value_encoding: { kind: "symmetric_linear", scale_by: "chunk.value_scale" },
+          values_dtype: "float32",
+          value_encoding: { kind: "identity" },
           chunks: [
             {
               id: 0,
               row_start: 0,
               row_count: 2,
               k: 2,
-              value_scale: 0.01,
               indices: { path: "m0/abs/chunks/0_indices.u16", dtype: "uint16", shape: [2, 2] },
-              values: { path: "m0/abs/chunks/0_values.i16", dtype: "int16", shape: [2, 2] },
+              values: { path: "m0/abs/chunks/0_values.f32", dtype: "float32", shape: [2, 2] },
             },
           ],
         },
@@ -145,25 +144,18 @@ const manifest = {
           row_chunk_size: 2,
           chunk_count: 1,
           indices_dtype: "uint16",
-          values_dtype: "int16",
-          value_encoding: { kind: "symmetric_linear", scale_by: "chunk.value_scale" },
+          values_dtype: "float32",
+          value_encoding: { kind: "identity" },
           chunks: [],
         },
         neg: {
           row_chunk_size: 2,
           chunk_count: 1,
           indices_dtype: "uint16",
-          values_dtype: "int16",
-          value_encoding: { kind: "symmetric_linear", scale_by: "chunk.value_scale" },
+          values_dtype: "float32",
+          value_encoding: { kind: "identity" },
           chunks: [],
         },
-      },
-      summary: {
-        mean_abs: { path: "summary.f32", dtype: "float32", shape: [3] },
-        mean_signed: { path: "summary.f32", dtype: "float32", shape: [3] },
-        max_abs: { path: "summary.f32", dtype: "float32", shape: [3] },
-        positive_mass: { path: "summary.f32", dtype: "float32", shape: [3] },
-        negative_mass: { path: "summary.f32", dtype: "float32", shape: [3] },
       },
     },
   ],
@@ -176,10 +168,10 @@ describe("typed array validation", () => {
     ).toThrow(/expected 12 bytes/);
   });
 
-  it("parses v5 manifests and rejects older versions", () => {
-    expect(assertV5RunManifest(manifest)).toBe(manifest);
-    expect(() => assertV5RunManifest({ ...manifest, schema_version: 4 } as unknown as RunManifest)).toThrow(
-      /expected 5/,
+  it("parses v6 manifests and rejects older versions", () => {
+    expect(assertV6RunManifest(manifest)).toBe(manifest);
+    expect(() => assertV6RunManifest({ ...manifest, schema_version: 5 } as unknown as RunManifest)).toThrow(
+      /expected 6/,
     );
   });
 });
@@ -205,7 +197,7 @@ describe("chunk row lookup", () => {
   it("loads only the chunk containing the selected row", async () => {
     const buffers = new Map<string, ArrayBuffer>([
       ["http://example.test/m0/abs/chunks/0_indices.u16", bufferFrom(new Uint16Array([2, 1, 1, 0]))],
-      ["http://example.test/m0/abs/chunks/0_values.i16", bufferFrom(new Int16Array([100, -50, 20, -10]))],
+      ["http://example.test/m0/abs/chunks/0_values.f32", bufferFrom(new Float32Array([1, -0.5, 0.2, -0.1]))],
     ]);
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const key = input.toString();
@@ -447,7 +439,6 @@ describe("run prefetch planner", () => {
     fieldKind: "prediction",
     matrixId: "m0",
     sign: "abs",
-    summary: "mean_abs",
     selectedCandidateIndex: 0,
     selectedTrainIndex: 0,
   };
@@ -458,11 +449,10 @@ describe("run prefetch planner", () => {
 
     expect(paths).toContain("mask.u8");
     expect(paths).toContain("pred.u16");
-    expect(paths).toContain("summary.f32");
     expect(paths).toContain("m0/abs/chunks/0_indices.u16");
-    expect(paths).toContain("m0/abs/chunks/0_values.i16");
+    expect(paths).toContain("m0/abs/chunks/0_values.f32");
     expect(new Set(paths).size).toBe(paths.length);
-    expect(paths.indexOf("pred.u16")).toBeLessThan(paths.indexOf("summary.f32"));
+    expect(paths.indexOf("pred.u16")).toBeLessThan(paths.indexOf("m0/abs/chunks/0_indices.u16"));
   });
 
   it("records failed background assets and does not retry them forever", async () => {

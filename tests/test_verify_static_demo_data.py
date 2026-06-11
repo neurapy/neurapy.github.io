@@ -51,7 +51,7 @@ def lean_manifest(base: Path) -> dict[str, Any]:
         "uint16",
     )
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "n_candidate": 1,
         "n_train": 1,
         "arrays": {
@@ -88,9 +88,9 @@ def test_verify_accepts_raster_only_fields(tmp_path: Path) -> None:
     verify_static.verify_topk(manifest_path, samples=1)
 
 
-def test_verify_rejects_schema_v4_manifest(tmp_path: Path) -> None:
+def test_verify_rejects_schema_v5_manifest(tmp_path: Path) -> None:
     manifest = lean_manifest(tmp_path)
-    manifest["schema_version"] = 4
+    manifest["schema_version"] = 5
     manifest_path = write_manifest(tmp_path, manifest)
 
     with pytest.raises(AssertionError, match="schema_version"):
@@ -163,6 +163,21 @@ def test_verify_rejects_graddot_matrix(tmp_path: Path) -> None:
         verify_static.verify_topk(manifest_path, samples=1)
 
 
+def test_verify_rejects_deprecated_summary_metadata(tmp_path: Path) -> None:
+    manifest = lean_manifest(tmp_path)
+    manifest["influence_matrices"] = [
+        {
+            "id": "m0",
+            "method": "PINNfluence",
+            "summary": {},
+        }
+    ]
+    manifest_path = write_manifest(tmp_path, manifest)
+
+    with pytest.raises(AssertionError, match="deprecated summary metadata"):
+        verify_static.verify_topk(manifest_path, samples=1)
+
+
 def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) -> None:
     base = tmp_path / "data" / "folder" / "run"
     base.mkdir(parents=True)
@@ -203,7 +218,7 @@ def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) ->
     candidate_points = source_candidates[candidate_indices].astype(np.float32)
     train_points = np.column_stack([np.arange(6), np.arange(6) + 1.0])[train_indices]
     manifest = {
-        "schema_version": 5,
+        "schema_version": 6,
         "folder": "folder",
         "run_id": "run",
         "n_candidate": 3,

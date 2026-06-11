@@ -1,13 +1,13 @@
 {
   "bundle_report": "bundle_report.json",
-  "generated_at": "2026-06-11T05:02:36+0200",
+  "generated_at": "2026-06-11T06:41:03+0200",
   "matrix_mode": "core",
-  "max_local_influence_points": 10000,
+  "max_local_influence_points": 3500,
   "n_candidate": 300,
   "n_train": 10000,
   "point_selection": "deterministic_spread",
   "raster_max_resolution": 1024,
-  "row_chunk_size": 256,
+  "row_chunk_size": 3,
   "runs": [
     {
       "default_field": "pred_output_0",
@@ -129,5 +129,5 @@
       "status": "complete"
     }
   ],
-  "schema_version": 5
+  "schema_version": 6
 }

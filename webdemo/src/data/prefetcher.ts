@@ -5,25 +5,16 @@ import type {
   InfluenceSign,
   RunManifest,
   SelectionMode,
-  SummaryName,
 } from "../types";
 import type { DataRepository } from "./arrays";
 
 const INFLUENCE_SIGNS: InfluenceSign[] = ["abs", "pos", "neg"];
-const SUMMARY_NAMES: SummaryName[] = [
-  "mean_abs",
-  "mean_signed",
-  "max_abs",
-  "positive_mass",
-  "negative_mass",
-];
 
 export interface PrefetchContext {
   fieldId: string | null;
   fieldKind: FieldKind;
   matrixId: string | null;
   sign: InfluenceSign;
-  summary: SummaryName;
   selectedCandidateIndex: number;
   selectedTrainIndex: number;
   selectionMode?: SelectionMode;
@@ -145,14 +136,6 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
 
   for (const matrix of manifest.influence_matrices) {
     const selectedMatrix = matrix.id === selectedMatrixId;
-    for (const summaryName of SUMMARY_NAMES) {
-      const selectedSummary = summaryName === context.summary;
-      add(
-        matrix.summary[summaryName],
-        selectedMatrix ? (selectedSummary ? 20 : 22) : 80,
-        `summary:${matrix.id}:${summaryName}`,
-      );
-    }
     addMatrixChunkTasks(add, matrix, context, selectedMatrix);
   }
 

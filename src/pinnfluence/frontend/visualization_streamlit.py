@@ -237,7 +237,7 @@ def main(api_port=8000):
     closest_test_idx = np.argmin(distances)
     train_samples = load_influences(selected_dir, selected_model, "train_x")
     influence_arr = load_influences(selected_dir, selected_model, key)
-    influence_scores = -influence_arr[closest_test_idx, :] * (1 / train_samples.shape[0])
+    influence_scores = influence_arr[closest_test_idx, :] * (1 / train_samples.shape[0])
     if influence_sign == "positive":
         indices = np.argsort(influence_scores)[::-1][:k]
     elif influence_sign == "negative":

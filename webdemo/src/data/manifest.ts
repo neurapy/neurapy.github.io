@@ -15,9 +15,9 @@ export async function fetchJson<T>(url: URL, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function assertV5Index(index: DataIndex): DataIndex {
-  if (index.schema_version !== 5) {
-    throw new Error(`Unsupported index schema ${String(index.schema_version)}; expected 5`);
+export function assertV6Index(index: DataIndex): DataIndex {
+  if (index.schema_version !== 6) {
+    throw new Error(`Unsupported index schema ${String(index.schema_version)}; expected 6`);
   }
   if (!Array.isArray(index.runs)) {
     throw new Error("index.json is missing runs[]");
@@ -25,9 +25,9 @@ export function assertV5Index(index: DataIndex): DataIndex {
   return index;
 }
 
-export function assertV5RunManifest(manifest: RunManifest): RunManifest {
-  if (manifest.schema_version !== 5) {
-    throw new Error(`Unsupported run schema ${String(manifest.schema_version)}; expected 5`);
+export function assertV6RunManifest(manifest: RunManifest): RunManifest {
+  if (manifest.schema_version !== 6) {
+    throw new Error(`Unsupported run schema ${String(manifest.schema_version)}; expected 6`);
   }
   if (!manifest.arrays?.candidate_points || !manifest.arrays?.train_points) {
     throw new Error("Run manifest is missing required point arrays");
@@ -39,9 +39,9 @@ export function assertV5RunManifest(manifest: RunManifest): RunManifest {
 }
 
 export async function loadIndex(indexUrl = resolveIndexUrl()): Promise<DataIndex> {
-  return assertV5Index(await fetchJson<DataIndex>(indexUrl));
+  return assertV6Index(await fetchJson<DataIndex>(indexUrl));
 }
 
 export async function loadRunManifest(indexUrl: URL, manifestPath: string): Promise<RunManifest> {
-  return assertV5RunManifest(await fetchJson<RunManifest>(new URL(manifestPath, indexUrl)));
+  return assertV6RunManifest(await fetchJson<RunManifest>(new URL(manifestPath, indexUrl)));
 }

@@ -3,17 +3,10 @@ import { describe, expect, it } from "vitest";
 import { initialState, reduceState } from "../src/state/store";
 
 describe("app state reducer", () => {
-  it("defaults the Train plot to Local and switches mode explicitly", () => {
-    expect(initialState.trainPlotMode).toBe("local");
+  it("toggles the local influence map explicitly", () => {
     expect(initialState.influenceMapEnabled).toBe(false);
     expect(initialState.influenceMapMethod).toBe("linear");
 
-    const state = reduceState(initialState, { type: "trainPlotMode", trainPlotMode: "global" });
-
-    expect(state.trainPlotMode).toBe("global");
-  });
-
-  it("toggles the local influence map explicitly", () => {
     const enabled = reduceState(initialState, {
       type: "influenceMapEnabled",
       influenceMapEnabled: true,

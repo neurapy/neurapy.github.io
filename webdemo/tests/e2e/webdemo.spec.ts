@@ -155,12 +155,12 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#trainTitle")).toHaveText("Train");
   await expect(page.locator(".model-panel #fieldSelect")).toBeVisible();
   await expect(page.locator(".model-panel #fieldKindButtons")).toBeVisible();
-  await expect(page.locator(".train-panel #trainModeButtons")).toBeVisible();
+  await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
+  await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator(".train-panel #matrixSelect")).toHaveCount(1);
   await expect(page.locator(".train-panel #signButtons")).toHaveCount(1);
   await expect(page.locator(".train-panel #kSlider")).toHaveCount(1);
   await expectVisibleControlsInsidePanels(page);
-  await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectContourPaths(page, "model");
@@ -238,23 +238,15 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/0_indices.u16"))).toBe(true);
   await expect.poll(() => requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(true);
 
-  await expect(page.locator("#summaryControl")).toBeHidden();
-  await page.locator("button[data-train-mode='global']").click();
-  await expect(page.locator("button[data-train-mode='global']")).toHaveClass(/active/);
   await openControlsIfMenu(page, "train");
-  await expect(page.locator("#summaryControl")).toBeVisible();
+  await expect(page.locator("#summaryControl")).toHaveCount(0);
+  await expect(page.locator("button[data-train-mode='global']")).toHaveCount(0);
   await expect(page.locator("#methodControl")).toBeHidden();
   await expectVisibleControlsInsidePanels(page);
-  await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectContourPaths(page, "train");
   await expect(page.locator("#globalCanvas")).toHaveCount(0);
 
-  await page.locator("button[data-train-mode='local']").click();
-  await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
-  await openControlsIfMenu(page, "train");
-  await expect(page.locator("#summaryControl")).toBeHidden();
-  await expect(page.locator("#methodControl")).toBeHidden();
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
   await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
@@ -274,6 +266,8 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator(".control-group")).toHaveCount(0);
   await expect(page.locator(".plot-panel")).toHaveCount(2);
   await expect(page.locator("#globalPanel")).toHaveCount(0);
+  await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
+  await expect(page.locator("#summaryControl")).toHaveCount(0);
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toBeVisible();
   await expect(page.locator("#methodControl")).toBeHidden();
@@ -308,15 +302,6 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await touchDoubleTapThenDragRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
   await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
-  await expectNonblankCanvas(page, "#trainCanvas");
-
-  await page.locator("button[data-train-mode='global']").click();
-  await openControlsIfMenu(page, "train");
-  await expect(page.locator("#summaryControl")).toBeVisible();
-  await expect(page.locator("#methodControl")).toBeHidden();
-  await expectVisibleControlsInsidePanels(page);
-  await expect(page.locator("#trainPanel")).toBeVisible();
-  await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 

@@ -86,10 +86,6 @@
                 <h2 id="trainTitle">Train</h2>
                 <span id="trainRange" class="muted"></span>
               </div>
-              <div class="segmented train-mode" id="trainModeButtons" role="group" aria-label="Train plot mode">
-                <button data-train-mode="local" class="active">Local</button>
-                <button data-train-mode="global">Global</button>
-              </div>
               <div class="plot-actions train-actions" data-control-layout="menu" data-open="false">
                 <button
                   id="trainMenuButton"
@@ -132,16 +128,6 @@
                     <select id="influenceMapMethodSelect">
                       <option value="linear">Linear</option>
                       <option value="cells">Cells</option>
-                    </select>
-                  </label>
-                  <label id="summaryControl" class="plot-control summary-control">
-                    <span>Global</span>
-                    <select id="summarySelect">
-                      <option value="mean_abs">Mean |influence|</option>
-                      <option value="mean_signed">Mean signed</option>
-                      <option value="max_abs">Max |influence|</option>
-                      <option value="positive_mass">Positive mass</option>
-                      <option value="negative_mass">Negative mass</option>
                     </select>
                   </label>
                 </div>

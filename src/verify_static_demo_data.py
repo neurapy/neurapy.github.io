@@ -1,4 +1,4 @@
-"""Verify schema-v5 static PINNfluence demo artifacts against source influence files."""
+"""Verify schema-v6 static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 
 DTYPES = {
@@ -66,15 +66,17 @@ def deterministic_spread_indices(total: int, count: int, label: str) -> np.ndarr
     return np.linspace(0, total - 1, count, dtype=np.int64)
 
 
-def assert_schema_v5(payload: dict[str, Any], path: Path) -> None:
+def assert_schema_v6(payload: dict[str, Any], path: Path) -> None:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise AssertionError(f"{path}: schema_version must be {SCHEMA_VERSION}")
 
 
-def dequantize_values(values: np.ndarray, value_scale: float) -> np.ndarray:
-    if values.dtype != np.int16:
-        raise AssertionError(f"Chunk values must be int16, got {values.dtype}")
-    return values.astype(np.float32) * float(value_scale)
+def decode_values(values: np.ndarray, chunk: dict[str, Any]) -> np.ndarray:
+    if values.dtype == np.float32:
+        return values
+    if values.dtype == np.int16:
+        return values.astype(np.float32) * float(chunk.get("value_scale", 1.0))
+    raise AssertionError(f"Chunk values must be float32 or int16, got {values.dtype}")
 
 
 def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
@@ -82,7 +84,7 @@ def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
     if not report_path.exists():
         raise AssertionError(f"Missing bundle report: {report_path}")
     report = read_json(report_path)
-    assert_schema_v5(report, report_path)
+    assert_schema_v6(report, report_path)
     total = int(report.get("total_bytes", -1))
     if total < 0:
         raise AssertionError("bundle_report.json is missing total_bytes")
@@ -150,8 +152,10 @@ def verify_chunk_group(
     chunks = group["chunks"]
     if group["chunk_count"] != len(chunks):
         raise AssertionError(f"{matrix['id']} {mode}: chunk_count mismatch")
-    if group["values_dtype"] != "int16":
-        raise AssertionError(f"{matrix['id']} {mode}: values_dtype must be int16")
+    if group["values_dtype"] not in {"int16", "float32"}:
+        raise AssertionError(
+            f"{matrix['id']} {mode}: unsupported values_dtype {group['values_dtype']!r}"
+        )
     expected_index_dtype = "uint16" if n_train <= 65535 else "uint32"
     if group["indices_dtype"] != expected_index_dtype:
         raise AssertionError(
@@ -174,8 +178,9 @@ def verify_chunk_group(
             raise AssertionError(f"{matrix['id']} {mode}: index shape mismatch")
         if list(values_q.shape) != expected_shape:
             raise AssertionError(f"{matrix['id']} {mode}: value shape mismatch")
-        if values_q.dtype != np.int16:
-            raise AssertionError(f"{matrix['id']} {mode}: values are not int16")
+        expected_dtype = np.float32 if group["values_dtype"] == "float32" else np.int16
+        if values_q.dtype != expected_dtype:
+            raise AssertionError(f"{matrix['id']} {mode}: values are not {expected_dtype}")
         if indices.size and int(indices.max()) >= n_train:
             raise AssertionError(f"{matrix['id']} {mode}: top index exceeds n_train")
         covered += int(chunk["row_count"])
@@ -195,7 +200,7 @@ def verify_chunk_group(
         local = int(row) - int(chunk["row_start"])
         indices = read_array(base, chunk["indices"])[local]
         values_q = read_array(base, chunk["values"])[local]
-        values = dequantize_values(values_q, float(chunk["value_scale"]))
+        values = decode_values(values_q, chunk)
         row_scores = raw_scores[int(row)]
         if mode == "abs":
             rank_scores = np.abs(row_scores)
@@ -214,7 +219,7 @@ def verify_chunk_group(
             raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k order mismatch")
 
         expected_values = row_scores[indices]
-        tolerance = abs(float(chunk["value_scale"])) * 0.55 + 1e-8
+        tolerance = abs(float(chunk.get("value_scale", 0.0))) * 0.55 + 1e-8
         if not np.allclose(values, expected_values, rtol=1e-5, atol=tolerance):
             raise AssertionError(f"{matrix['id']} {mode} row {row}: quantized value mismatch")
 
@@ -251,7 +256,7 @@ def verify_topk(
         raw_data_root = Path(__file__).resolve().parent.parent / "raw_data"
     base = manifest_path.parent
     manifest = read_json(manifest_path)
-    assert_schema_v5(manifest, manifest_path)
+    assert_schema_v6(manifest, manifest_path)
     n_train = manifest["n_train"]
     n_candidate = manifest["n_candidate"]
     source_n_train = int(manifest.get("source_n_train", n_train))
@@ -278,6 +283,8 @@ def verify_topk(
 
     for matrix in manifest["influence_matrices"]:
         verify_matrix_is_supported(matrix)
+        if "summary" in matrix:
+            raise AssertionError(f"{matrix['id']}: deprecated summary metadata is still present")
         row_source = matrix["row_source"]
         if row_source == "candidate_points":
             expected_rows = n_candidate
@@ -303,7 +310,7 @@ def verify_topk(
                 raise AssertionError(
                     f"{matrix['id']}: source columns {source_scores.shape[1]} != {source_n_train}"
                 )
-            raw_scores = -source_scores[np.ix_(source_row_indices, train_indices)] / float(
+            raw_scores = source_scores[np.ix_(source_row_indices, train_indices)] / float(
                 source_n_train
             )
             if raw_scores.shape[0] != expected_rows:
@@ -326,7 +333,7 @@ def main() -> None:
     budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
     index_path = data_root / "index.json"
     index = read_json(index_path)
-    assert_schema_v5(index, index_path)
+    assert_schema_v6(index, index_path)
     verify_bundle_report(data_root, budget_bytes)
     checked = 0
     for run in index["runs"]:

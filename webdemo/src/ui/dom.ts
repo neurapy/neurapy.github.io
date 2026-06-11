@@ -14,9 +14,6 @@ export interface DomRefs {
   influenceMapToggle: HTMLInputElement;
   methodControl: HTMLElement;
   influenceMapMethodSelect: HTMLSelectElement;
-  summarySelect: HTMLSelectElement;
-  summaryControl: HTMLElement;
-  trainModeButtons: HTMLElement;
   modelPanel: HTMLElement;
   modelActions: HTMLElement;
   modelMenuButton: HTMLButtonElement;
@@ -65,9 +62,6 @@ export function getDomRefs(): DomRefs {
     influenceMapToggle: required("#influenceMapToggle", HTMLInputElement),
     methodControl: required("#methodControl", HTMLElement),
     influenceMapMethodSelect: required("#influenceMapMethodSelect", HTMLSelectElement),
-    summarySelect: required("#summarySelect", HTMLSelectElement),
-    summaryControl: required("#summaryControl", HTMLElement),
-    trainModeButtons: required("#trainModeButtons", HTMLElement),
     modelPanel: required("#modelPanel", HTMLElement),
     modelActions: required(".model-actions", HTMLElement),
     modelMenuButton: required("#modelMenuButton", HTMLButtonElement),

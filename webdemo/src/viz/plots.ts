@@ -20,7 +20,7 @@ import type {
   RunManifest,
 } from "../types";
 import { clearCanvas, prepareCanvas } from "./canvas";
-import { divergingColorScale, finiteExtent, sequentialColorScale } from "./color";
+import { divergingColorScale } from "./color";
 import {
   boundsFromAxisMap,
   clampIndex,
@@ -986,56 +986,6 @@ export function renderRegionalInfluencePlot(args: {
     });
   }
   return { maxAbs, renderedCount: valueCount, mode: args.mode, scaleMax };
-}
-
-export function renderGlobalPlot(args: {
-  canvas: HTMLCanvasElement;
-  svg: SVGSVGElement;
-  context: PlotContext;
-  raster: RasterData | null;
-  rasterResult: RasterRenderResult | null;
-  values: Float32Array | null;
-  diverging: boolean;
-}): [number, number] {
-  const { ctx, width, height } = prepareCanvas(args.canvas);
-  clearCanvas(ctx, width, height);
-  const viewport = plotViewport(args.context.bounds, width, height);
-  renderAxes(args.svg, args.context.bounds, width, height, viewport);
-  renderContourOverlay({
-    svg: args.svg,
-    raster: args.raster,
-    rasterResult: args.rasterResult,
-    rasterBounds: rasterPlotBounds(args.context),
-    targetBounds: args.context.bounds,
-    viewport,
-  });
-  const count = Math.floor(args.context.points.train_points.length / args.context.trainDim);
-  const values = args.values ?? new Float32Array(count);
-  const domain = args.diverging ? finiteExtent(values) : finiteExtent(values);
-  const color = args.diverging ? divergingColorScale(domain) : sequentialColorScale(domain);
-  const size = Math.max(2.5, Math.min(7, Math.sqrt((viewport.width * viewport.height) / Math.max(1, count)) * 0.75));
-  for (let index = 0; index < count; index += 1) {
-    const [x, y] = pointAt(args.context.points.train_points, index, args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(x, y, args.context.bounds, viewport);
-    const kind = args.context.points.train_kind[index] ?? 0;
-    ctx.beginPath();
-    if (kind) {
-      ctx.rect(sx - size / 2, sy - size / 2, size, size);
-    } else {
-      ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
-    }
-    ctx.fillStyle = color(values[index] ?? 0);
-    ctx.globalAlpha = 0.82;
-    ctx.fill();
-    if (kind) {
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = 0.8;
-      ctx.strokeStyle = "#182230";
-      ctx.stroke();
-    }
-  }
-  ctx.globalAlpha = 1;
-  return domain;
 }
 
 export function buildDelaunay(points: Float32Array, dim: number): Delaunay<number> {

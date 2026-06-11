@@ -1,4 +1,4 @@
-import type { Bounds, InfluenceMapMethod, InfluenceSign, SelectionMode, SummaryName } from "../types";
+import type { Bounds, InfluenceMapMethod, InfluenceSign, SelectionMode } from "../types";
 
 export interface AppState {
   runId: string | null;
@@ -6,7 +6,6 @@ export interface AppState {
   fieldKind: "prediction" | "loss";
   matrixId: string | null;
   sign: InfluenceSign;
-  summary: SummaryName;
   k: number;
   selectionMode: SelectionMode;
   selectedCandidateIndex: number;
@@ -14,7 +13,6 @@ export interface AppState {
   selectedCoord: [number, number] | null;
   selectedRegion: Bounds | null;
   selectedRegionCandidateIndices: number[];
-  trainPlotMode: "local" | "global";
   influenceMapEnabled: boolean;
   influenceMapMethod: InfluenceMapMethod;
 }
@@ -25,7 +23,6 @@ export type AppAction =
   | { type: "fieldKind"; fieldKind: AppState["fieldKind"] }
   | { type: "matrix"; matrixId: string }
   | { type: "sign"; sign: InfluenceSign }
-  | { type: "summary"; summary: SummaryName }
   | { type: "k"; k: number }
   | { type: "selectionMode"; selectionMode: SelectionMode }
   | {
@@ -39,7 +36,6 @@ export type AppAction =
       region: Bounds | null;
       candidateIndices: number[];
     }
-  | { type: "trainPlotMode"; trainPlotMode: AppState["trainPlotMode"] }
   | { type: "influenceMapEnabled"; influenceMapEnabled: boolean }
   | { type: "influenceMapMethod"; influenceMapMethod: InfluenceMapMethod }
   | { type: "resetSelection" };
@@ -50,7 +46,6 @@ export const initialState: AppState = {
   fieldKind: "prediction",
   matrixId: null,
   sign: "abs",
-  summary: "mean_abs",
   k: 25,
   selectionMode: "point",
   selectedCandidateIndex: 0,
@@ -58,7 +53,6 @@ export const initialState: AppState = {
   selectedCoord: null,
   selectedRegion: null,
   selectedRegionCandidateIndices: [],
-  trainPlotMode: "local",
   influenceMapEnabled: false,
   influenceMapMethod: "linear",
 };
@@ -83,8 +77,6 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       return { ...state, matrixId: action.matrixId, selectedTrainIndex: 0 };
     case "sign":
       return { ...state, sign: action.sign };
-    case "summary":
-      return { ...state, summary: action.summary };
     case "k":
       return { ...state, k: Math.max(1, Math.trunc(action.k)) };
     case "selectionMode":
@@ -108,8 +100,6 @@ export function reduceState(state: AppState, action: AppAction): AppState {
           Math.max(0, Math.trunc(index)),
         ),
       };
-    case "trainPlotMode":
-      return { ...state, trainPlotMode: action.trainPlotMode };
     case "influenceMapEnabled":
       return { ...state, influenceMapEnabled: action.influenceMapEnabled };
     case "influenceMapMethod":

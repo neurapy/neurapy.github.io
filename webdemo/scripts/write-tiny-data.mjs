@@ -77,22 +77,6 @@ async function build() {
     [4, 4],
   );
 
-  const summarySpecs = {};
-  for (const [name, values] of Object.entries({
-    mean_abs: [0.12, 0.3, 0.08, 0.22, 0.18],
-    mean_signed: [0.1, -0.18, 0.03, -0.08, 0.12],
-    max_abs: [0.22, 0.4, 0.12, 0.31, 0.25],
-    positive_mass: [0.42, 0.15, 0.22, 0.1, 0.35],
-    negative_mass: [-0.04, -0.35, -0.01, -0.28, -0.06],
-  })) {
-    summarySpecs[name] = await writeArray(
-      join(runRoot, "influence", "m0", `summary_${name}.f32`),
-      new Float32Array(values),
-      "float32",
-      [5],
-    );
-  }
-
   const rowIndices = [
     [1, 2, 3, 0],
     [4, 2, 1, 3],
@@ -157,7 +141,7 @@ async function build() {
   }
 
   const manifest = {
-    schema_version: 5,
+    schema_version: 6,
     problem: "fixture",
     folder: "fixture_float64",
     run_id: "fixture_run",
@@ -235,7 +219,6 @@ async function build() {
         label: "PINNfluence: total_loss -> total_loss",
         display_label: "PINNfluence / total loss -> total loss",
         top_chunks: topChunks,
-        summary: summarySpecs,
       },
     ],
     validation: { available: false, counts: {} },
@@ -244,7 +227,7 @@ async function build() {
   await writeJson(join(runRoot, "manifest.json"), manifest);
 
   const index = {
-    schema_version: 5,
+    schema_version: 6,
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
     max_local_influence_points: 4,
@@ -283,7 +266,7 @@ async function build() {
     await Promise.all(files.map(async (file) => (await stat(file)).size))
   ).reduce((sum, size) => sum + size, 0);
   await writeJson(join(root, "bundle_report.json"), {
-    schema_version: 5,
+    schema_version: 6,
     root: ".",
     total_bytes: total,
     budget_bytes: 750 * 1024 * 1024,

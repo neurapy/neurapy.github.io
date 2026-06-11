@@ -11,12 +11,6 @@ export type FieldKind = "prediction" | "loss";
 export type InfluenceSign = "abs" | "pos" | "neg";
 export type InfluenceMapMethod = "linear" | "cells";
 export type SelectionMode = "point" | "region";
-export type SummaryName =
-  | "mean_abs"
-  | "mean_signed"
-  | "max_abs"
-  | "positive_mass"
-  | "negative_mass";
 
 export interface ArraySpec {
   path: string;
@@ -65,7 +59,7 @@ export interface InfluenceChunkSpec {
   row_start: number;
   row_count: number;
   k: number;
-  value_scale: number;
+  value_scale?: number;
   indices: ArraySpec;
   values: ArraySpec;
 }
@@ -74,11 +68,15 @@ export interface InfluenceTopChunks {
   row_chunk_size: number;
   chunk_count: number;
   indices_dtype: "uint16" | "uint32";
-  values_dtype: "int16";
-  value_encoding: {
-    kind: "symmetric_linear";
-    scale_by: "chunk.value_scale";
-  };
+  values_dtype: "int16" | "float32";
+  value_encoding:
+    | {
+        kind: "symmetric_linear";
+        scale_by: "chunk.value_scale";
+      }
+    | {
+        kind: "identity";
+      };
   chunks: InfluenceChunkSpec[];
 }
 
@@ -101,11 +99,10 @@ export interface InfluenceMatrixManifest {
   label: string;
   display_label: string;
   top_chunks: Record<InfluenceSign, InfluenceTopChunks>;
-  summary: Record<SummaryName, ArraySpec>;
 }
 
 export interface RunManifest {
-  schema_version: 5;
+  schema_version: 6;
   problem: string;
   folder: string;
   run_id: string;
@@ -160,7 +157,7 @@ export interface IndexRunEntry {
 }
 
 export interface DataIndex {
-  schema_version: 5;
+  schema_version: 6;
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points?: number;
@@ -193,8 +190,8 @@ export interface InfluenceRow {
   rowIndex: number;
   indices: Uint16Array | Uint32Array;
   values: Float32Array;
-  rawValues: Int16Array;
-  valueScale: number;
+  rawValues: Int16Array | Float32Array;
+  valueScale?: number;
 }
 
 export interface InfluenceAggregate {

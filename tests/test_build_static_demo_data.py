@@ -173,7 +173,16 @@ def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) ->
 
 def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_path) -> None:
     matrix_path = tmp_path / "matrix.npz"
-    scores = np.arange(30, dtype=np.float32).reshape(5, 6)
+    scores = np.array(
+        [
+            [6, -12, 18, -24, 30, -36],
+            [-1, -2, -3, -4, -5, -6],
+            [12, -18, 24, -30, 36, -42],
+            [1, 2, 3, 4, 5, 6],
+            [-6, 12, -18, 24, -30, 36],
+        ],
+        dtype=np.float32,
+    )
     candidate_points = np.column_stack([np.arange(5), np.arange(5) + 0.5])
     write_influence_npz(matrix_path, scores, candidate_points)
 
@@ -195,12 +204,21 @@ def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_p
     assert metadata["source_scores_shape"] == [5, 6]
     assert metadata["candidate_points_shape"] == [3, 2]
     assert metadata["source_candidate_points_shape"] == [5, 2]
-    summary_spec = metadata["summary"]["mean_signed"]
-    summary = np.fromfile(tmp_path / summary_spec["path"], dtype=np.float32)
-    assert list(summary.shape) == [3]
+    assert "summary" not in metadata
+    assert not list(tmp_path.rglob("summary_*.f32"))
+    assert metadata["top_chunks"]["abs"]["values_dtype"] == "float32"
+    assert metadata["top_chunks"]["abs"]["value_encoding"] == {"kind": "identity"}
     chunk = metadata["top_chunks"]["abs"]["chunks"][0]
     indices = np.fromfile(tmp_path / chunk["indices"]["path"], dtype=np.uint16)
     assert int(indices.max()) < 3
+    values = np.fromfile(tmp_path / chunk["values"]["path"], dtype=np.float32)
+    assert values.dtype == np.float32
+    pos_chunk = metadata["top_chunks"]["pos"]["chunks"][0]
+    pos_values = np.fromfile(tmp_path / pos_chunk["values"]["path"], dtype=np.float32).reshape(
+        pos_chunk["row_count"], pos_chunk["k"]
+    )
+    np.testing.assert_allclose(pos_values[0], np.array([18 / 6, 6 / 6], dtype=np.float32))
+    assert np.all(pos_values[0] > 0)
 
 
 def test_process_influence_matrix_subsets_self_influence_rows_and_columns(tmp_path) -> None:
@@ -239,6 +257,6 @@ def test_bundle_report_groups_chunk_files(tmp_path) -> None:
 
     report = build_static.build_bundle_report(tmp_path, budget_bytes=10_000)
 
-    assert report["schema_version"] == 5
+    assert report["schema_version"] == 6
     assert report["within_budget"] is True
     assert report["by_kind"]["influence_chunks"] == 6

@@ -366,8 +366,7 @@ select {
 }
 
 .field-control,
-.matrix-control,
-.summary-control {
+.matrix-control {
   flex-basis: 210px;
 }
 
@@ -392,8 +391,7 @@ select {
 }
 
 .plot-actions[data-control-layout="bar"] .field-control,
-.plot-actions[data-control-layout="bar"] .matrix-control,
-.plot-actions[data-control-layout="bar"] .summary-control {
+.plot-actions[data-control-layout="bar"] .matrix-control {
   flex-basis: min(100%, 220px);
 }
 
@@ -446,9 +444,7 @@ select {
 .plot-actions[data-control-layout="inline"] .field-control,
 .plot-actions[data-control-layout="bar"] .field-control,
 .plot-actions[data-control-layout="inline"] .matrix-control,
-.plot-actions[data-control-layout="bar"] .matrix-control,
-.plot-actions[data-control-layout="inline"] .summary-control,
-.plot-actions[data-control-layout="bar"] .summary-control {
+.plot-actions[data-control-layout="bar"] .matrix-control {
   min-width: 170px;
 }
 
@@ -532,11 +528,6 @@ select {
 
 .train-header {
   align-items: center;
-}
-
-.train-mode {
-  width: 144px;
-  flex: 0 0 auto;
 }
 
 .plot-body {
@@ -684,10 +675,6 @@ input[type="range"] {
   .plot-header {
     gap: 8px;
     padding: 7px 8px;
-  }
-
-  .train-mode {
-    width: 118px;
   }
 
   .selection-readout {
