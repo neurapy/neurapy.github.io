@@ -1,32 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { initialState, reduceState } from "../src/state/store";
+import { MAX_TOP_K, initialState, reduceState } from "../src/state/store";
 
 describe("app state reducer", () => {
-  it("toggles the local influence map explicitly", () => {
-    expect(initialState.influenceMapEnabled).toBe(false);
-    expect(initialState.influenceMapMethod).toBe("linear");
+  it("switches the influence background explicitly", () => {
+    expect(initialState.backgroundMode).toBe("points");
 
-    const enabled = reduceState(initialState, {
-      type: "influenceMapEnabled",
-      influenceMapEnabled: true,
+    const linear = reduceState(initialState, {
+      type: "backgroundMode",
+      backgroundMode: "linear",
     });
-    const disabled = reduceState(enabled, {
-      type: "influenceMapEnabled",
-      influenceMapEnabled: false,
+    const cell = reduceState(linear, {
+      type: "backgroundMode",
+      backgroundMode: "cell",
     });
 
-    expect(enabled.influenceMapEnabled).toBe(true);
-    expect(disabled.influenceMapEnabled).toBe(false);
+    expect(linear.backgroundMode).toBe("linear");
+    expect(cell.backgroundMode).toBe("cell");
   });
 
-  it("switches the local influence map method explicitly", () => {
-    const state = reduceState(initialState, {
-      type: "influenceMapMethod",
-      influenceMapMethod: "cells",
-    });
+  it("clamps top-k to the exported control range", () => {
+    expect(reduceState(initialState, { type: "k", k: -4 }).k).toBe(0);
+    expect(reduceState(initialState, { type: "k", k: 0 }).k).toBe(0);
+    expect(reduceState(initialState, { type: "k", k: 25.9 }).k).toBe(25);
+    expect(reduceState(initialState, { type: "k", k: MAX_TOP_K + 20 }).k).toBe(MAX_TOP_K);
 
-    expect(state.influenceMapMethod).toBe("cells");
+    const unchanged = reduceState({ ...initialState, k: 17 }, { type: "k", k: Number.NaN });
+    expect(unchanged.k).toBe(17);
   });
 
   it("clears region state on reset and run changes", () => {

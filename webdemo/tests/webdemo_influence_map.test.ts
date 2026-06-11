@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeCellsInfluenceLayer,
   computeLinearInfluenceField,
-  influenceEntriesForMap,
+  influenceEntriesForBackground,
   type InfluenceField,
   type InfluenceMapLayer,
   robustAbsScaleMax,
@@ -52,12 +52,12 @@ describe("influence map samples", () => {
     const indices = new Uint16Array([10, 11, 12, 13]);
     const values = new Float32Array([-4, 2, 0, -1]);
 
-    expect(influenceEntriesForMap(indices, values, "abs")).toEqual({ indices, values });
-    expect(influenceEntriesForMap(indices, values, "pos")).toEqual({
+    expect(influenceEntriesForBackground(indices, values, "abs")).toEqual({ indices, values });
+    expect(influenceEntriesForBackground(indices, values, "pos")).toEqual({
       indices: [11],
       values: [2],
     });
-    expect(influenceEntriesForMap(indices, values, "neg")).toEqual({
+    expect(influenceEntriesForBackground(indices, values, "neg")).toEqual({
       indices: [10, 13],
       values: [-4, -1],
     });

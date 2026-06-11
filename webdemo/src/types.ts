@@ -9,7 +9,7 @@ export type TypedArray =
 export type Priority = "foreground" | "background";
 export type FieldKind = "prediction" | "loss";
 export type InfluenceSign = "abs" | "pos" | "neg";
-export type InfluenceMapMethod = "linear" | "cells";
+export type BackgroundMode = "points" | "linear" | "cell";
 export type SelectionMode = "point" | "region";
 
 export interface ArraySpec {

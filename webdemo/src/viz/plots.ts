@@ -8,9 +8,9 @@ import {
   select,
 } from "d3";
 import type {
+  BackgroundMode,
   Bounds,
   InfluenceAggregate,
-  InfluenceMapMethod,
   InfluenceMatrixManifest,
   InfluenceRow,
   InfluenceSign,
@@ -46,12 +46,10 @@ export interface PlotContext {
   trainDim: number;
 }
 
-export type InfluenceDisplayMode = "points" | "map";
-
 export interface InfluenceRenderStats {
   maxAbs: number;
   renderedCount: number;
-  mode: InfluenceDisplayMode;
+  backgroundMode: BackgroundMode;
   scaleMax: number;
 }
 
@@ -103,7 +101,9 @@ interface InfluenceSampleSet {
   renderedCount: number;
 }
 
-const FIXED_INFLUENCE_RADIUS = 4;
+const BASE_INFLUENCE_POINT_SIZE = 2.8;
+const MIN_TOP_K_POINT_SIZE = 4.2;
+const MAX_TOP_K_POINT_SIZE = 10.5;
 const MIN_MAP_GRID_CELL_SIZE_PX = 2;
 const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
@@ -113,8 +113,8 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function emptyInfluenceStats(mode: InfluenceDisplayMode): InfluenceRenderStats {
-  return { maxAbs: 0, renderedCount: 0, mode, scaleMax: 1 };
+function emptyInfluenceStats(backgroundMode: BackgroundMode): InfluenceRenderStats {
+  return { maxAbs: 0, renderedCount: 0, backgroundMode, scaleMax: 1 };
 }
 
 function maxAbsValue(values: ArrayLike<number>, count = values.length): number {
@@ -124,6 +124,18 @@ function maxAbsValue(values: ArrayLike<number>, count = values.length): number {
     if (Number.isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
   }
   return maxAbs;
+}
+
+function influenceStrength(value: number, scaleMax: number): number {
+  return scaleMax > 0 ? Math.min(1, Math.abs(value) / scaleMax) : 0;
+}
+
+function influenceRgba(value: number, scaleMax: number, alpha: number): string {
+  const color = divergingColorScale([-scaleMax, scaleMax]);
+  const parsed = parseD3Color(color(value));
+  if (!parsed) return `rgba(82, 96, 112, ${alpha})`;
+  const rgb = parsed.rgb();
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
 }
 
 function influenceGridSize(args: {
@@ -656,7 +668,77 @@ function drawRegionOverlay(
   ctx.restore();
 }
 
-function drawFixedInfluenceMarkers(args: {
+function drawInfluencePointLayer(args: {
+  ctx: CanvasRenderingContext2D;
+  context: PlotContext;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  scaleMax: number;
+  size?: number;
+}): number {
+  const color = divergingColorScale([-args.scaleMax, args.scaleMax]);
+  const count = Math.min(args.indices.length, args.values.length);
+  const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
+  const size = args.size ?? BASE_INFLUENCE_POINT_SIZE;
+  let renderedCount = 0;
+  args.ctx.save();
+  for (let index = 0; index < count; index += 1) {
+    const trainIndex = Math.trunc(args.indices[index]);
+    const value = args.values[index];
+    if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
+    const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
+    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    if (
+      sx < args.viewport.x ||
+      sx > args.viewport.right ||
+      sy < args.viewport.y ||
+      sy > args.viewport.bottom
+    ) {
+      continue;
+    }
+    args.ctx.beginPath();
+    args.ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+    args.ctx.fillStyle = color(value);
+    args.ctx.fill();
+    renderedCount += 1;
+  }
+  args.ctx.restore();
+  return renderedCount;
+}
+
+function drawTopKInfluenceLinks(args: {
+  ctx: CanvasRenderingContext2D;
+  context: PlotContext;
+  viewport: PlotViewport;
+  indices: ArrayLike<number>;
+  values: ArrayLike<number>;
+  scaleMax: number;
+  rowSx: number;
+  rowSy: number;
+}): void {
+  const count = Math.min(args.indices.length, args.values.length);
+  const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
+  args.ctx.save();
+  args.ctx.globalAlpha = 0.42;
+  args.ctx.strokeStyle = "#526070";
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const trainIndex = Math.trunc(args.indices[index]);
+    const value = args.values[index];
+    if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
+    const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
+    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    const strength = influenceStrength(value, args.scaleMax);
+    args.ctx.beginPath();
+    args.ctx.moveTo(args.rowSx, args.rowSy);
+    args.ctx.lineTo(sx, sy);
+    args.ctx.lineWidth = 1 + strength * 1.6;
+    args.ctx.stroke();
+  }
+  args.ctx.restore();
+}
+
+function drawTopKInfluencePoints(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
@@ -664,25 +746,29 @@ function drawFixedInfluenceMarkers(args: {
   values: ArrayLike<number>;
   scaleMax: number;
 }): void {
-  const color = divergingColorScale([-args.scaleMax, args.scaleMax]);
   const count = Math.min(args.indices.length, args.values.length);
   const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
+  args.ctx.save();
   for (let index = count - 1; index >= 0; index -= 1) {
     const trainIndex = Math.trunc(args.indices[index]);
-    if (trainIndex < 0 || trainIndex >= trainCount) continue;
+    const value = args.values[index];
+    if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
     const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
     const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    const strength = influenceStrength(value, args.scaleMax);
+    const size = MIN_TOP_K_POINT_SIZE + strength * (MAX_TOP_K_POINT_SIZE - MIN_TOP_K_POINT_SIZE);
     args.ctx.beginPath();
-    args.ctx.arc(sx, sy, FIXED_INFLUENCE_RADIUS, 0, Math.PI * 2);
-    args.ctx.fillStyle = color(args.values[index]);
+    args.ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+    args.ctx.fillStyle = influenceRgba(value, args.scaleMax, 0.94);
     args.ctx.fill();
-    args.ctx.lineWidth = 1.2;
-    args.ctx.strokeStyle = "#182230";
+    args.ctx.lineWidth = 1.1;
+    args.ctx.strokeStyle = "rgba(24, 34, 48, 0.78)";
     args.ctx.stroke();
   }
+  args.ctx.restore();
 }
 
-export function influenceEntriesForMap(
+export function influenceEntriesForBackground(
   indices: ArrayLike<number>,
   values: ArrayLike<number>,
   sign: InfluenceSign,
@@ -800,14 +886,28 @@ function drawCellsInfluenceLayer(args: {
   args.ctx.restore();
 }
 
-function renderInfluenceMapLayer(args: {
+function renderInfluenceBackground(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
-  method: InfluenceMapMethod;
-}): InfluenceMapLayer {
+  backgroundMode: BackgroundMode;
+}): InfluenceRenderStats {
+  const maxAbs = maxAbsValue(args.values);
+  if (args.backgroundMode === "points") {
+    const scaleMax = robustAbsScaleMax(args.values);
+    const renderedCount = drawInfluencePointLayer({
+      ctx: args.ctx,
+      context: args.context,
+      viewport: args.viewport,
+      indices: args.indices,
+      values: args.values,
+      scaleMax,
+    });
+    return { maxAbs, renderedCount, backgroundMode: args.backgroundMode, scaleMax };
+  }
+
   const fieldArgs = {
     points: args.context.points.train_points,
     dim: args.context.trainDim,
@@ -817,7 +917,7 @@ function renderInfluenceMapLayer(args: {
     values: args.values,
   };
   const field =
-    args.method === "cells"
+    args.backgroundMode === "cell"
       ? computeCellsInfluenceLayer(fieldArgs)
       : computeLinearInfluenceField(fieldArgs);
   if (field.kind === "cells") {
@@ -825,7 +925,12 @@ function renderInfluenceMapLayer(args: {
   } else {
     drawInfluenceFieldLayer({ ctx: args.ctx, viewport: args.viewport, field });
   }
-  return field;
+  return {
+    maxAbs: field.maxAbs,
+    renderedCount: field.renderedCount,
+    backgroundMode: args.backgroundMode,
+    scaleMax: field.scaleMax,
+  };
 }
 
 export function renderLocalInfluencePlot(args: {
@@ -840,8 +945,7 @@ export function renderLocalInfluencePlot(args: {
   selectedTrainIndex: number;
   k: number;
   sign: InfluenceSign;
-  mode: InfluenceDisplayMode;
-  method: InfluenceMapMethod;
+  backgroundMode: BackgroundMode;
 }): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
@@ -873,56 +977,44 @@ export function renderLocalInfluencePlot(args: {
   const [rowSx, rowSy] = projectPointToViewport(rowPoint[0], rowPoint[1], args.context.bounds, viewport);
   if (!args.row) {
     drawPointMarker(ctx, rowSx, rowSy, 7);
-    return emptyInfluenceStats(args.mode);
+    return emptyInfluenceStats(args.backgroundMode);
   }
-  const valueCount =
-    args.mode === "map"
-      ? args.row.values.length
-      : Math.min(args.k, args.row.values.length);
-  const values = args.row.values.subarray(0, valueCount);
-  const indices = args.row.indices.subarray(0, valueCount);
-  const renderEntries =
-    args.mode === "map" ? influenceEntriesForMap(indices, values, args.sign) : { indices, values };
-  const maxAbs = maxAbsValue(renderEntries.values);
-  let scaleMax = maxAbs || 1;
+  const backgroundEntries = influenceEntriesForBackground(args.row.indices, args.row.values, args.sign);
+  const backgroundStats = renderInfluenceBackground({
+    ctx,
+    context: args.context,
+    viewport,
+    indices: backgroundEntries.indices,
+    values: backgroundEntries.values,
+    backgroundMode: args.backgroundMode,
+  });
+  const topKCount = Math.min(Math.max(0, args.k), args.row.values.length);
+  const topKValues = args.row.values.subarray(0, topKCount);
+  const topKIndices = args.row.indices.subarray(0, topKCount);
+  const topKMaxAbs = maxAbsValue(topKValues);
+  const scaleMax = topKMaxAbs > 0 ? topKMaxAbs : backgroundStats.scaleMax;
 
-  if (args.mode === "map") {
-    const field = renderInfluenceMapLayer({
-      ctx,
-      context: args.context,
-      viewport,
-      indices: renderEntries.indices,
-      values: renderEntries.values,
-      method: args.method,
-    });
-    scaleMax = field.scaleMax;
-  } else {
-    ctx.save();
-    ctx.globalAlpha = 0.34;
-    ctx.strokeStyle = "#526070";
-    ctx.lineWidth = 1;
-    const linkCount = Math.min(50, indices.length);
-    for (let index = linkCount - 1; index >= 0; index -= 1) {
-      const trainPoint = pointAt(args.context.points.train_points, indices[index], args.context.trainDim);
-      const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, viewport);
-      ctx.beginPath();
-      ctx.moveTo(rowSx, rowSy);
-      ctx.lineTo(sx, sy);
-      ctx.stroke();
-    }
-    ctx.restore();
-    drawFixedInfluenceMarkers({
-      ctx,
-      context: args.context,
-      viewport,
-      indices,
-      values,
-      scaleMax,
-    });
-  }
+  drawTopKInfluenceLinks({
+    ctx,
+    context: args.context,
+    viewport,
+    indices: topKIndices,
+    values: topKValues,
+    scaleMax,
+    rowSx,
+    rowSy,
+  });
+  drawTopKInfluencePoints({
+    ctx,
+    context: args.context,
+    viewport,
+    indices: topKIndices,
+    values: topKValues,
+    scaleMax,
+  });
 
   drawPointMarker(ctx, rowSx, rowSy, 7);
-  return { maxAbs, renderedCount: renderEntries.values.length, mode: args.mode, scaleMax };
+  return { ...backgroundStats, scaleMax };
 }
 
 export function renderRegionalInfluencePlot(args: {
@@ -933,8 +1025,7 @@ export function renderRegionalInfluencePlot(args: {
   rasterResult: RasterRenderResult | null;
   aggregate: InfluenceAggregate | null;
   k: number;
-  mode: InfluenceDisplayMode;
-  method: InfluenceMapMethod;
+  backgroundMode: BackgroundMode;
 }): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
@@ -955,37 +1046,29 @@ export function renderRegionalInfluencePlot(args: {
     size: 2,
   });
 
-  if (!args.aggregate) return emptyInfluenceStats(args.mode);
-  const valueCount =
-    args.mode === "map"
-      ? args.aggregate.values.length
-      : Math.min(args.k, args.aggregate.values.length);
-  const values = args.aggregate.values.subarray(0, valueCount);
-  const indices = args.aggregate.indices.subarray(0, valueCount);
-  const maxAbs = maxAbsValue(values);
-  let scaleMax = maxAbs || 1;
-
-  if (args.mode === "map") {
-    const field = renderInfluenceMapLayer({
-      ctx,
-      context: args.context,
-      viewport,
-      indices,
-      values,
-      method: args.method,
-    });
-    scaleMax = field.scaleMax;
-  } else {
-    drawFixedInfluenceMarkers({
-      ctx,
-      context: args.context,
-      viewport,
-      indices,
-      values,
-      scaleMax,
-    });
-  }
-  return { maxAbs, renderedCount: valueCount, mode: args.mode, scaleMax };
+  if (!args.aggregate) return emptyInfluenceStats(args.backgroundMode);
+  const backgroundStats = renderInfluenceBackground({
+    ctx,
+    context: args.context,
+    viewport,
+    indices: args.aggregate.indices,
+    values: args.aggregate.values,
+    backgroundMode: args.backgroundMode,
+  });
+  const topKCount = Math.min(Math.max(0, args.k), args.aggregate.values.length);
+  const topKValues = args.aggregate.values.subarray(0, topKCount);
+  const topKIndices = args.aggregate.indices.subarray(0, topKCount);
+  const topKMaxAbs = maxAbsValue(topKValues);
+  const scaleMax = topKMaxAbs > 0 ? topKMaxAbs : backgroundStats.scaleMax;
+  drawTopKInfluencePoints({
+    ctx,
+    context: args.context,
+    viewport,
+    indices: topKIndices,
+    values: topKValues,
+    scaleMax,
+  });
+  return { ...backgroundStats, scaleMax };
 }
 
 export function buildDelaunay(points: Float32Array, dim: number): Delaunay<number> {

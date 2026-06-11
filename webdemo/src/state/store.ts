@@ -1,4 +1,6 @@
-import type { Bounds, InfluenceMapMethod, InfluenceSign, SelectionMode } from "../types";
+import type { BackgroundMode, Bounds, InfluenceSign, SelectionMode } from "../types";
+
+export const MAX_TOP_K = 256;
 
 export interface AppState {
   runId: string | null;
@@ -13,8 +15,7 @@ export interface AppState {
   selectedCoord: [number, number] | null;
   selectedRegion: Bounds | null;
   selectedRegionCandidateIndices: number[];
-  influenceMapEnabled: boolean;
-  influenceMapMethod: InfluenceMapMethod;
+  backgroundMode: BackgroundMode;
 }
 
 export type AppAction =
@@ -36,8 +37,7 @@ export type AppAction =
       region: Bounds | null;
       candidateIndices: number[];
     }
-  | { type: "influenceMapEnabled"; influenceMapEnabled: boolean }
-  | { type: "influenceMapMethod"; influenceMapMethod: InfluenceMapMethod }
+  | { type: "backgroundMode"; backgroundMode: BackgroundMode }
   | { type: "resetSelection" };
 
 export const initialState: AppState = {
@@ -53,8 +53,7 @@ export const initialState: AppState = {
   selectedCoord: null,
   selectedRegion: null,
   selectedRegionCandidateIndices: [],
-  influenceMapEnabled: false,
-  influenceMapMethod: "linear",
+  backgroundMode: "points",
 };
 
 export function reduceState(state: AppState, action: AppAction): AppState {
@@ -77,8 +76,10 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       return { ...state, matrixId: action.matrixId, selectedTrainIndex: 0 };
     case "sign":
       return { ...state, sign: action.sign };
-    case "k":
-      return { ...state, k: Math.max(1, Math.trunc(action.k)) };
+    case "k": {
+      const k = Math.trunc(action.k);
+      return { ...state, k: Number.isFinite(k) ? Math.max(0, Math.min(MAX_TOP_K, k)) : state.k };
+    }
     case "selectionMode":
       return { ...state, selectionMode: action.selectionMode };
     case "selection":
@@ -100,10 +101,8 @@ export function reduceState(state: AppState, action: AppAction): AppState {
           Math.max(0, Math.trunc(index)),
         ),
       };
-    case "influenceMapEnabled":
-      return { ...state, influenceMapEnabled: action.influenceMapEnabled };
-    case "influenceMapMethod":
-      return { ...state, influenceMapMethod: action.influenceMapMethod };
+    case "backgroundMode":
+      return { ...state, backgroundMode: action.backgroundMode };
     case "resetSelection":
       return {
         ...state,

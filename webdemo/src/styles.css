@@ -382,12 +382,8 @@ select {
   flex-basis: 150px;
 }
 
-.map-control {
-  flex-basis: 48px;
-}
-
-.method-control {
-  flex-basis: 102px;
+.background-control {
+  flex-basis: 210px;
 }
 
 .plot-actions[data-control-layout="bar"] .field-control,
@@ -407,14 +403,8 @@ select {
   flex-basis: min(100%, 160px);
 }
 
-.plot-actions[data-control-layout="bar"] .map-control {
-  flex-grow: 0;
-  flex-basis: 48px;
-}
-
-.plot-actions[data-control-layout="bar"] .method-control {
-  flex-grow: 0;
-  flex-basis: 102px;
+.plot-actions[data-control-layout="bar"] .background-control {
+  flex-basis: min(100%, 210px);
 }
 
 .plot-actions[data-control-layout="menu"] .plot-control {
@@ -463,14 +453,9 @@ select {
   min-width: 130px;
 }
 
-.plot-actions[data-control-layout="inline"] .map-control,
-.plot-actions[data-control-layout="bar"] .map-control {
-  min-width: 44px;
-}
-
-.plot-actions[data-control-layout="inline"] .method-control,
-.plot-actions[data-control-layout="bar"] .method-control {
-  min-width: 92px;
+.plot-actions[data-control-layout="inline"] .background-control,
+.plot-actions[data-control-layout="bar"] .background-control {
+  min-width: 190px;
 }
 
 .train-menu .matrix-control {
@@ -485,6 +470,10 @@ select {
   flex-basis: 112px;
 }
 
+.train-menu .background-control {
+  flex-basis: 190px;
+}
+
 .plot-actions[data-control-layout="bar"] .train-menu .matrix-control {
   flex-basis: min(100%, 150px);
 }
@@ -495,6 +484,10 @@ select {
 
 .plot-actions[data-control-layout="bar"] .train-menu .k-control {
   flex-basis: min(100%, 112px);
+}
+
+.plot-actions[data-control-layout="bar"] .train-menu .background-control {
+  flex-basis: min(100%, 190px);
 }
 
 .plot-actions[data-control-layout="inline"] .train-menu .matrix-control,
@@ -510,6 +503,11 @@ select {
 .plot-actions[data-control-layout="inline"] .train-menu .k-control,
 .plot-actions[data-control-layout="bar"] .train-menu .k-control {
   min-width: 104px;
+}
+
+.plot-actions[data-control-layout="inline"] .train-menu .background-control,
+.plot-actions[data-control-layout="bar"] .train-menu .background-control {
+  min-width: 180px;
 }
 
 .model-menu .plot-control:first-child {

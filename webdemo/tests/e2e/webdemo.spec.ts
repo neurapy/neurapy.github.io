@@ -166,48 +166,51 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectContourPaths(page, "model");
   await expectContourPaths(page, "train");
   await openControlsIfMenu(page, "train");
-  await expect(page.locator("#mapControl")).toBeVisible();
-  await expect(page.locator("#methodControl")).toBeHidden();
-  await expect(page.locator("#influenceMapToggle")).not.toBeChecked();
-  const pointSignature = await canvasSignature(page, "#trainCanvas");
-  await page.locator("#influenceMapToggle").check();
-  await expect(page.locator("#influenceMapToggle")).toBeChecked();
-  await expect(page.locator("#methodControl")).toBeVisible();
-  await expect(page.locator("#influenceMapMethodSelect")).toHaveValue("linear");
-  await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
+  await expect(page.locator("#mapControl")).toHaveCount(0);
+  await expect(page.locator("#methodControl")).toHaveCount(0);
+  await expect(page.locator("#influenceMapToggle")).toHaveCount(0);
+  await expect(page.locator("#backgroundControl")).toBeVisible();
+  await expect(page.locator("#backgroundButtons button")).toHaveText([
+    "Points",
     "Linear",
-    "Cells",
+    "Cell",
   ]);
-  await expect(page.locator("#kControl")).toBeHidden();
-  await expect(page.locator("#trainRange")).toHaveText(/Local map · Linear · all exported influences \(\d+\)/);
+  await expect(page.locator("button[data-background-mode='points']")).toHaveClass(/active/);
+  await expect(page.locator("#kControl")).toBeVisible();
+  await expect(page.locator("#kSlider")).toHaveAttribute("min", "0");
+  await expect(page.locator("#kSlider")).toHaveAttribute("max", "256");
+  await expect(page.locator("#kOutput")).toHaveText("25");
+  await expect(page.locator("#trainRange")).toHaveText(/Local · Points · all exported influences \(\d+\)/);
   await expectNonblankCanvas(page, "#trainCanvas");
-  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(pointSignature);
 
-  const methodSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
-  for (const [method, label] of [
-    ["cells", "Cells"],
+  const backgroundSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
+  for (const [mode, label] of [
+    ["linear", "Linear"],
+    ["cell", "Cell"],
   ] as const) {
-    await page.locator("#influenceMapMethodSelect").selectOption(method);
+    await page.locator(`button[data-background-mode='${mode}']`).click();
+    await expect(page.locator(`button[data-background-mode='${mode}']`)).toHaveClass(/active/);
+    await expect(page.locator("#kControl")).toBeVisible();
     await expect(page.locator("#trainRange")).toHaveText(
-      new RegExp(`Local map · ${label} · all exported influences \\(\\d+\\)`),
+      new RegExp(`Local · ${label} · all exported influences \\(\\d+\\)`),
     );
     await expectNonblankCanvas(page, "#trainCanvas");
-    await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(methodSignatures.at(-1));
-    methodSignatures.push(await canvasSignature(page, "#trainCanvas"));
+    await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(backgroundSignatures.at(-1));
+    backgroundSignatures.push(await canvasSignature(page, "#trainCanvas"));
   }
-  expect(new Set(methodSignatures).size).toBe(methodSignatures.length);
+  expect(new Set(backgroundSignatures).size).toBe(backgroundSignatures.length);
 
-  const absMapSignature = methodSignatures.at(-1)!;
+  const absBackgroundSignature = backgroundSignatures.at(-1)!;
   await page.locator("button[data-sign='pos']").click();
-  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(absMapSignature);
-  const posMapSignature = await canvasSignature(page, "#trainCanvas");
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(absBackgroundSignature);
+  const posBackgroundSignature = await canvasSignature(page, "#trainCanvas");
   await page.locator("button[data-sign='neg']").click();
-  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(posMapSignature);
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(posBackgroundSignature);
+  const withTopKSignature = await canvasSignature(page, "#trainCanvas");
+  await page.locator("#kSlider").fill("0");
+  await expect(page.locator("#kOutput")).toHaveText("0");
+  await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(withTopKSignature);
   await expectVisibleControlsInsidePanels(page);
-  await page.locator("#influenceMapToggle").uncheck();
-  await expect(page.locator("#kControl")).toBeVisible();
-  await expect(page.locator("#methodControl")).toBeHidden();
-  await expect(page.locator("#trainRange")).toHaveText(/^Local/);
 
   const mainBox = await page.locator(".model-panel").boundingBox();
   const trainBox = await page.locator("#trainPanel").boundingBox();
@@ -241,7 +244,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator("button[data-train-mode='global']")).toHaveCount(0);
-  await expect(page.locator("#methodControl")).toBeHidden();
+  await expect(page.locator("#backgroundControl")).toBeVisible();
+  await expect(page.locator("#methodControl")).toHaveCount(0);
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectContourPaths(page, "train");
@@ -249,7 +253,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
-  await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · Cell · sum over [1-4] candidates/);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await clickMainPoint(page);
@@ -269,23 +273,21 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await openControlsIfMenu(page, "train");
-  await expect(page.locator("#mapControl")).toBeVisible();
-  await expect(page.locator("#methodControl")).toBeHidden();
-  await page.locator("#influenceMapToggle").check();
-  await expect(page.locator("#methodControl")).toBeVisible();
-  await expect(page.locator("#trainRange")).toHaveText(/Local map · Linear · all exported influences \(\d+\)/);
-  await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
+  await expect(page.locator("#mapControl")).toHaveCount(0);
+  await expect(page.locator("#methodControl")).toHaveCount(0);
+  await expect(page.locator("#backgroundControl")).toBeVisible();
+  await expect(page.locator("#kControl")).toBeVisible();
+  await expect(page.locator("#backgroundButtons button")).toHaveText([
+    "Points",
     "Linear",
-    "Cells",
+    "Cell",
   ]);
-  for (const method of ["cells", "linear"]) {
-    await page.locator("#influenceMapMethodSelect").selectOption(method);
+  for (const mode of ["cell", "linear", "points"]) {
+    await page.locator(`button[data-background-mode='${mode}']`).click();
     await expectNonblankCanvas(page, "#trainCanvas");
   }
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectVisibleControlsInsidePanels(page);
-  await page.locator("#influenceMapToggle").uncheck();
-  await expect(page.locator("#methodControl")).toBeHidden();
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -301,7 +303,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
 
   await touchDoubleTapThenDragRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
-  await expect(page.locator("#trainRange")).toHaveText(/Local region · sum over [1-4] candidates/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · Points · sum over [1-4] candidates/);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 

@@ -117,19 +117,16 @@
                   </div>
                   <label id="kControl" class="plot-control k-control">
                     <span>Top k <output id="kOutput" for="kSlider">25</output></span>
-                    <input id="kSlider" type="range" min="1" max="200" value="25" />
+                    <input id="kSlider" type="range" min="0" max="256" value="25" />
                   </label>
-                  <label id="mapControl" class="plot-control map-control">
-                    <span>Map</span>
-                    <input id="influenceMapToggle" class="switch-input" type="checkbox" role="switch" />
-                  </label>
-                  <label id="methodControl" class="plot-control method-control">
-                    <span>Method</span>
-                    <select id="influenceMapMethodSelect">
-                      <option value="linear">Linear</option>
-                      <option value="cells">Cells</option>
-                    </select>
-                  </label>
+                  <div id="backgroundControl" class="plot-control background-control">
+                    <span>Background</span>
+                    <div class="segmented" id="backgroundButtons" role="group" aria-label="Influence background">
+                      <button data-background-mode="points" class="active">Points</button>
+                      <button data-background-mode="linear">Linear</button>
+                      <button data-background-mode="cell">Cell</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

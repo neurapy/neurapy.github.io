@@ -1,11 +1,11 @@
 import type { Delaunay } from "d3";
 import type {
+  BackgroundMode,
   Bounds,
   DataIndex,
   FieldKind,
   IndexRunEntry,
   InfluenceAggregate,
-  InfluenceMapMethod,
   InfluenceMatrixManifest,
   InfluenceRow,
   PointArrays,
@@ -15,7 +15,7 @@ import type {
 import { DataRepository } from "../data/arrays";
 import { loadIndex, loadRunManifest, resolveIndexUrl } from "../data/manifest";
 import { RunPrefetcher, type PrefetchContext } from "../data/prefetcher";
-import { Store } from "../state/store";
+import { MAX_TOP_K, Store } from "../state/store";
 import type { RasterWorkerRequest, RasterWorkerResponse } from "../worker/rasterWorker";
 import {
   boundsFromAxisMap,
@@ -35,16 +35,16 @@ import {
   renderLocalInfluencePlot,
   renderMainPlot,
   renderRegionalInfluencePlot,
-  type InfluenceDisplayMode,
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
 import { formatDisplayLabel, formatNumber, getDomRefs, showMessage, type DomRefs } from "./dom";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
-const INFLUENCE_MAP_METHOD_LABELS: Record<InfluenceMapMethod, string> = {
+const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
+  points: "Points",
   linear: "Linear",
-  cells: "Cells",
+  cell: "Cell",
 };
 const DRAG_THRESHOLD_PX = 8;
 const DOUBLE_TAP_MS = 350;
@@ -150,19 +150,14 @@ export class AppController {
       this.dom.kOutput.value = String(this.store.state.k);
       this.schedule("train");
     });
-    this.dom.influenceMapToggle.addEventListener("change", () => {
-      this.store.dispatch({
-        type: "influenceMapEnabled",
-        influenceMapEnabled: this.dom.influenceMapToggle.checked,
-      });
-      this.updateTrainControlVisibility();
-      this.refreshResponsiveLayout();
-      this.schedule("train");
-    });
-    this.dom.influenceMapMethodSelect.addEventListener("change", () => {
-      const value = this.dom.influenceMapMethodSelect.value;
-      const influenceMapMethod: InfluenceMapMethod = value === "cells" ? value : "linear";
-      this.store.dispatch({ type: "influenceMapMethod", influenceMapMethod });
+    this.dom.backgroundButtons.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-background-mode]");
+      if (!button) return;
+      const value = button.dataset.backgroundMode;
+      const backgroundMode: BackgroundMode =
+        value === "linear" || value === "cell" ? value : "points";
+      this.store.dispatch({ type: "backgroundMode", backgroundMode });
+      this.setActiveButtons(this.dom.backgroundButtons, backgroundMode, "backgroundMode");
       this.refreshResponsiveLayout();
       this.schedule("train");
     });
@@ -222,12 +217,8 @@ export class AppController {
   }
 
   private updateTrainControlVisibility(): void {
-    const localMapMode = this.store.state.influenceMapEnabled;
-    this.dom.mapControl.hidden = false;
-    this.dom.methodControl.hidden = !localMapMode;
-    this.dom.kControl.hidden = localMapMode;
-    this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
-    this.dom.influenceMapMethodSelect.value = this.store.state.influenceMapMethod;
+    this.dom.kControl.hidden = false;
+    this.setActiveButtons(this.dom.backgroundButtons, this.store.state.backgroundMode, "backgroundMode");
   }
 
   private refreshResponsiveLayout(): boolean {
@@ -437,18 +428,14 @@ export class AppController {
       this.store.dispatch({ type: "matrix", matrixId });
     }
 
-    const maxK = Math.max(
-      1,
-      this.selectedMatrix()?.max_local_influence_points ?? this.manifest.max_local_influence_points,
-    );
-    this.dom.kSlider.max = String(maxK);
-    this.dom.kSlider.value = String(Math.min(this.store.state.k, maxK));
+    this.dom.kSlider.min = "0";
+    this.dom.kSlider.max = String(MAX_TOP_K);
+    this.dom.kSlider.value = String(Math.min(this.store.state.k, MAX_TOP_K));
     this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
     this.dom.kOutput.value = String(this.store.state.k);
     this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
-    this.dom.influenceMapToggle.checked = this.store.state.influenceMapEnabled;
-    this.dom.influenceMapMethodSelect.value = this.store.state.influenceMapMethod;
+    this.setActiveButtons(this.dom.backgroundButtons, this.store.state.backgroundMode, "backgroundMode");
     this.updateTrainControlVisibility();
   }
 
@@ -717,9 +704,8 @@ export class AppController {
     this.updateTrainControlVisibility();
     const matrix = this.selectedMatrix();
     if (!matrix) return;
-    const influenceMode: InfluenceDisplayMode = this.store.state.influenceMapEnabled
-      ? "map"
-      : "points";
+    const backgroundMode = this.store.state.backgroundMode;
+    const backgroundLabel = BACKGROUND_MODE_LABELS[backgroundMode];
     this.dom.trainTitle.textContent = "Train";
     if (this.store.state.selectionMode === "region") {
       const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
@@ -731,20 +717,11 @@ export class AppController {
         rasterResult: this.rasterResult,
         aggregate: this.influenceAggregate,
         k: this.store.state.k,
-        mode: influenceMode,
-        method: this.store.state.influenceMapMethod,
+        backgroundMode,
       });
-      const label = influenceMode === "map" ? "Local region map" : "Local region";
-      const methodSuffix =
-        influenceMode === "map"
-          ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
-          : "";
-      const mapSuffix =
-        influenceMode === "map"
-          ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
-          : "";
+      const influenceSuffix = ` · all exported influences (${stats.renderedCount.toLocaleString()})`;
       this.dom.trainRange.textContent = this.store.state.selectedRegion
-        ? `${label}${methodSuffix} · sum over ${selectedCount.toLocaleString()} candidates${mapSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
+        ? `Local region · ${backgroundLabel} · sum over ${selectedCount.toLocaleString()} candidates${influenceSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
         : "";
       return;
     }
@@ -760,21 +737,12 @@ export class AppController {
       selectedTrainIndex: this.store.state.selectedTrainIndex,
       k: this.store.state.k,
       sign: this.store.state.sign,
-      mode: influenceMode,
-      method: this.store.state.influenceMapMethod,
+      backgroundMode,
     });
-    const label = influenceMode === "map" ? "Local map" : "Local";
-    const methodSuffix =
-      influenceMode === "map"
-        ? ` · ${INFLUENCE_MAP_METHOD_LABELS[this.store.state.influenceMapMethod]}`
-        : "";
-    const mapSuffix =
-      influenceMode === "map"
-        ? ` · all exported influences (${stats.renderedCount.toLocaleString()})`
-        : "";
+    const influenceSuffix = ` · all exported influences (${stats.renderedCount.toLocaleString()})`;
     this.dom.trainRange.textContent = stats.maxAbs
-      ? `${label}${methodSuffix}${mapSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
-      : `${label}${methodSuffix}${mapSuffix}`;
+      ? `Local · ${backgroundLabel}${influenceSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
+      : `Local · ${backgroundLabel}${influenceSuffix}`;
   }
 
   private handleMainPointerDown(event: PointerEvent): void {
