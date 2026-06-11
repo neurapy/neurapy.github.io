@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -16,6 +18,33 @@ def test_raster_dimensions_preserve_physical_aspect_ratio() -> None:
     maxs = np.array([2.0, 4.0])
 
     assert build_static.raster_dimensions(mins, maxs, max_axis_resolution=512) == (256, 512)
+
+
+def test_problem_from_folder_accepts_good_bad_raw_data_suffixes() -> None:
+    assert build_static.problem_from_folder(Path("allen_cahn_float64")) == "allen_cahn"
+    assert build_static.problem_from_folder(Path("allen_cahn_float64_good")) == "allen_cahn"
+    assert build_static.problem_from_folder(Path("allen_cahn_float64_bad")) == "allen_cahn"
+
+
+def test_discover_runs_includes_good_bad_raw_data_folders(tmp_path) -> None:
+    good_folder = tmp_path / "allen_cahn_float64_good"
+    bad_folder = tmp_path / "allen_cahn_float64_bad"
+    ignored_folder = tmp_path / "allen_cahn_good"
+    good_folder.mkdir()
+    bad_folder.mkdir()
+    ignored_folder.mkdir()
+
+    good_prefix = "allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft"
+    bad_prefix = "allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft"
+    (good_folder / f"{good_prefix}_full.pt").touch()
+    (bad_folder / f"{bad_prefix}_influence_scores").mkdir()
+
+    runs = build_static.discover_runs(tmp_path)
+
+    assert [(run.folder.name, run.problem, run.run_prefix) for run in runs] == [
+        ("allen_cahn_float64_bad", "allen_cahn", bad_prefix),
+        ("allen_cahn_float64_good", "allen_cahn", good_prefix),
+    ]
 
 
 def test_raster_points_are_row_major_pixel_centers_with_descending_y() -> None:

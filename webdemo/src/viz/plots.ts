@@ -30,7 +30,7 @@ import {
   plotViewport,
   projectPointToViewport,
 } from "./geometry";
-import { plotVisualScale, scaledPlotPx } from "./scale";
+import { plotVisualScale, referenceAspectPlotArea, scaledPlotPx } from "./scale";
 
 export interface RasterRenderResult {
   image: HTMLCanvasElement;
@@ -606,13 +606,14 @@ export function drawPointCloudLayer(
   const count = Math.floor(points.length / dim);
   const stride = options.maxPoints && count > options.maxPoints ? Math.ceil(count / options.maxPoints) : 1;
   const visualScale = plotVisualScale(viewport);
+  const pointSizingArea = referenceAspectPlotArea(viewport);
   const size =
     options.size === undefined
       ? Math.max(
           1.5 * visualScale,
           Math.min(
             3.5 * visualScale,
-            Math.sqrt((viewport.width * viewport.height) / Math.max(1, count)) * 0.2,
+            Math.sqrt(pointSizingArea / Math.max(1, count)) * 0.2,
           ),
         )
       : options.size * visualScale;

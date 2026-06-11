@@ -54,6 +54,7 @@ DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
+RAW_DATA_VARIANT_SUFFIXES = ("_good", "_bad")
 
 
 @dataclass
@@ -291,13 +292,24 @@ def dtype_extension(dtype: str) -> str:
 
 def problem_from_folder(folder: Path) -> str:
     name = folder.name
+    for suffix in RAW_DATA_VARIANT_SUFFIXES:
+        name = name.removesuffix(suffix)
     return name.removesuffix("_float64")
+
+
+def is_problem_data_folder(folder: Path) -> bool:
+    name = folder.name
+    for suffix in RAW_DATA_VARIANT_SUFFIXES:
+        name = name.removesuffix(suffix)
+    return name.endswith("_float64")
 
 
 def discover_runs(data_root: Path) -> list[RunPaths]:
     runs: dict[tuple[str, str], RunPaths] = {}
-    for folder in sorted(data_root.glob("*_float64")):
-        if not folder.is_dir():
+    if not data_root.exists():
+        return []
+    for folder in sorted(data_root.iterdir()):
+        if not folder.is_dir() or not is_problem_data_folder(folder):
             continue
         problem = problem_from_folder(folder)
 
