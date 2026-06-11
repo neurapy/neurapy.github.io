@@ -1,4 +1,4 @@
-"""Verify schema-v6 static PINNfluence demo artifacts against source influence files."""
+"""Verify schema-v7 static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from typing import Any
 
 import numpy as np
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
+MODEL_QUALITIES = ("good", "bad")
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 
 DTYPES = {
@@ -66,7 +67,7 @@ def deterministic_spread_indices(total: int, count: int, label: str) -> np.ndarr
     return np.linspace(0, total - 1, count, dtype=np.int64)
 
 
-def assert_schema_v6(payload: dict[str, Any], path: Path) -> None:
+def assert_schema_v7(payload: dict[str, Any], path: Path) -> None:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise AssertionError(f"{path}: schema_version must be {SCHEMA_VERSION}")
 
@@ -84,7 +85,7 @@ def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
     if not report_path.exists():
         raise AssertionError(f"Missing bundle report: {report_path}")
     report = read_json(report_path)
-    assert_schema_v6(report, report_path)
+    assert_schema_v7(report, report_path)
     total = int(report.get("total_bytes", -1))
     if total < 0:
         raise AssertionError("bundle_report.json is missing total_bytes")
@@ -256,7 +257,14 @@ def verify_topk(
         raw_data_root = Path(__file__).resolve().parent.parent / "raw_data"
     base = manifest_path.parent
     manifest = read_json(manifest_path)
-    assert_schema_v6(manifest, manifest_path)
+    assert_schema_v7(manifest, manifest_path)
+    for key in ("problem", "display_name", "model_quality", "folder", "run_id"):
+        if not manifest.get(key):
+            raise AssertionError(f"{manifest_path}: manifest is missing {key}")
+    if manifest["model_quality"] not in MODEL_QUALITIES:
+        raise AssertionError(
+            f"{manifest_path}: model_quality must be one of {', '.join(MODEL_QUALITIES)}"
+        )
     n_train = manifest["n_train"]
     n_candidate = manifest["n_candidate"]
     source_n_train = int(manifest.get("source_n_train", n_train))
@@ -333,17 +341,37 @@ def main() -> None:
     budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
     index_path = data_root / "index.json"
     index = read_json(index_path)
-    assert_schema_v6(index, index_path)
+    assert_schema_v7(index, index_path)
+    if not isinstance(index.get("problems"), list):
+        raise AssertionError(f"{index_path}: index.json is missing problems[]")
+    if "runs" in index:
+        raise AssertionError(f"{index_path}: deprecated runs[] index is still present")
     verify_bundle_report(data_root, budget_bytes)
     checked = 0
-    for run in index["runs"]:
-        manifest_rel = run.get("manifest")
-        if not manifest_rel:
-            continue
-        manifest_path = data_root / manifest_rel
-        print(f"Checking {manifest_path}")
-        verify_topk(manifest_path, args.samples, args.raw_data_root)
-        checked += 1
+    for problem in index["problems"]:
+        variants = problem.get("variants")
+        if not isinstance(variants, dict):
+            raise AssertionError(f"{problem.get('problem', '<unknown>')}: missing variants")
+        for quality in MODEL_QUALITIES:
+            variant = variants.get(quality)
+            if not isinstance(variant, dict):
+                raise AssertionError(
+                    f"{problem.get('problem', '<unknown>')}: missing {quality} variant"
+                )
+            manifest_rel = variant.get("manifest")
+            if not manifest_rel:
+                raise AssertionError(
+                    f"{problem.get('problem', '<unknown>')}: {quality} variant has no manifest"
+                )
+            if variant.get("model_quality") != quality:
+                raise AssertionError(
+                    f"{problem.get('problem', '<unknown>')}: {quality} variant has "
+                    f"model_quality {variant.get('model_quality')!r}"
+                )
+            manifest_path = data_root / manifest_rel
+            print(f"Checking {manifest_path}")
+            verify_topk(manifest_path, args.samples, args.raw_data_root)
+            checked += 1
     print(f"Verified {checked} static demo run(s)")
 
 

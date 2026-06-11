@@ -3,6 +3,15 @@ import type { AxisBounds, Bounds, PlotViewport } from "../types";
 
 export const DEFAULT_PLOT_PADDING = 28;
 
+export interface PlotInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export type PlotPadding = number | Partial<PlotInsets>;
+
 function positiveSpan(a: number, b: number): number {
   const span = Number(b) - Number(a);
   return Number.isFinite(span) && span > 0 ? span : 1;
@@ -68,21 +77,48 @@ export function domainAspectRatio(bounds: Partial<Bounds> | null | undefined): n
   );
 }
 
+function positiveInset(value: unknown, fallback: number): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : fallback;
+}
+
+export function normalizePlotInsets(padding: PlotPadding = DEFAULT_PLOT_PADDING): PlotInsets {
+  if (typeof padding === "number") {
+    const inset = positiveInset(padding, DEFAULT_PLOT_PADDING);
+    return { top: inset, right: inset, bottom: inset, left: inset };
+  }
+  return {
+    top: positiveInset(padding.top, DEFAULT_PLOT_PADDING),
+    right: positiveInset(padding.right, DEFAULT_PLOT_PADDING),
+    bottom: positiveInset(padding.bottom, DEFAULT_PLOT_PADDING),
+    left: positiveInset(padding.left, DEFAULT_PLOT_PADDING),
+  };
+}
+
+function clampPlotInsets(insets: PlotInsets, width: number, height: number): PlotInsets {
+  const horizontal = insets.left + insets.right;
+  const vertical = insets.top + insets.bottom;
+  const horizontalScale = horizontal > width - 1 ? Math.max(0, width - 1) / horizontal : 1;
+  const verticalScale = vertical > height - 1 ? Math.max(0, height - 1) / vertical : 1;
+  return {
+    top: insets.top * verticalScale,
+    right: insets.right * horizontalScale,
+    bottom: insets.bottom * verticalScale,
+    left: insets.left * horizontalScale,
+  };
+}
+
 export function plotViewport(
   bounds: Partial<Bounds> | null | undefined,
   canvasWidth: number,
   canvasHeight: number,
-  padding = DEFAULT_PLOT_PADDING,
+  padding: PlotPadding = DEFAULT_PLOT_PADDING,
 ): PlotViewport {
   const width = Math.max(1, Number(canvasWidth) || 1);
   const height = Math.max(1, Number(canvasHeight) || 1);
-  const inset = Math.min(
-    Math.max(0, Number(padding) || 0),
-    Math.max(0, (width - 1) / 2),
-    Math.max(0, (height - 1) / 2),
-  );
-  const availableWidth = Math.max(1, width - inset * 2);
-  const availableHeight = Math.max(1, height - inset * 2);
+  const insets = clampPlotInsets(normalizePlotInsets(padding), width, height);
+  const availableWidth = Math.max(1, width - insets.left - insets.right);
+  const availableHeight = Math.max(1, height - insets.top - insets.bottom);
   const targetRatio = domainAspectRatio(bounds);
   const availableRatio = availableWidth / availableHeight;
 
@@ -94,8 +130,8 @@ export function plotViewport(
     viewportHeight = availableWidth / targetRatio;
   }
 
-  const x = inset + (availableWidth - viewportWidth) / 2;
-  const y = inset + (availableHeight - viewportHeight) / 2;
+  const x = insets.left + (availableWidth - viewportWidth) / 2;
+  const y = insets.top + (availableHeight - viewportHeight) / 2;
   return {
     x,
     y,
@@ -110,7 +146,7 @@ export function fitScales(
   bounds: Partial<Bounds> | null | undefined,
   canvasWidth: number,
   canvasHeight: number,
-  padding = DEFAULT_PLOT_PADDING,
+  padding: PlotPadding = DEFAULT_PLOT_PADDING,
 ) {
   const safeBounds = normalizedBounds(bounds);
   const viewport = plotViewport(safeBounds, canvasWidth, canvasHeight, padding);

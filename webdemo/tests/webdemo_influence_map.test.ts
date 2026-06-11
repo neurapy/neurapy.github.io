@@ -161,10 +161,11 @@ describe("influence map interpolation methods", () => {
     expect(robustAbsScaleMax(new Float32Array(32))).toBe(1);
   });
 
-  it("uses a red endpoint for strong negative diverging map values", () => {
+  it("uses a blue endpoint for strong negative diverging map values", () => {
     const color = divergingColorScale([-1, 1]);
 
-    expect(color(-1)).toBe("rgb(178, 24, 43)");
+    expect(color(-1)).toBe("rgb(33, 102, 172)");
     expect(color(0)).toBe("rgb(247, 247, 247)");
+    expect(color(1)).toBe("rgb(178, 24, 43)");
   });
 });

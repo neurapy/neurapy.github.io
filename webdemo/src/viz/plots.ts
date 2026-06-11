@@ -3,9 +3,11 @@ import {
   axisBottom,
   axisLeft,
   color as parseD3Color,
-  format,
+  interpolateTurbo,
   pointer,
+  scaleLinear,
   select,
+  type Selection,
 } from "d3";
 import type {
   BackgroundMode,
@@ -24,12 +26,19 @@ import { divergingColorScale } from "./color";
 import {
   boundsFromAxisMap,
   clampIndex,
-  fitScales,
   inferPointBounds,
   pointAt,
   plotViewport,
   projectPointToViewport,
+  unprojectPointFromViewport,
+  type PlotInsets,
 } from "./geometry";
+import {
+  plotProjectionForManifest,
+  projectBounds,
+  projectPointToDisplay,
+  type PlotProjection,
+} from "./projection";
 import { plotVisualScale, referenceAspectPlotArea, scaledPlotPx } from "./scale";
 
 export interface RasterRenderResult {
@@ -91,6 +100,7 @@ interface InfluenceFieldArgs {
   viewport: PlotViewport;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
+  projection?: PlotProjection;
   gridWidth?: number;
   gridHeight?: number;
 }
@@ -110,13 +120,61 @@ const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
 export const MAX_VISIBLE_INFLUENCE_LINES = 64;
+export const PLOT_DECORATION_INSETS: PlotInsets = {
+  top: 18,
+  right: 76,
+  bottom: 52,
+  left: 58,
+};
+
+type ColorbarKind = "sequential" | "diverging";
+
+interface ColorbarSpec {
+  id: string;
+  kind: ColorbarKind;
+  domain: [number, number];
+}
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function formatAxisNumber(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: Math.abs(value) < 10 ? 3 : 2,
+    minimumFractionDigits: 0,
+  });
+}
+
 function emptyInfluenceStats(backgroundMode: BackgroundMode): InfluenceRenderStats {
   return { maxAbs: 0, renderedCount: 0, backgroundMode, scaleMax: 1 };
+}
+
+function identityProjection(bounds: Bounds): PlotProjection {
+  return {
+    physicalBounds: bounds,
+    displayBounds: bounds,
+    labels: { x: "x", y: "y" },
+    projectPoint: (x, y) => [x, y],
+    unprojectPoint: (x, y) => [x, y],
+    formatXTick: formatAxisNumber,
+    formatYTick: formatAxisNumber,
+  };
+}
+
+function projectionForInfluenceArgs(args: InfluenceFieldArgs): PlotProjection {
+  return args.projection ?? identityProjection(args.bounds);
+}
+
+function projectPhysicalPointToViewport(
+  x: number,
+  y: number,
+  projection: PlotProjection,
+  viewport: PlotViewport,
+): [number, number] {
+  const [displayX, displayY] = projection.projectPoint(x, y);
+  return projectPointToViewport(displayX, displayY, projection.displayBounds, viewport);
 }
 
 function maxAbsValue(values: ArrayLike<number>, count = values.length): number {
@@ -213,6 +271,7 @@ function gridCoordFromViewport(
 
 function collectInfluenceSamples(args: InfluenceFieldArgs): InfluenceSampleSet {
   const { width, height } = influenceGridSize(args);
+  const projection = projectionForInfluenceArgs(args);
   const dim = Math.max(1, args.dim);
   const trainCount = Math.floor(args.points.length / dim);
   const count = Math.min(args.indices.length, args.values.length);
@@ -245,7 +304,7 @@ function collectInfluenceSamples(args: InfluenceFieldArgs): InfluenceSampleSet {
     const value = args.values[entry];
     if (!Number.isFinite(value) || pointIndex < 0 || pointIndex >= trainCount) continue;
     const [x, y] = pointAt(args.points, pointIndex, dim);
-    const [sx, sy] = projectPointToViewport(x, y, args.bounds, args.viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(x, y, projection, args.viewport);
     if (
       sx < args.viewport.x ||
       sx > args.viewport.right ||
@@ -494,19 +553,123 @@ export function resizeSvg(svg: SVGSVGElement, width: number, height: number): vo
   svg.setAttribute("height", `${height}`);
 }
 
+function finiteDomain(domain: [number, number]): [number, number] {
+  const min = Number.isFinite(domain[0]) ? domain[0] : 0;
+  const max = Number.isFinite(domain[1]) ? domain[1] : min + 1;
+  return min === max ? [min, min + 1] : [min, max];
+}
+
+function colorbarTicks(spec: ColorbarSpec): number[] {
+  const [min, max] = finiteDomain(spec.domain);
+  if (spec.kind === "diverging") {
+    const maxAbs = Math.max(Math.abs(min), Math.abs(max)) || 1;
+    return [-maxAbs, 0, maxAbs];
+  }
+  return [min, min + (max - min) / 2, max];
+}
+
+function colorbarColor(spec: ColorbarSpec, value: number): string {
+  const [min, max] = finiteDomain(spec.domain);
+  if (spec.kind === "diverging") {
+    return divergingColorScale([min, max])(value);
+  }
+  const span = max - min || 1;
+  return interpolateTurbo(clampNumber((value - min) / span, 0, 1));
+}
+
+function renderColorbar(
+  root: Selection<SVGSVGElement, unknown, null, undefined>,
+  viewport: PlotViewport,
+  width: number,
+  spec: ColorbarSpec,
+): void {
+  const [min, max] = finiteDomain(spec.domain);
+  const visualScale = plotVisualScale(viewport);
+  const barWidth = Math.max(8, Math.min(12, 9 * visualScale));
+  const gutterLeft = viewport.right;
+  const gutterWidth = Math.max(0, width - gutterLeft);
+  if (gutterWidth < 30) return;
+
+  const barHeight = Math.max(46, Math.min(150, viewport.height * 0.56));
+  const barX = Math.min(width - 34, gutterLeft + Math.max(10, (gutterWidth - 42) / 2));
+  const barY = viewport.y + (viewport.height - barHeight) / 2;
+  const gradientId = `${spec.id}-gradient`;
+  const defs = root.append("defs");
+  const gradient = defs
+    .append("linearGradient")
+    .attr("id", gradientId)
+    .attr("x1", "0%")
+    .attr("x2", "0%")
+    .attr("y1", "100%")
+    .attr("y2", "0%");
+  const stops = Array.from({ length: 9 }, (_unused, index) => index / 8);
+  gradient
+    .selectAll("stop")
+    .data(stops)
+    .join("stop")
+    .attr("offset", (value) => `${value * 100}%`)
+    .attr("stop-color", (value) => colorbarColor(spec, min + value * (max - min)));
+
+  const group = root.append("g").attr("class", "colorbar");
+  group
+    .append("rect")
+    .attr("class", "colorbar-track")
+    .attr("x", barX)
+    .attr("y", barY)
+    .attr("width", barWidth)
+    .attr("height", barHeight)
+    .attr("rx", 2)
+    .attr("fill", `url(#${gradientId})`);
+  group
+    .append("rect")
+    .attr("class", "colorbar-frame")
+    .attr("x", barX)
+    .attr("y", barY)
+    .attr("width", barWidth)
+    .attr("height", barHeight)
+    .attr("rx", 2);
+
+  const tickScale = scaleLinear().domain([min, max]).range([barY + barHeight, barY]);
+  const ticks = colorbarTicks(spec);
+  const tickGroup = group.append("g").attr("class", "colorbar-ticks");
+  tickGroup
+    .selectAll("line")
+    .data(ticks)
+    .join("line")
+    .attr("x1", barX + barWidth)
+    .attr("x2", barX + barWidth + 4)
+    .attr("y1", (value) => tickScale(value))
+    .attr("y2", (value) => tickScale(value));
+  tickGroup
+    .selectAll("text")
+    .data(ticks)
+    .join("text")
+    .attr("x", barX + barWidth + 7)
+    .attr("y", (value) => tickScale(value))
+    .attr("dy", "0.32em")
+    .text((value) => formatAxisNumber(value));
+}
+
 export function renderAxes(
   svg: SVGSVGElement,
   bounds: Bounds,
   width: number,
   height: number,
   viewport: PlotViewport,
+  projection: PlotProjection,
+  colorbar?: ColorbarSpec,
 ): void {
   resizeSvg(svg, width, height);
   const visualScale = plotVisualScale(viewport);
   svg.style.setProperty("--plot-visual-scale", String(visualScale));
   svg.style.setProperty("--plot-axis-stroke-width", `${visualScale}px`);
   svg.style.setProperty("--plot-contour-stroke-width", `${0.7 * visualScale}px`);
-  const { x, y } = fitScales(bounds, width, height);
+  const x = scaleLinear()
+    .domain([projection.displayBounds.minX, projection.displayBounds.maxX])
+    .range([viewport.x, viewport.right]);
+  const y = scaleLinear()
+    .domain([projection.displayBounds.minY, projection.displayBounds.maxY])
+    .range([viewport.bottom, viewport.y]);
   const root = select(svg);
   root.selectAll("*").remove();
   root
@@ -516,16 +679,40 @@ export function renderAxes(
     .attr("y", viewport.y)
     .attr("width", viewport.width)
     .attr("height", viewport.height);
+  const xAxis = axisBottom(x)
+    .ticks(Math.max(3, Math.floor(viewport.width / 150)))
+    .tickFormat((value) => projection.formatXTick(Number(value)));
+  if (projection.xTickValues?.length) xAxis.tickValues(projection.xTickValues);
   root
     .append("g")
     .attr("class", "axis axis-x")
     .attr("transform", `translate(0,${viewport.bottom})`)
-    .call(axisBottom(x).ticks(Math.max(3, Math.floor(width / 160))).tickFormat(format(".2~g")));
+    .call(xAxis);
   root
     .append("g")
     .attr("class", "axis axis-y")
     .attr("transform", `translate(${viewport.x},0)`)
-    .call(axisLeft(y).ticks(Math.max(3, Math.floor(height / 150))).tickFormat(format(".2~g")));
+    .call(
+      axisLeft(y)
+        .ticks(Math.max(3, Math.floor(viewport.height / 130)))
+        .tickFormat((value) => projection.formatYTick(Number(value))),
+    );
+  root
+    .append("text")
+    .attr("class", "axis-label axis-label-x")
+    .attr("x", viewport.x + viewport.width / 2)
+    .attr("y", Math.min(height - 9, viewport.bottom + 36))
+    .attr("text-anchor", "middle")
+    .text(projection.labels.x);
+  root
+    .append("text")
+    .attr("class", "axis-label axis-label-y")
+    .attr("x", Math.max(12, viewport.x - 42))
+    .attr("y", viewport.y + viewport.height / 2)
+    .attr("text-anchor", "middle")
+    .attr("transform", `rotate(-90 ${Math.max(12, viewport.x - 42)} ${viewport.y + viewport.height / 2})`)
+    .text(projection.labels.y);
+  if (colorbar) renderColorbar(root, viewport, width, colorbar);
 }
 
 function boundsSpan(min: number, max: number): number {
@@ -546,22 +733,25 @@ function renderContourOverlay(args: {
   rasterBounds: Bounds;
   targetBounds: Bounds;
   viewport: PlotViewport;
+  projection: PlotProjection;
 }): void {
   if (!args.raster || !args.rasterResult?.contourPaths.length) return;
-  const targetSpanX = boundsSpan(args.targetBounds.minX, args.targetBounds.maxX);
-  const targetSpanY = boundsSpan(args.targetBounds.minY, args.targetBounds.maxY);
-  const rasterSpanX = boundsSpan(args.rasterBounds.minX, args.rasterBounds.maxX);
-  const rasterSpanY = boundsSpan(args.rasterBounds.minY, args.rasterBounds.maxY);
+  const targetBounds = projectBounds(args.targetBounds, args.projection);
+  const rasterBounds = projectBounds(args.rasterBounds, args.projection);
+  const targetSpanX = boundsSpan(targetBounds.minX, targetBounds.maxX);
+  const targetSpanY = boundsSpan(targetBounds.minY, targetBounds.maxY);
+  const rasterSpanX = boundsSpan(rasterBounds.minX, rasterBounds.maxX);
+  const rasterSpanY = boundsSpan(rasterBounds.minY, rasterBounds.maxY);
   const scaleX =
     (rasterSpanX / targetSpanX) * (args.viewport.width / Math.max(1, args.raster.width));
   const scaleY =
     (rasterSpanY / targetSpanY) * (args.viewport.height / Math.max(1, args.raster.height));
   const offsetX =
     args.viewport.x +
-    ((args.rasterBounds.minX - args.targetBounds.minX) / targetSpanX) * args.viewport.width;
+    ((rasterBounds.minX - targetBounds.minX) / targetSpanX) * args.viewport.width;
   const offsetY =
     args.viewport.y +
-    ((args.targetBounds.maxY - args.rasterBounds.maxY) / targetSpanY) * args.viewport.height;
+    ((targetBounds.maxY - rasterBounds.maxY) / targetSpanY) * args.viewport.height;
   const root = select(args.svg)
     .append("g")
     .attr("class", "contours")
@@ -596,6 +786,7 @@ export function drawPointCloudLayer(
   dim: number,
   bounds: Bounds,
   viewport: PlotViewport,
+  projection: PlotProjection,
   options: {
     color?: string;
     alpha?: number;
@@ -622,7 +813,7 @@ export function drawPointCloudLayer(
   ctx.fillStyle = options.color ?? "#364252";
   for (let index = 0; index < count; index += stride) {
     const [x, y] = pointAt(points, index, dim);
-    const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(x, y, projection, viewport);
     ctx.beginPath();
     ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
     ctx.fill();
@@ -645,18 +836,27 @@ export function renderMainPlot(args: {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const rasterBounds = rasterPlotBounds(args.context);
-  const viewport = plotViewport(rasterBounds, width, height);
+  const projection = plotProjectionForManifest(args.context.manifest, rasterBounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
 
   if (args.raster && args.rasterResult) {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(args.rasterResult.image, viewport.x, viewport.y, viewport.width, viewport.height);
   }
   if (args.showTrainPoints) {
-    drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, rasterBounds, viewport, {
-      color: "#11263a",
-      alpha: 0.12,
-      maxPoints: 6000,
-    });
+    drawPointCloudLayer(
+      ctx,
+      args.context.points.train_points,
+      args.context.trainDim,
+      rasterBounds,
+      viewport,
+      projection,
+      {
+        color: "#11263a",
+        alpha: 0.12,
+        maxPoints: 6000,
+      },
+    );
   }
   if (args.showCandidatePoints) {
     drawPointCloudLayer(
@@ -665,6 +865,7 @@ export function renderMainPlot(args: {
       args.context.candidateDim,
       rasterBounds,
       viewport,
+      projection,
       {
         color: "#0c7c78",
         alpha: 0.16,
@@ -673,17 +874,32 @@ export function renderMainPlot(args: {
     );
   }
   if (args.selectedCoord) {
-    const [sx, sy] = projectPointToViewport(args.selectedCoord[0], args.selectedCoord[1], rasterBounds, viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(
+      args.selectedCoord[0],
+      args.selectedCoord[1],
+      projection,
+      viewport,
+    );
     drawPointMarker(ctx, sx, sy, 7, plotVisualScale(viewport));
   }
   if (args.selectedRegion) {
-    drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, false);
+    drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, projection, false);
   }
   if (args.draftRegion) {
-    drawRegionOverlay(ctx, args.draftRegion, rasterBounds, viewport, true);
+    drawRegionOverlay(ctx, args.draftRegion, rasterBounds, viewport, projection, true);
   }
 
-  renderAxes(args.svg, rasterBounds, width, height, viewport);
+  renderAxes(
+    args.svg,
+    rasterBounds,
+    width,
+    height,
+    viewport,
+    projection,
+    args.raster
+      ? { id: "model-colorbar", kind: "sequential", domain: args.raster.displayDomain }
+      : undefined,
+  );
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -691,6 +907,7 @@ export function renderMainPlot(args: {
     rasterBounds,
     targetBounds: rasterBounds,
     viewport,
+    projection,
   });
   return viewport;
 }
@@ -700,10 +917,11 @@ function drawRegionOverlay(
   region: Bounds,
   bounds: Bounds,
   viewport: PlotViewport,
+  projection: PlotProjection,
   draft: boolean,
 ): void {
-  const [x0, y0] = projectPointToViewport(region.minX, region.maxY, bounds, viewport);
-  const [x1, y1] = projectPointToViewport(region.maxX, region.minY, bounds, viewport);
+  const [x0, y0] = projectPhysicalPointToViewport(region.minX, region.maxY, projection, viewport);
+  const [x1, y1] = projectPhysicalPointToViewport(region.maxX, region.minY, projection, viewport);
   const x = Math.min(x0, x1);
   const y = Math.min(y0, y1);
   const width = Math.abs(x1 - x0);
@@ -723,6 +941,7 @@ function drawInfluencePointLayer(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
+  projection: PlotProjection;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
   scaleMax: number;
@@ -739,7 +958,12 @@ function drawInfluencePointLayer(args: {
     const value = args.values[index];
     if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
     const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(
+      trainPoint[0],
+      trainPoint[1],
+      args.projection,
+      args.viewport,
+    );
     if (
       sx < args.viewport.x ||
       sx > args.viewport.right ||
@@ -762,6 +986,7 @@ function drawTopKInfluenceLinks(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
+  projection: PlotProjection;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
   scaleMax: number;
@@ -778,7 +1003,12 @@ function drawTopKInfluenceLinks(args: {
     const value = args.values[index];
     if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
     const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(
+      trainPoint[0],
+      trainPoint[1],
+      args.projection,
+      args.viewport,
+    );
     const strength = influenceStrength(value, args.scaleMax);
     args.ctx.beginPath();
     args.ctx.moveTo(args.rowSx, args.rowSy);
@@ -793,6 +1023,7 @@ function drawTopKInfluencePoints(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
+  projection: PlotProjection;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
   scaleMax: number;
@@ -805,7 +1036,12 @@ function drawTopKInfluencePoints(args: {
     const value = args.values[index];
     if (!Number.isFinite(value) || trainIndex < 0 || trainIndex >= trainCount) continue;
     const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
-    const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
+    const [sx, sy] = projectPhysicalPointToViewport(
+      trainPoint[0],
+      trainPoint[1],
+      args.projection,
+      args.viewport,
+    );
     const strength = influenceStrength(value, args.scaleMax);
     const size = scaledPlotPx(
       MIN_TOP_K_POINT_SIZE + strength * (MAX_TOP_K_POINT_SIZE - MIN_TOP_K_POINT_SIZE),
@@ -952,6 +1188,7 @@ function renderInfluenceBackground(args: {
   ctx: CanvasRenderingContext2D;
   context: PlotContext;
   viewport: PlotViewport;
+  projection: PlotProjection;
   indices: ArrayLike<number>;
   values: ArrayLike<number>;
   backgroundMode: BackgroundMode;
@@ -963,6 +1200,7 @@ function renderInfluenceBackground(args: {
       ctx: args.ctx,
       context: args.context,
       viewport: args.viewport,
+      projection: args.projection,
       indices: args.indices,
       values: args.values,
       scaleMax,
@@ -975,6 +1213,7 @@ function renderInfluenceBackground(args: {
     dim: args.context.trainDim,
     bounds: args.context.bounds,
     viewport: args.viewport,
+    projection: args.projection,
     indices: args.indices,
     values: args.values,
   };
@@ -1011,8 +1250,9 @@ export function renderLocalInfluencePlot(args: {
 }): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
-  const viewport = plotViewport(args.context.bounds, width, height);
-  renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1020,13 +1260,22 @@ export function renderLocalInfluencePlot(args: {
     rasterBounds: rasterPlotBounds(args.context),
     targetBounds: args.context.bounds,
     viewport,
+    projection,
   });
-  drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, args.context.bounds, viewport, {
-    color: "#526070",
-    alpha: 0.18,
-    maxPoints: 10000,
-    size: 2,
-  });
+  drawPointCloudLayer(
+    ctx,
+    args.context.points.train_points,
+    args.context.trainDim,
+    args.context.bounds,
+    viewport,
+    projection,
+    {
+      color: "#526070",
+      alpha: 0.18,
+      maxPoints: 10000,
+      size: 2,
+    },
+  );
 
   const rowSourcePoints =
     args.matrix.row_source === "train_points"
@@ -1036,7 +1285,12 @@ export function renderLocalInfluencePlot(args: {
   const rowIndex =
     args.matrix.row_source === "train_points" ? args.selectedTrainIndex : args.selectedCandidateIndex;
   const rowPoint = pointAt(rowSourcePoints, clampIndex(rowIndex, args.matrix.row_count), rowDim);
-  const [rowSx, rowSy] = projectPointToViewport(rowPoint[0], rowPoint[1], args.context.bounds, viewport);
+  const [rowSx, rowSy] = projectPhysicalPointToViewport(
+    rowPoint[0],
+    rowPoint[1],
+    projection,
+    viewport,
+  );
   if (!args.row) {
     drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
     return emptyInfluenceStats(args.backgroundMode);
@@ -1046,6 +1300,7 @@ export function renderLocalInfluencePlot(args: {
     ctx,
     context: args.context,
     viewport,
+    projection,
     indices: backgroundEntries.indices,
     values: backgroundEntries.values,
     backgroundMode: args.backgroundMode,
@@ -1067,6 +1322,7 @@ export function renderLocalInfluencePlot(args: {
     ctx,
     context: args.context,
     viewport,
+    projection,
     indices: topKLineIndices,
     values: topKLineValues,
     scaleMax,
@@ -1077,12 +1333,18 @@ export function renderLocalInfluencePlot(args: {
     ctx,
     context: args.context,
     viewport,
+    projection,
     indices: topKIndices,
     values: topKValues,
     scaleMax,
   });
 
   drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
+  renderColorbar(select(args.svg), viewport, width, {
+    id: "train-colorbar",
+    kind: "diverging",
+    domain: [-scaleMax, scaleMax],
+  });
   return { ...backgroundStats, scaleMax };
 }
 
@@ -1098,8 +1360,9 @@ export function renderRegionalInfluencePlot(args: {
 }): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
-  const viewport = plotViewport(args.context.bounds, width, height);
-  renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1107,19 +1370,29 @@ export function renderRegionalInfluencePlot(args: {
     rasterBounds: rasterPlotBounds(args.context),
     targetBounds: args.context.bounds,
     viewport,
+    projection,
   });
-  drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, args.context.bounds, viewport, {
-    color: "#526070",
-    alpha: 0.18,
-    maxPoints: 10000,
-    size: 2,
-  });
+  drawPointCloudLayer(
+    ctx,
+    args.context.points.train_points,
+    args.context.trainDim,
+    args.context.bounds,
+    viewport,
+    projection,
+    {
+      color: "#526070",
+      alpha: 0.18,
+      maxPoints: 10000,
+      size: 2,
+    },
+  );
 
   if (!args.aggregate) return emptyInfluenceStats(args.backgroundMode);
   const backgroundStats = renderInfluenceBackground({
     ctx,
     context: args.context,
     viewport,
+    projection,
     indices: args.aggregate.indices,
     values: args.aggregate.values,
     backgroundMode: args.backgroundMode,
@@ -1135,39 +1408,53 @@ export function renderRegionalInfluencePlot(args: {
     ctx,
     context: args.context,
     viewport,
+    projection,
     indices: topKIndices,
     values: topKValues,
     scaleMax,
   });
+  renderColorbar(select(args.svg), viewport, width, {
+    id: "train-colorbar",
+    kind: "diverging",
+    domain: [-scaleMax, scaleMax],
+  });
   return { ...backgroundStats, scaleMax };
 }
 
-export function buildDelaunay(points: Float32Array, dim: number): Delaunay<number> {
+export function buildDelaunay(
+  points: Float32Array,
+  dim: number,
+  projection?: PlotProjection,
+): Delaunay<number> {
   const count = Math.floor(points.length / dim);
   const indices = Array.from({ length: count }, (_, index) => index);
   return Delaunay.from(
     indices,
-    (index) => points[index * dim],
-    (index) => points[index * dim + 1] ?? 0,
+    (index) => {
+      const x = points[index * dim];
+      const y = points[index * dim + 1] ?? 0;
+      return projection ? projection.projectPoint(x, y)[0] : x;
+    },
+    (index) => {
+      const x = points[index * dim];
+      const y = points[index * dim + 1] ?? 0;
+      return projection ? projection.projectPoint(x, y)[1] : y;
+    },
   );
 }
 
 export function pointerInDomain(
   event: PointerEvent,
   canvas: HTMLCanvasElement,
-  bounds: Bounds,
+  projection: PlotProjection,
   viewport: PlotViewport,
 ): [number, number] | null {
   const [sx, sy] = pointer(event, canvas);
   if (sx < viewport.x || sx > viewport.right || sy < viewport.y || sy > viewport.bottom) {
     return null;
   }
-  const nx = (sx - viewport.x) / Math.max(1, viewport.width);
-  const ny = (viewport.bottom - sy) / Math.max(1, viewport.height);
-  return [
-    bounds.minX + nx * (bounds.maxX - bounds.minX),
-    bounds.minY + ny * (bounds.maxY - bounds.minY),
-  ];
+  const display = unprojectPointFromViewport(sx, sy, projection.displayBounds, viewport);
+  return projection.unprojectPoint(display[0], display[1]);
 }
 
 export function rasterSampleAtCoord(

@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import time
+import zipfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,19 +49,22 @@ DTYPE_EXTENSIONS = {
     "int16": "i16",
 }
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 DEFAULT_RASTER_MAX_RESOLUTION = 512
 DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
+DEFAULT_FIELD_BATCH_SIZE = 8192
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
 RAW_DATA_VARIANT_SUFFIXES = ("_good", "_bad")
+MODEL_QUALITIES = ("good", "bad")
 
 
 @dataclass
 class RunPaths:
     folder: Path
     problem: str
+    model_quality: str
     run_prefix: str
     checkpoint: Path | None
     influence_dir: Path | None
@@ -116,6 +120,12 @@ def parse_args() -> argparse.Namespace:
         default=512,
         type=int,
         help="Maximum pixel resolution of the longer axis for 2D prediction/loss rasters.",
+    )
+    parser.add_argument(
+        "--field-batch-size",
+        default=DEFAULT_FIELD_BATCH_SIZE,
+        type=int,
+        help="Batch size for precomputing prediction/loss rasters.",
     )
     parser.add_argument(
         "--matrix-mode",
@@ -290,18 +300,28 @@ def dtype_extension(dtype: str) -> str:
     return DTYPE_EXTENSIONS[dtype]
 
 
-def problem_from_folder(folder: Path) -> str:
+def raw_data_base_folder_name(folder: Path) -> str:
     name = folder.name
     for suffix in RAW_DATA_VARIANT_SUFFIXES:
         name = name.removesuffix(suffix)
+    return name
+
+
+def problem_from_folder(folder: Path) -> str:
+    name = raw_data_base_folder_name(folder)
     return name.removesuffix("_float64")
 
 
+def infer_model_quality(folder: Path) -> str | None:
+    for quality in MODEL_QUALITIES:
+        if folder.name.endswith(f"_{quality}"):
+            return quality
+    return None
+
+
 def is_problem_data_folder(folder: Path) -> bool:
-    name = folder.name
-    for suffix in RAW_DATA_VARIANT_SUFFIXES:
-        name = name.removesuffix(suffix)
-    return name.endswith("_float64")
+    quality = infer_model_quality(folder)
+    return quality is not None and raw_data_base_folder_name(folder).endswith("_float64")
 
 
 def discover_runs(data_root: Path) -> list[RunPaths]:
@@ -312,6 +332,9 @@ def discover_runs(data_root: Path) -> list[RunPaths]:
         if not folder.is_dir() or not is_problem_data_folder(folder):
             continue
         problem = problem_from_folder(folder)
+        model_quality = infer_model_quality(folder)
+        if model_quality is None:
+            continue
 
         for checkpoint in sorted(folder.glob("*_full.pt")):
             run_prefix = checkpoint.name.removesuffix("_full.pt")
@@ -319,6 +342,7 @@ def discover_runs(data_root: Path) -> list[RunPaths]:
             runs[key] = RunPaths(
                 folder=folder,
                 problem=problem,
+                model_quality=model_quality,
                 run_prefix=run_prefix,
                 checkpoint=checkpoint,
                 influence_dir=folder / f"{run_prefix}_influence_scores",
@@ -334,6 +358,7 @@ def discover_runs(data_root: Path) -> list[RunPaths]:
                 runs[key] = RunPaths(
                     folder=folder,
                     problem=problem,
+                    model_quality=model_quality,
                     run_prefix=run_prefix,
                     checkpoint=folder / f"{run_prefix}_full.pt",
                     influence_dir=influence_dir,
@@ -353,6 +378,7 @@ def discover_runs(data_root: Path) -> list[RunPaths]:
             RunPaths(
                 folder=run.folder,
                 problem=run.problem,
+                model_quality=run.model_quality,
                 run_prefix=run.run_prefix,
                 checkpoint=checkpoint,
                 influence_dir=influence_dir,
@@ -366,7 +392,13 @@ def filter_runs(runs: list[RunPaths], args: argparse.Namespace) -> list[RunPaths
     selected = runs
     if args.problems:
         wanted = set(args.problems)
-        selected = [run for run in selected if run.folder.name in wanted or run.problem in wanted]
+        selected = [
+            run
+            for run in selected
+            if run.folder.name in wanted
+            or raw_data_base_folder_name(run.folder) in wanted
+            or run.problem in wanted
+        ]
     if args.force_run:
         if "/" not in args.force_run:
             raise SystemExit("--force-run must look like '<folder>/<run_prefix>'")
@@ -375,6 +407,81 @@ def filter_runs(runs: list[RunPaths], args: argparse.Namespace) -> list[RunPaths
             run for run in selected if run.folder.name == folder and run.run_prefix == run_prefix
         ]
     return selected
+
+
+def group_runs_by_problem(runs: list[RunPaths]) -> list[tuple[str, dict[str, RunPaths]]]:
+    grouped: dict[str, dict[str, RunPaths]] = {}
+    for run in runs:
+        if run.model_quality not in MODEL_QUALITIES:
+            raise ValueError(
+                f"{run.folder.name}/{run.run_prefix}: model quality must be one of "
+                f"{', '.join(MODEL_QUALITIES)}"
+            )
+        variants = grouped.setdefault(run.problem, {})
+        existing = variants.get(run.model_quality)
+        if existing is not None:
+            raise ValueError(
+                f"{display_problem_name(run.problem)} has multiple {run.model_quality} runs: "
+                f"{existing.folder.name}/{existing.run_prefix} and "
+                f"{run.folder.name}/{run.run_prefix}"
+            )
+        variants[run.model_quality] = run
+
+    for problem, variants in grouped.items():
+        missing = [quality for quality in MODEL_QUALITIES if quality not in variants]
+        if missing:
+            raise ValueError(
+                f"{display_problem_name(problem)} is missing required model variant(s): "
+                f"{', '.join(missing)}"
+            )
+
+    return [
+        (problem, {quality: grouped[problem][quality] for quality in MODEL_QUALITIES})
+        for problem in sorted(grouped)
+    ]
+
+
+def build_problem_index_entries(
+    variant_entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, dict[str, Any]]] = {}
+    display_names: dict[str, str] = {}
+    for entry in variant_entries:
+        problem = str(entry.get("problem", ""))
+        quality = str(entry.get("model_quality", ""))
+        if not problem:
+            raise ValueError("Index variant is missing problem")
+        if quality not in MODEL_QUALITIES:
+            raise ValueError(f"{problem}: invalid model_quality {quality!r}")
+        variants = grouped.setdefault(problem, {})
+        if quality in variants:
+            raise ValueError(f"{display_problem_name(problem)} has duplicate {quality} variants")
+        variants[quality] = entry
+        display_names[problem] = str(entry.get("display_name") or display_problem_name(problem))
+
+    problems: list[dict[str, Any]] = []
+    for problem in sorted(grouped):
+        variants = grouped[problem]
+        missing = [quality for quality in MODEL_QUALITIES if quality not in variants]
+        if missing:
+            raise ValueError(
+                f"{display_problem_name(problem)} is missing required model variant(s): "
+                f"{', '.join(missing)}"
+            )
+        failed = [quality for quality in MODEL_QUALITIES if not variants[quality].get("manifest")]
+        if failed:
+            raise ValueError(
+                f"{display_problem_name(problem)} failed to produce manifest(s) for: "
+                f"{', '.join(failed)}"
+            )
+        problems.append(
+            {
+                "problem": problem,
+                "display_name": display_names[problem],
+                "variants": {quality: variants[quality] for quality in MODEL_QUALITIES},
+            }
+        )
+    return problems
 
 
 def load_checkpoint_info(checkpoint: Path) -> dict[str, Any]:
@@ -484,11 +591,33 @@ def candidate_influence_files(run: RunPaths, matrix_mode: str) -> list[Path]:
     return files
 
 
+def read_npz_npy_header(path: Path, array_name: str) -> dict[str, Any]:
+    member_name = f"{array_name}.npy"
+    with zipfile.ZipFile(path) as archive:
+        try:
+            with archive.open(member_name) as handle:
+                version = np.lib.format.read_magic(handle)
+                if version == (1, 0):
+                    shape, fortran_order, dtype = np.lib.format.read_array_header_1_0(handle)
+                elif version == (2, 0):
+                    shape, fortran_order, dtype = np.lib.format.read_array_header_2_0(handle)
+                else:
+                    raise ValueError(f"Unsupported NPY header version {version}")
+        except KeyError:
+            raise KeyError(f"{path.name}: missing {member_name}")
+    return {
+        "shape": tuple(int(dim) for dim in shape),
+        "fortran_order": bool(fortran_order),
+        "dtype": np.dtype(dtype),
+    }
+
+
 def load_matrix_metadata(path: Path) -> dict[str, Any]:
+    scores_header = read_npz_npy_header(path, "scores")
     with np.load(path, allow_pickle=False) as data:
         return {
             "id": path.stem,
-            "scores_shape": list(data["scores"].shape),
+            "scores_shape": list(scores_header["shape"]),
             "candidate_points": np.asarray(data["candidate_points"]),
             "num_pdes": int(data["num_pdes"]),
             "num_bcs": int(data["num_bcs"]),
@@ -500,6 +629,7 @@ def load_matrix_metadata(path: Path) -> dict[str, Any]:
 
 
 def display_problem_name(problem: str) -> str:
+    problem = problem.removesuffix("_nd")
     return problem.replace("_", " ").title().replace("Nd", "ND")
 
 
@@ -679,7 +809,7 @@ def predict_fields(
     data: Any,
     points: np.ndarray,
     float64: bool,
-    batch_size: int = 512,
+    batch_size: int = DEFAULT_FIELD_BATCH_SIZE,
 ) -> dict[str, np.ndarray]:
     torch.set_default_device("cpu")
     dtype = torch.float64 if float64 else torch.float32
@@ -756,23 +886,30 @@ def process_influence_matrix(
     row_indices: np.ndarray,
     max_local_influence_points: int,
     row_chunk_size: int,
+    matrix_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    source_metadata = matrix_metadata or load_matrix_metadata(path)
+    source_candidate_points = np.asarray(source_metadata["candidate_points"])
+    metadata: dict[str, Any] = {
+        "id": path.stem,
+        "method": "PINNfluence",
+        "left_term": str(source_metadata["left_term"]),
+        "right_term": str(source_metadata["right_term"]),
+        "num_pdes": int(source_metadata["num_pdes"]),
+        "num_bcs": int(source_metadata["num_bcs"]),
+        "n_outputs": int(source_metadata["n_outputs"]),
+        "self_influence": bool(source_metadata["self_influence"]),
+    }
     with np.load(path, allow_pickle=False) as data:
         source_scores = np.asarray(data["scores"], dtype=np.float32)
-        source_candidate_points = np.asarray(data["candidate_points"])
-        metadata: dict[str, Any] = {
-            "id": path.stem,
-            "method": "PINNfluence",
-            "left_term": str(data["left_term"]),
-            "right_term": str(data["right_term"]),
-            "num_pdes": int(data["num_pdes"]),
-            "num_bcs": int(data["num_bcs"]),
-            "n_outputs": int(data["n_outputs"]),
-            "self_influence": bool(data["self_influence"]),
-        }
 
     if source_scores.ndim != 2:
         raise ValueError(f"Expected 2D scores in {path}, got {source_scores.shape}")
+    source_scores_shape = tuple(int(dim) for dim in source_metadata["scores_shape"])
+    if source_scores.shape != source_scores_shape:
+        raise ValueError(
+            f"{path.name}: scores shape {source_scores.shape} != header {source_scores_shape}"
+        )
     if source_scores.shape[1] != source_n_train:
         raise ValueError(
             f"{path.name}: source score columns {source_scores.shape[1]} "
@@ -783,30 +920,32 @@ def process_influence_matrix(
     if len(row_indices) and int(row_indices.max()) >= source_scores.shape[0]:
         raise ValueError(f"{path.name}: row selection exceeds source score rows")
 
-    scores = source_scores[np.ix_(row_indices, train_indices)]
     candidate_points = source_candidate_points[row_indices]
-
-    if scores.shape[0] != row_count:
+    if candidate_points.shape[0] != row_count:
         raise ValueError(
-            f"{path.name}: score rows {scores.shape[0]} != {row_source} count {row_count}"
+            f"{path.name}: score rows {candidate_points.shape[0]} != {row_source} count {row_count}"
         )
-    if scores.shape[1] != n_train:
-        raise ValueError(f"{path.name}: score columns {scores.shape[1]} != n_train {n_train}")
+    if len(train_indices) != n_train:
+        raise ValueError(f"{path.name}: score columns {len(train_indices)} != n_train {n_train}")
 
-    k = min(max_local_influence_points, scores.shape[1])
-    display_scores = (scores / float(source_n_train)).astype(np.float32, copy=False)
+    k = min(max_local_influence_points, n_train)
     matrix_dir = f"{rel_prefix}/{path.stem}"
     index_dtype = "uint16" if n_train <= 65535 else "uint32"
 
-    top_chunks: dict[str, Any] = {}
-    for mode in ("abs", "pos", "neg"):
-        indices, values = topk_sorted(display_scores, k, mode)
-        chunk_entries = []
-        for chunk_id, start in enumerate(range(0, row_count, row_chunk_size)):
-            stop = min(row_count, start + row_chunk_size)
-            chunk_indices = indices[start:stop]
-            chunk_values = values[start:stop]
-            chunk_entries.append(
+    chunk_entries_by_mode: dict[str, list[dict[str, Any]]] = {
+        "abs": [],
+        "pos": [],
+        "neg": [],
+    }
+    for chunk_id, start in enumerate(range(0, row_count, row_chunk_size)):
+        stop = min(row_count, start + row_chunk_size)
+        chunk_row_indices = row_indices[start:stop]
+        display_scores = (
+            source_scores[np.ix_(chunk_row_indices, train_indices)] / float(source_n_train)
+        ).astype(np.float32, copy=False)
+        for mode in ("abs", "pos", "neg"):
+            chunk_indices, chunk_values = topk_sorted(display_scores, k, mode)
+            chunk_entries_by_mode[mode].append(
                 {
                     "id": chunk_id,
                     "row_start": start,
@@ -826,6 +965,10 @@ def process_influence_matrix(
                     ),
                 }
             )
+
+    top_chunks: dict[str, Any] = {}
+    for mode in ("abs", "pos", "neg"):
+        chunk_entries = chunk_entries_by_mode[mode]
         top_chunks[mode] = {
             "row_chunk_size": row_chunk_size,
             "chunk_count": len(chunk_entries),
@@ -837,7 +980,7 @@ def process_influence_matrix(
 
     metadata.update(
         {
-            "scores_shape": list(scores.shape),
+            "scores_shape": [row_count, n_train],
             "source_scores_shape": list(source_scores.shape),
             "candidate_points_shape": list(candidate_points.shape),
             "source_candidate_points_shape": list(source_candidate_points.shape),
@@ -860,7 +1003,7 @@ def process_influence_matrix(
 
 
 def process_influence_matrix_jobs(
-    jobs: list[tuple[int, Path, str, int, np.ndarray]],
+    jobs: list[tuple[int, Path, str, int, np.ndarray, dict[str, Any]]],
     out_dir: Path,
     rel_prefix: str,
     n_train: int,
@@ -875,7 +1018,7 @@ def process_influence_matrix_jobs(
     workers = max(1, min(workers, len(jobs) or 1))
 
     if workers == 1:
-        for idx, matrix_path, row_source, row_count, row_indices in jobs:
+        for idx, matrix_path, row_source, row_count, row_indices, matrix_metadata in jobs:
             try:
                 results[idx] = process_influence_matrix(
                     matrix_path,
@@ -889,6 +1032,7 @@ def process_influence_matrix_jobs(
                     row_indices=row_indices,
                     max_local_influence_points=max_local_influence_points,
                     row_chunk_size=row_chunk_size,
+                    matrix_metadata=matrix_metadata,
                 )
                 print(f"  built {matrix_path.name}")
             except Exception as exc:
@@ -910,8 +1054,9 @@ def process_influence_matrix_jobs(
                     row_indices,
                     max_local_influence_points,
                     row_chunk_size,
+                    matrix_metadata,
                 ): (idx, matrix_path)
-                for idx, matrix_path, row_source, row_count, row_indices in jobs
+                for idx, matrix_path, row_source, row_count, row_indices, matrix_metadata in jobs
             }
             for future in as_completed(futures):
                 idx, matrix_path = futures[future]
@@ -962,6 +1107,13 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     if not matrix_files:
         errors.append("No influence matrices found")
 
+    matrix_metadata: dict[Path, dict[str, Any]] = {}
+    for matrix_path in matrix_files:
+        try:
+            matrix_metadata[matrix_path] = load_matrix_metadata(matrix_path)
+        except Exception as exc:
+            errors.append(f"{matrix_path.name}: metadata load failed: {exc}")
+
     checkpoint_info: dict[str, Any] | None = None
     params: dict[str, Any] | None = None
     model = data = None
@@ -979,18 +1131,22 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     else:
         errors.append("Missing _full.pt checkpoint")
 
-    if train_points is None and matrix_files:
-        first_meta = load_matrix_metadata(matrix_files[0])
+    first_meta = next(
+        (matrix_metadata[path] for path in matrix_files if path in matrix_metadata), None
+    )
+
+    if train_points is None and first_meta is not None:
         train_points = np.zeros((first_meta["scores_shape"][1], 2), dtype=np.float64)
         errors.append("Train point coordinates unavailable; wrote placeholder points")
 
     if train_points is None:
         train_points = np.zeros((0, 2), dtype=np.float64)
 
-    first_meta = load_matrix_metadata(matrix_files[0]) if matrix_files else None
     candidate_meta = None
     for matrix_path in matrix_files:
-        meta = load_matrix_metadata(matrix_path)
+        meta = matrix_metadata.get(matrix_path)
+        if meta is None:
+            continue
         if not meta["self_influence"]:
             candidate_meta = meta
             break
@@ -1033,6 +1189,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                         data=data,
                         points=raster_grid.points,
                         float64=params["float64"],
+                        batch_size=args.field_batch_size,
                     )
                 else:
                     errors.append(
@@ -1111,10 +1268,10 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
             entry["display_domain"] = display_domain
         field_entries[name] = entry
 
-    matrix_jobs: list[tuple[int, Path, str, int, np.ndarray]] = []
+    matrix_jobs: list[tuple[int, Path, str, int, np.ndarray, dict[str, Any]]] = []
     for matrix_path in matrix_files:
         try:
-            meta = load_matrix_metadata(matrix_path)
+            meta = matrix_metadata[matrix_path]
             row_source = "train_points" if meta["self_influence"] else "candidate_points"
             row_indices = train_indices if meta["self_influence"] else candidate_indices
             row_points = train_points if meta["self_influence"] else candidate_points
@@ -1125,7 +1282,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                 row_points,
             )
             matrix_jobs.append(
-                (len(matrix_jobs), matrix_path, row_source, len(row_points), row_indices)
+                (len(matrix_jobs), matrix_path, row_source, len(row_points), row_indices, meta)
             )
         except Exception as exc:
             errors.append(f"{matrix_path.name}: {exc}")
@@ -1160,9 +1317,10 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "problem": run.problem,
+        "display_name": display_problem_name(run.problem),
+        "model_quality": run.model_quality,
         "folder": run.folder.name,
         "run_id": run.run_prefix,
-        "display_name": display_problem_name(run.problem),
         "status": status if not errors else ("partial" if complete else "incomplete"),
         "errors": errors,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -1196,9 +1354,10 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     write_json(out_dir / "manifest.json", manifest)
     return {
         "problem": run.problem,
+        "display_name": manifest["display_name"],
+        "model_quality": run.model_quality,
         "folder": run.folder.name,
         "run_id": run.run_prefix,
-        "display_name": manifest["display_name"],
         "status": manifest["status"],
         "manifest": slug_path(Path(run.folder.name) / run.run_prefix / "manifest.json"),
         "default_field": default_field,
@@ -1241,6 +1400,8 @@ def main() -> None:
         raise SystemExit("--workers must be >= 1")
     if args.raster_max_resolution < 1:
         raise SystemExit("--raster-max-resolution must be >= 1")
+    if args.field_batch_size < 1:
+        raise SystemExit("--field-batch-size must be >= 1")
     if args.n_candidate is not None and args.n_candidate < 1:
         raise SystemExit("--n-candidate must be >= 1")
     if args.n_train is not None and args.n_train < 1:
@@ -1252,29 +1413,40 @@ def main() -> None:
     runs = filter_runs(discover_runs(args.data_root), args)
     if not runs:
         raise SystemExit("No runs matched the requested filters")
+    try:
+        problem_runs = group_runs_by_problem(runs)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
     args.out_root.mkdir(parents=True, exist_ok=True)
     index_entries = []
-    for run in runs:
-        if args.skip_incomplete and (run.checkpoint is None or run.influence_dir is None):
-            continue
-        try:
-            index_entries.append(build_run(run, args))
-        except Exception as exc:
-            index_entries.append(
-                {
-                    "problem": run.problem,
-                    "folder": run.folder.name,
-                    "run_id": run.run_prefix,
-                    "display_name": display_problem_name(run.problem),
-                    "status": "failed",
-                    "manifest": None,
-                    "default_field": None,
-                    "default_matrix": None,
-                    "errors": [str(exc)],
-                }
-            )
-            print(f"FAILED {run.folder.name}/{run.run_prefix}: {exc}")
+    for _problem, variants in problem_runs:
+        for quality in MODEL_QUALITIES:
+            run = variants[quality]
+            if args.skip_incomplete and (run.checkpoint is None or run.influence_dir is None):
+                continue
+            try:
+                index_entries.append(build_run(run, args))
+            except Exception as exc:
+                index_entries.append(
+                    {
+                        "problem": run.problem,
+                        "display_name": display_problem_name(run.problem),
+                        "model_quality": run.model_quality,
+                        "folder": run.folder.name,
+                        "run_id": run.run_prefix,
+                        "status": "failed",
+                        "manifest": None,
+                        "default_field": None,
+                        "default_matrix": None,
+                        "errors": [str(exc)],
+                    }
+                )
+                print(f"FAILED {run.folder.name}/{run.run_prefix}: {exc}")
+    try:
+        problem_entries = build_problem_index_entries(index_entries)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
     index = {
         "schema_version": SCHEMA_VERSION,
@@ -1287,7 +1459,7 @@ def main() -> None:
         "row_chunk_size": args.row_chunk_size,
         "raster_max_resolution": args.raster_max_resolution,
         "bundle_report": "bundle_report.json",
-        "runs": index_entries,
+        "problems": problem_entries,
     }
     write_json(args.out_root / "index.json", index)
     report = build_bundle_report(args.out_root, bundle_budget_bytes)

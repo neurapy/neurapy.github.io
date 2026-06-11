@@ -23,11 +23,12 @@ export class DataRepository {
   constructor(
     private readonly manifestUrl: URL,
     private readonly manifest: RunManifest,
-    cacheBytes = 128 * 1024 * 1024,
+    cacheOrBytes: LruCache<TypedArray> | number = 128 * 1024 * 1024,
     loader = new PriorityLoader(),
   ) {
     this.loader = loader;
-    this.cache = new LruCache<TypedArray>(cacheBytes);
+    this.cache =
+      cacheOrBytes instanceof LruCache ? cacheOrBytes : new LruCache<TypedArray>(cacheOrBytes);
   }
 
   abortBackground(): void {

@@ -27,6 +27,14 @@ async function expectContourPaths(page: Page, panel: "model" | "train"): Promise
     .toBeGreaterThan(0);
 }
 
+async function axisFrameRatio(page: Page, selector: string): Promise<number> {
+  return page.locator(`${selector} .axis-frame`).evaluate((frame) => {
+    const width = Number(frame.getAttribute("width"));
+    const height = Number(frame.getAttribute("height"));
+    return width / height;
+  });
+}
+
 async function canvasSignature(page: Page, selector: string): Promise<number> {
   return page.locator(selector).evaluate((canvas) => {
     const element = canvas as HTMLCanvasElement;
@@ -123,6 +131,30 @@ async function clickMainPoint(page: Page): Promise<void> {
   await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.65);
 }
 
+async function clickMainPlotRatio(page: Page, xRatio: number, yRatio: number): Promise<void> {
+  const point = await page.locator("#mainCanvas").evaluate(
+    (canvas, ratios) => {
+      const element = canvas as HTMLCanvasElement;
+      const box = element.getBoundingClientRect();
+      const axisFrame = document.querySelector<SVGRectElement>("#mainSvg .axis-frame");
+      const frame = axisFrame
+        ? {
+            x: Number(axisFrame.getAttribute("x")),
+            y: Number(axisFrame.getAttribute("y")),
+            width: Number(axisFrame.getAttribute("width")),
+            height: Number(axisFrame.getAttribute("height")),
+          }
+        : { x: 0, y: 0, width: box.width, height: box.height };
+      return {
+        x: box.left + frame.x + frame.width * ratios.xRatio,
+        y: box.top + frame.y + frame.height * (1 - ratios.yRatio),
+      };
+    },
+    { xRatio, yRatio },
+  );
+  await page.mouse.click(point.x, point.y);
+}
+
 async function openControlsIfMenu(page: Page, panel: "model" | "train"): Promise<void> {
   const actions = page.locator(`.${panel}-actions`);
   const layout = await actions.getAttribute("data-control-layout");
@@ -152,6 +184,31 @@ async function expectVisibleControlsInsidePanels(page: Page): Promise<void> {
         .map((element) => `${panel.id || panel.className}:${element.id || element.className}`);
     }),
   );
+  expect(leaks).toEqual([]);
+}
+
+async function expectTopbarControlsFit(page: Page): Promise<void> {
+  const leaks = await page.locator(".topbar").evaluate((topbar) => {
+    const topbarRect = topbar.getBoundingClientRect();
+    const viewportRight = document.documentElement.clientWidth;
+    const elements = topbar.querySelectorAll<HTMLElement>(
+      ".topbar-controls, .topbar-control, select, .segmented, .icon-button",
+    );
+    return Array.from(elements)
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && rect.height > 0;
+      })
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return (
+          rect.left < topbarRect.left - 1 ||
+          rect.right > Math.min(topbarRect.right, viewportRight) + 1
+        );
+      })
+      .map((element) => element.id || element.className);
+  });
   expect(leaks).toEqual([]);
 }
 
@@ -220,25 +277,48 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await page.goto(FIXTURE_URL);
 
+  await expect(page.locator("#problemSelect option")).toHaveText([
+    "Fixture",
+    "Shifted Fixture",
+    "Drift Diffusion",
+  ]);
+  await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expectTopbarControlsFit(page);
   await expect(page.locator(".control-panel")).toHaveCount(0);
   await expect(page.locator(".control-group")).toHaveCount(0);
   await expect(page.locator(".plot-panel")).toHaveCount(2);
   await expect(page.locator("#globalPanel")).toHaveCount(0);
   await expect(page.locator("#mainTitle")).toHaveText("Model");
-  await expect(page.locator("#mainRange")).toHaveText(/Prediction output/);
+  await expect(page.locator("#mainRange")).toHaveText("");
   await expect(page.locator("#trainTitle")).toHaveText("Train");
   await expect(page.locator(".model-panel #fieldSelect")).toBeVisible();
   await expect(page.locator(".model-panel #fieldKindButtons")).toHaveCount(0);
   await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator(".train-panel #matrixSelect")).toHaveCount(1);
+  await expect(page.locator(".train-panel #matrixSelect option")).toHaveText(["loss -> loss"]);
   await expect(page.locator(".train-panel #signButtons")).toHaveCount(1);
   await expect(page.locator(".train-panel #kSlider")).toHaveCount(1);
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  const goodMainSignature = await canvasSignature(page, "#mainCanvas");
+  await page.locator("button[data-model-quality='bad']").click();
+  await expect(page.locator("button[data-model-quality='bad']")).toHaveClass(/active/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expect.poll(() => canvasSignature(page, "#mainCanvas")).not.toBe(goodMainSignature);
+  await expectTopbarControlsFit(page);
   await expectContourPaths(page, "model");
   await expectContourPaths(page, "train");
+  await expect(page.locator(".model-panel .axis-label-x")).toHaveText("x");
+  await expect(page.locator(".model-panel .axis-label-y")).toHaveText("y");
+  await expect(page.locator(".train-panel .axis-label-x")).toHaveText("x");
+  await expect(page.locator(".train-panel .axis-label-y")).toHaveText("y");
+  await expect(page.locator(".model-panel .colorbar-frame")).toHaveCount(1);
+  await expect(page.locator(".train-panel .colorbar-frame")).toHaveCount(1);
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toHaveCount(0);
   await expect(page.locator("#methodControl")).toHaveCount(0);
@@ -254,7 +334,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#kSlider")).toHaveAttribute("min", "0");
   await expect(page.locator("#kSlider")).toHaveAttribute("max", "256");
   await expect(page.locator("#kOutput")).toHaveText("25");
-  await expect(page.locator("#trainRange")).toHaveText(/Local · Points · all exported influences \(\d+\)/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local · Points( · max \|I\| .*)?/);
+  await expect(page.locator("#trainRange")).not.toHaveText(/all exported influences/);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   const backgroundSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
@@ -266,8 +347,9 @@ test("desktop renders two plots and continues background prefetching", async ({ 
     await expect(page.locator(`button[data-background-mode='${mode}']`)).toHaveClass(/active/);
     await expect(page.locator("#kControl")).toBeVisible();
     await expect(page.locator("#trainRange")).toHaveText(
-      new RegExp(`Local · ${label} · all exported influences \\(\\d+\\)`),
+      new RegExp(`Local · ${label}( · max \\|I\\| .*)?`),
     );
+    await expect(page.locator("#trainRange")).not.toHaveText(/all exported influences/);
     await expectNonblankCanvas(page, "#trainCanvas");
     await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(backgroundSignatures.at(-1));
     backgroundSignatures.push(await canvasSignature(page, "#trainCanvas"));
@@ -309,7 +391,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await openControlsIfMenu(page, "model");
   await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#mainTitle")).toHaveText("Model");
-  await expect(page.locator("#mainRange")).toHaveText(/Total loss/);
+  await expect(page.locator("#mainRange")).toHaveText("");
 
   await openControlsIfMenu(page, "train");
   await page.locator("button[data-sign='pos']").click();
@@ -337,10 +419,89 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
+test("switching models and problems preserves comparison state", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only state persistence assertions");
+  await page.goto(FIXTURE_URL);
+
+  await openControlsIfMenu(page, "model");
+  await page.locator("#fieldSelect").selectOption("loss_total");
+  await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
+  await expect(page.locator("#mainRange")).toHaveText("");
+
+  await openControlsIfMenu(page, "train");
+  await page.locator("button[data-background-mode='cell']").click();
+  await page.locator("button[data-sign='neg']").click();
+  await page.locator("#kSlider").fill("7");
+  await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
+  await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
+  await expect(page.locator("#kOutput")).toHaveText("7");
+
+  await clickMainPlotRatio(page, 0.22, 0.78);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.125, 0.875\)/);
+  const selectedBeforeModelSwitch = await page.locator("#selectedPoint").textContent();
+
+  await page.locator("button[data-model-quality='bad']").click();
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
+  await expect(page.locator("#mainRange")).toHaveText("");
+  await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
+  await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
+  await expect(page.locator("#kOutput")).toHaveText("7");
+  await expect(page.locator("#selectedPoint")).toHaveText(selectedBeforeModelSwitch ?? "");
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+
+  await page.locator("#problemSelect").selectOption("shifted_fixture");
+  await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#fieldSelect")).toHaveValue("loss_residual");
+  await expect(page.locator("#matrixSelect")).toHaveValue("m_shifted");
+  await expect(page.locator("#mainRange")).toHaveText("");
+  await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
+  await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
+  await expect(page.locator("#kOutput")).toHaveText("7");
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(11.25, 3.75\)/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+});
+
+test("drift diffusion uses a compressed physical pi axis", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only visual axis assertions");
+  await page.goto(FIXTURE_URL);
+
+  await page.locator("#problemSelect").selectOption("drift_diffusion");
+  await expect(page.locator("#runMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+
+  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeGreaterThan(1.9);
+  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeLessThan(2.1);
+  await expect(page.locator(".model-panel .axis-label-x")).toHaveText("x");
+  await expect(page.locator(".model-panel .axis-label-y")).toHaveText("t");
+  await expect(page.locator(".train-panel .axis-label-y")).toHaveText("t");
+  await expect(page.locator(".model-panel .colorbar-frame")).toHaveCount(1);
+  await expect(page.locator(".train-panel .colorbar-frame")).toHaveCount(1);
+
+  const xTickLabels = await page.locator("#mainSvg .axis-x .tick text").allTextContents();
+  expect(xTickLabels).toContain("0");
+  expect(xTickLabels).toContain("π");
+  expect(xTickLabels).toContain("2π");
+
+  await clickMainPlotRatio(page, 0.96, 0.52);
+  const selected = (await page.locator("#selectedPoint").textContent()) ?? "";
+  expect(selected).toMatch(/\((5|6)/);
+});
+
 test("mobile keeps Model and Train visible in the first viewport", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "mobile-only viewport assertions");
   await page.goto(FIXTURE_URL);
 
+  await expect(page.locator("#problemSelect option")).toHaveText([
+    "Fixture",
+    "Shifted Fixture",
+    "Drift Diffusion",
+  ]);
+  await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
+  await expectTopbarControlsFit(page);
   await expect(page.locator(".control-panel")).toHaveCount(0);
   await expect(page.locator(".control-group")).toHaveCount(0);
   await expect(page.locator(".plot-panel")).toHaveCount(2);
@@ -363,6 +524,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   }
   await expectNonblankCanvas(page, "#trainCanvas");
   await expectVisibleControlsInsidePanels(page);
+  await expectTopbarControlsFit(page);
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -387,6 +549,7 @@ test("settings use wrapped in-panel bars when there is tile space", async ({ pag
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(FIXTURE_URL);
 
+  await expectTopbarControlsFit(page);
   await expect(page.locator(".model-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
   await expect(page.locator(".train-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
   await expectVisibleControlsInsidePanels(page);
@@ -394,6 +557,7 @@ test("settings use wrapped in-panel bars when there is tile space", async ({ pag
   await page.setViewportSize({ width: 390, height: 900 });
   await openControlsIfMenu(page, "model");
   await openControlsIfMenu(page, "train");
+  await expectTopbarControlsFit(page);
   await expectVisibleControlsInsidePanels(page);
 });
 

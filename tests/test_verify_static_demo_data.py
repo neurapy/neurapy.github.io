@@ -51,7 +51,12 @@ def lean_manifest(base: Path) -> dict[str, Any]:
         "uint16",
     )
     return {
-        "schema_version": 6,
+        "schema_version": 7,
+        "problem": "fixture",
+        "display_name": "Fixture",
+        "model_quality": "good",
+        "folder": "fixture_float64_good",
+        "run_id": "fixture_run_good",
         "n_candidate": 1,
         "n_train": 1,
         "arrays": {
@@ -88,9 +93,9 @@ def test_verify_accepts_raster_only_fields(tmp_path: Path) -> None:
     verify_static.verify_topk(manifest_path, samples=1)
 
 
-def test_verify_rejects_schema_v5_manifest(tmp_path: Path) -> None:
+def test_verify_rejects_schema_v6_manifest(tmp_path: Path) -> None:
     manifest = lean_manifest(tmp_path)
-    manifest["schema_version"] = 5
+    manifest["schema_version"] = 6
     manifest_path = write_manifest(tmp_path, manifest)
 
     with pytest.raises(AssertionError, match="schema_version"):
@@ -218,7 +223,10 @@ def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) ->
     candidate_points = source_candidates[candidate_indices].astype(np.float32)
     train_points = np.column_stack([np.arange(6), np.arange(6) + 1.0])[train_indices]
     manifest = {
-        "schema_version": 6,
+        "schema_version": 7,
+        "problem": "fixture",
+        "display_name": "Fixture",
+        "model_quality": "good",
         "folder": "folder",
         "run_id": "run",
         "n_candidate": 3,

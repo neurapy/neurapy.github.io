@@ -43,12 +43,16 @@ button {
 }
 
 .app-shell {
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden;
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .topbar {
+  width: 100vw;
   min-height: 68px;
   display: flex;
   align-items: center;
@@ -61,6 +65,10 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.topbar > div:first-child {
+  min-width: 0;
 }
 
 h1,
@@ -88,9 +96,28 @@ h2 {
 }
 
 .topbar-controls {
+  min-width: 0;
   display: flex;
   align-items: end;
   gap: 10px;
+}
+
+.topbar-control {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.problem-control {
+  flex: 1 1 230px;
+  width: clamp(180px, 28vw, 320px);
+}
+
+.quality-control {
+  flex: 0 0 128px;
 }
 
 label {
@@ -157,6 +184,7 @@ select {
 }
 
 .workspace {
+  min-width: 0;
   min-height: 0;
   display: block;
   padding: 14px 20px 18px;
@@ -182,12 +210,18 @@ select {
 
 .segmented button {
   min-width: 0;
+  min-height: 26px;
+  padding: 0 9px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
   font-weight: 720;
+}
+
+.quality-switch {
+  width: 128px;
 }
 
 .segmented button.active {
@@ -197,6 +231,8 @@ select {
 }
 
 .plot-grid {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -549,10 +585,38 @@ canvas {
   font-size: 10px;
 }
 
+.axis-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .axis-frame {
   fill: none;
   stroke: var(--axis);
   stroke-width: var(--plot-axis-stroke-width, 1px);
+}
+
+.colorbar-track {
+  stroke: none;
+}
+
+.colorbar-frame {
+  fill: none;
+  stroke: rgba(100, 114, 130, 0.72);
+  stroke-width: var(--plot-axis-stroke-width, 1px);
+}
+
+.colorbar-ticks line {
+  stroke: var(--axis);
+  stroke-width: var(--plot-axis-stroke-width, 1px);
+  shape-rendering: crispEdges;
+}
+
+.colorbar-ticks text {
+  fill: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
 }
 
 .contours path {
@@ -634,10 +698,21 @@ input[type="range"] {
 
   .topbar-controls {
     width: 100%;
+    align-items: stretch;
+    flex-wrap: wrap;
   }
 
-  .topbar-controls label {
-    flex: 1;
+  .problem-control {
+    flex: 1 1 180px;
+    width: auto;
+  }
+
+  .quality-control {
+    flex: 0 1 128px;
+  }
+
+  .topbar-controls .icon-button {
+    flex: 0 0 auto;
   }
 
   .message {

@@ -11,6 +11,7 @@ export type FieldKind = "prediction" | "loss";
 export type InfluenceSign = "abs" | "pos" | "neg";
 export type BackgroundMode = "points" | "linear" | "cell";
 export type SelectionMode = "point" | "region";
+export type ModelQuality = "good" | "bad";
 
 export interface ArraySpec {
   path: string;
@@ -102,11 +103,12 @@ export interface InfluenceMatrixManifest {
 }
 
 export interface RunManifest {
-  schema_version: 6;
+  schema_version: 7;
   problem: string;
+  display_name: string;
+  model_quality: ModelQuality;
   folder: string;
   run_id: string;
-  display_name: string;
   status: "complete" | "partial" | "incomplete" | "failed";
   errors: string[];
   generated_at: string;
@@ -139,10 +141,12 @@ export interface RunManifest {
   validation?: Record<string, unknown>;
 }
 
-export interface IndexRunEntry {
+export interface IndexVariantEntry {
   run_id: string;
   display_name: string;
   problem: string;
+  model_quality: ModelQuality;
+  folder: string;
   n_candidate: number;
   n_train: number;
   source_n_candidate?: number;
@@ -156,8 +160,14 @@ export interface IndexRunEntry {
   errors?: string[];
 }
 
+export interface IndexProblemEntry {
+  problem: string;
+  display_name: string;
+  variants: Record<ModelQuality, IndexVariantEntry>;
+}
+
 export interface DataIndex {
-  schema_version: 6;
+  schema_version: 7;
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points?: number;
@@ -166,7 +176,7 @@ export interface DataIndex {
   point_selection?: "deterministic_spread";
   row_chunk_size?: number;
   bundle_report?: string;
-  runs: IndexRunEntry[];
+  problems: IndexProblemEntry[];
 }
 
 export interface PointArrays {

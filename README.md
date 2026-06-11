@@ -70,12 +70,14 @@ gh api --method POST repos/OWNER/REPO/pages -f build_type=workflow # If Pages ar
 If you have `raw_data/` but `webdemo/public/data` is missing: 
 
 ```bash
+rm -rf webdemo/public/data
 uv run python src/build_static_demo_data.py \
 --matrix-mode core \
 --max_local_influence_points 1000 \
 --n-candidate 1000 \
 --n-train 1000 \
 --raster-max-resolution 1024 \
+--field-batch-size 8192 \
 --overwrite \
 --workers 8 \
 
@@ -85,13 +87,17 @@ uv run python src/build_static_demo_data.py \
 # max_local_influence_points is  max number of influence point per candidate_point
 # n-candidate / n-train control how many existing raw points are exported
 # raster-max-resolution is resolution of precomputed prediction / loss graphs on the longest axis
+# field-batch-size controls prediction / loss raster inference batches; lower it if CPU RAM is tight
+# static demo data uses schema v7: every problem must have exactly one *_good
+# and one *_bad raw-data folder, for example burgers_float64_good and
+# burgers_float64_bad. Legacy unsuffixed folders are ignored.
 
 make verify-data # Verification step
 ```
 
 ## No Raw Data?
 
-Expected in `($"PROJECT_ROOT")/raw_data/` are your folders like `allen_cahn_float64`, which have to contain:
+Expected in `($"PROJECT_ROOT")/raw_data/` are paired folders like `allen_cahn_float64_good` and `allen_cahn_float64_bad`, which have to contain:
 ```path
 ..._influence_scores/
 ..._validation/

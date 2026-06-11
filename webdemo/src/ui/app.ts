@@ -3,18 +3,37 @@ import type {
   BackgroundMode,
   Bounds,
   DataIndex,
-  IndexRunEntry,
+  IndexVariantEntry,
   InfluenceAggregate,
   InfluenceMatrixManifest,
   InfluenceRow,
+  ModelQuality,
   PointArrays,
   RasterData,
   RunManifest,
+  TypedArray,
 } from "../types";
 import { DataRepository } from "../data/arrays";
-import { loadIndex, loadRunManifest, resolveIndexUrl } from "../data/manifest";
+import { LruCache } from "../data/cache";
+import {
+  firstAvailableProblem,
+  formatProblemLabel,
+  loadIndex,
+  loadRunManifest,
+  qualityLabel,
+  resolveIndexUrl,
+  resolveProblemVariant,
+} from "../data/manifest";
 import { RunPrefetcher, type PrefetchContext } from "../data/prefetcher";
 import { MAX_TOP_K, Store } from "../state/store";
+import {
+  captureVariantState as captureRestorableVariantState,
+  denormalizeSelection,
+  orderedFieldEntries,
+  resolveRestoredFieldId,
+  resolveRestoredMatrixId,
+  type VariantStateSnapshot,
+} from "../state/variantRestore";
 import type { RasterWorkerRequest, RasterWorkerResponse } from "../worker/rasterWorker";
 import {
   boundsFromAxisMap,
@@ -23,12 +42,12 @@ import {
   domainAspectRatio,
   inferPointBounds,
   pointAt,
-  regionBoundsFromViewportDrag,
   selectPointIndicesInBounds,
 } from "../viz/geometry";
 import { chooseAdaptivePlotLayout } from "../viz/layout";
 import {
   buildDelaunay,
+  PLOT_DECORATION_INSETS,
   pointerInDomain,
   rasterSampleAtCoord,
   renderLocalInfluencePlot,
@@ -37,7 +56,19 @@ import {
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
-import { formatDisplayLabel, formatNumber, getDomRefs, showMessage, type DomRefs } from "./dom";
+import {
+  plotProjectionForManifest,
+  projectPointToDisplay,
+  regionBoundsFromProjectedViewportDrag,
+} from "../viz/projection";
+import {
+  formatDisplayLabel,
+  formatInfluenceMatrixLabel,
+  formatNumber,
+  getDomRefs,
+  showMessage,
+  type DomRefs,
+} from "./dom";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
 const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
@@ -66,6 +97,7 @@ export class AppController {
   private readonly worker = new Worker(new URL("../worker/rasterWorker.ts", import.meta.url), {
     type: "module",
   });
+  private readonly arrayCache = new LruCache<TypedArray>();
   private index: DataIndex | null = null;
   private manifest: RunManifest | null = null;
   private manifestUrl: URL | null = null;
@@ -96,12 +128,15 @@ export class AppController {
     this.dom.runMeta.textContent = "Loading data index";
     try {
       this.index = await loadIndex(this.indexUrl);
-      this.populateRunSelect();
-      const firstRun = this.index.runs.find((run) => run.manifest);
-      if (!firstRun?.manifest) {
-        throw new Error("No complete v6 run manifest is available");
+      this.populateProblemSelect();
+      const firstProblem = firstAvailableProblem(this.index);
+      if (!firstProblem) {
+        throw new Error("No complete v7 problem manifest is available");
       }
-      await this.loadRun(firstRun);
+      this.store.dispatch({ type: "problem", problem: firstProblem.problem });
+      this.dom.problemSelect.value = firstProblem.problem;
+      this.setActiveButtons(this.dom.qualityButtons, this.store.state.modelQuality, "modelQuality");
+      await this.loadActiveVariant();
     } catch (error) {
       showMessage(this.dom.message, error instanceof Error ? error.message : String(error));
       this.dom.runMeta.textContent = "Data unavailable";
@@ -109,9 +144,17 @@ export class AppController {
   }
 
   private bindEvents(): void {
-    this.dom.runSelect.addEventListener("change", () => {
-      const run = this.index?.runs.find((entry) => entry.run_id === this.dom.runSelect.value);
-      if (run) void this.loadRun(run);
+    this.dom.problemSelect.addEventListener("change", () => {
+      this.store.dispatch({ type: "problem", problem: this.dom.problemSelect.value });
+      void this.loadActiveVariant();
+    });
+    this.dom.qualityButtons.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-model-quality]");
+      if (!button) return;
+      const quality: ModelQuality = button.dataset.modelQuality === "bad" ? "bad" : "good";
+      this.store.dispatch({ type: "modelQuality", modelQuality: quality });
+      this.setActiveButtons(this.dom.qualityButtons, quality, "modelQuality");
+      void this.loadActiveVariant();
     });
     this.dom.fieldSelect.addEventListener("change", () => {
       const fieldId = this.dom.fieldSelect.value;
@@ -356,17 +399,29 @@ export class AppController {
     bindQuery();
   }
 
-  private populateRunSelect(): void {
+  private populateProblemSelect(): void {
     if (!this.index) return;
-    this.dom.runSelect.replaceChildren(
-      ...this.index.runs
-        .filter((run) => run.manifest)
-        .map((run) => new Option(`${run.display_name} (${run.problem})`, run.run_id)),
+    this.dom.problemSelect.replaceChildren(
+      ...this.index.problems.map(
+        (problem) => new Option(formatProblemLabel(problem.display_name || problem.problem), problem.problem),
+      ),
     );
   }
 
-  private async loadRun(run: IndexRunEntry): Promise<void> {
-    if (!run.manifest) return;
+  private async loadActiveVariant(): Promise<void> {
+    if (!this.index) return;
+    const problemId = this.store.state.problem ?? this.dom.problemSelect.value;
+    const variant = resolveProblemVariant(this.index, problemId, this.store.state.modelQuality);
+    if (!variant?.manifest) {
+      const label = formatProblemLabel(problemId ?? "selected problem");
+      throw new Error(`${label} has no ${qualityLabel(this.store.state.modelQuality)} manifest`);
+    }
+    await this.loadVariant(variant);
+  }
+
+  private async loadVariant(variant: IndexVariantEntry): Promise<void> {
+    if (!variant.manifest) return;
+    const snapshot = this.captureVariantStateSnapshot();
     this.prefetcher?.stop();
     this.prefetcher = null;
     this.repo?.abortBackground();
@@ -380,28 +435,32 @@ export class AppController {
     this.lastTouchTap = null;
     this.latestAggregateRequest += 1;
     showMessage(this.dom.message, null);
-    this.dom.runMeta.textContent = `Loading ${run.display_name}`;
-    this.store.dispatch({ type: "run", runId: run.run_id });
-    this.dom.runSelect.value = run.run_id;
-    this.manifestUrl = new URL(run.manifest, this.indexUrl);
-    this.manifest = await loadRunManifest(this.indexUrl, run.manifest);
-    this.repo = new DataRepository(this.manifestUrl, this.manifest);
+    this.dom.runMeta.textContent = `Loading ${variant.display_name} · ${qualityLabel(variant.model_quality)}`;
+    this.dom.problemSelect.value = variant.problem;
+    this.setActiveButtons(this.dom.qualityButtons, variant.model_quality, "modelQuality");
+    this.manifestUrl = new URL(variant.manifest, this.indexUrl);
+    this.manifest = await loadRunManifest(this.indexUrl, variant.manifest);
+    this.repo = new DataRepository(this.manifestUrl, this.manifest, this.arrayCache);
     this.points = await this.repo.loadPointArrays();
+    const context = this.context();
+    const projection = context ? this.mainProjection(context) : undefined;
     this.candidateDelaunay = buildDelaunay(
       this.points.candidate_points,
       this.manifest.arrays.candidate_points.shape[1] ?? 2,
+      projection,
     );
     this.trainDelaunay = buildDelaunay(
       this.points.train_points,
       this.manifest.arrays.train_points.shape[1] ?? 2,
+      projection,
     );
-    this.populateControls();
-    this.pickDefaultSelection();
+    this.populateControls(snapshot);
+    this.restoreSelection(snapshot);
     await Promise.all([
       this.loadRaster(this.store.state.fieldId),
       this.loadInfluenceForSelection(),
     ]);
-    this.dom.runMeta.textContent = `${this.manifest.display_name} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+    this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
     this.refreshResponsiveLayout();
     this.schedule("main");
     this.schedule("train");
@@ -410,35 +469,28 @@ export class AppController {
     this.startBackgroundPrefetch();
   }
 
-  private populateControls(): void {
+  private captureVariantStateSnapshot(): VariantStateSnapshot | null {
+    const context = this.context();
+    const mainBounds = context ? this.mainPlotBounds(context) : null;
+    return captureRestorableVariantState(this.store.state, this.manifest, mainBounds);
+  }
+
+  private populateControls(snapshot: VariantStateSnapshot | null): void {
     if (!this.manifest) return;
-    const firstField =
-      this.manifest.default_field ??
-      Object.entries(this.manifest.fields).find(([, field]) => field.kind === "prediction")?.[0] ??
-      Object.keys(this.manifest.fields)[0] ??
-      null;
-    this.populateFieldSelect();
-    if (firstField) {
-      const hasDefault = Array.from(this.dom.fieldSelect.options).some((option) => option.value === firstField);
-      if (hasDefault) this.dom.fieldSelect.value = firstField;
-      this.store.dispatch({ type: "field", fieldId: this.dom.fieldSelect.value });
-    }
+    const fieldId = this.populateFieldSelect(resolveRestoredFieldId(this.manifest, snapshot));
+    this.store.dispatch({ type: "field", fieldId });
 
     const matrices = this.manifest.influence_matrices;
     this.dom.matrixSelect.replaceChildren(
       ...matrices.map(
-        (matrix) => new Option(formatDisplayLabel(matrix.display_label || matrix.label), matrix.id),
+        (matrix) => new Option(formatInfluenceMatrixLabel(matrix), matrix.id),
       ),
     );
-    const matrixId =
-      this.manifest.default_matrix ??
-      matrices.find((matrix) => matrix.id === DEFAULT_MATRIX_ID)?.id ??
-      matrices[0]?.id ??
-      null;
+    const matrixId = resolveRestoredMatrixId(this.manifest, snapshot, DEFAULT_MATRIX_ID);
     if (matrixId) {
       this.dom.matrixSelect.value = matrixId;
-      this.store.dispatch({ type: "matrix", matrixId });
     }
+    this.store.dispatch({ type: "matrix", matrixId });
 
     this.dom.kSlider.min = "0";
     this.dom.kSlider.max = String(MAX_TOP_K);
@@ -450,21 +502,15 @@ export class AppController {
     this.updateTrainControlVisibility();
   }
 
-  private populateFieldSelect(): void {
-    if (!this.manifest) return;
-    const entries = Object.entries(this.manifest.fields);
-    const orderedEntries = [
-      ...entries.filter(([, field]) => field.kind === "prediction"),
-      ...entries.filter(([id]) => id === "loss_total"),
-      ...entries.filter(([id, field]) => field.kind !== "prediction" && id !== "loss_total"),
-    ];
+  private populateFieldSelect(selectedFieldId: string | null): string | null {
+    if (!this.manifest) return null;
+    const orderedEntries = orderedFieldEntries(this.manifest);
     const options = orderedEntries.map(([id, field]) => new Option(formatDisplayLabel(field.label), id));
     this.dom.fieldSelect.replaceChildren(...options);
-    const selected = this.store.state.fieldId;
-    if (selected && options.some((option) => option.value === selected)) {
-      this.dom.fieldSelect.value = selected;
+    if (selectedFieldId && options.some((option) => option.value === selectedFieldId)) {
+      this.dom.fieldSelect.value = selectedFieldId;
     }
-    this.store.dispatch({ type: "field", fieldId: this.dom.fieldSelect.value });
+    return this.dom.fieldSelect.value || null;
   }
 
   private setActiveButtons(group: HTMLElement, value: string, datasetName: string): void {
@@ -475,11 +521,43 @@ export class AppController {
 
   private pickDefaultSelection(): void {
     if (!this.manifest || !this.points) return;
+    const context = this.context();
+    if (!context) return;
     const candidateDim = this.manifest.arrays.candidate_points.shape[1] ?? 2;
     const trainDim = this.manifest.arrays.train_points.shape[1] ?? 2;
     const candidateIndex = clampIndex(0, this.manifest.n_candidate);
     const coord = pointAt(this.points.candidate_points, candidateIndex, candidateDim);
-    const trainIndex = this.trainDelaunay?.find(coord[0], coord[1]) ?? clampIndex(0, this.manifest.n_train);
+    const displayCoord = this.projectedMainPoint(coord, context);
+    const trainIndex =
+      this.trainDelaunay?.find(displayCoord[0], displayCoord[1]) ??
+      clampIndex(0, this.manifest.n_train);
+    this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
+  }
+
+  private restoreSelection(snapshot: VariantStateSnapshot | null): void {
+    if (!this.manifest || !this.points) return;
+    const context = this.context();
+    if (!context) return;
+    const selection = denormalizeSelection(snapshot?.selection ?? null, this.mainPlotBounds(context));
+    if (!selection) {
+      this.pickDefaultSelection();
+      return;
+    }
+    if (selection.mode === "region") {
+      this.store.dispatch({ type: "regionSelection", region: selection.region, candidateIndices: [] });
+      const matrix = this.selectedMatrix();
+      if (matrix) this.refreshRegionRowSelection(matrix);
+      return;
+    }
+
+    const coord = selection.coord;
+    const displayCoord = this.projectedMainPoint(coord, context);
+    const candidateIndex =
+      this.candidateDelaunay?.find(displayCoord[0], displayCoord[1]) ??
+      clampIndex(this.store.state.selectedCandidateIndex, this.manifest.n_candidate);
+    const trainIndex =
+      this.trainDelaunay?.find(displayCoord[0], displayCoord[1]) ??
+      clampIndex(this.store.state.selectedTrainIndex, this.manifest.n_train);
     this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
   }
 
@@ -499,11 +577,7 @@ export class AppController {
     this.raster = await this.repo.loadRaster(fieldId, "foreground");
     await this.renderRasterWithWorker();
     this.dom.mainTitle.textContent = "Model";
-    const label = formatDisplayLabel(this.manifest.fields[fieldId]?.label ?? "Field");
-    const domain = this.manifest.fields[fieldId]?.display_domain;
-    this.dom.mainRange.textContent = domain
-      ? `${label} · ${formatNumber(domain[0])} … ${formatNumber(domain[1])}`
-      : label;
+    this.dom.mainRange.textContent = "";
     if (this.refreshResponsiveLayout()) this.schedule("train");
     this.schedule("main");
     this.updateStats();
@@ -644,6 +718,18 @@ export class AppController {
     };
   }
 
+  private mainProjection(context: PlotContext) {
+    return plotProjectionForManifest(context.manifest, this.mainPlotBounds(context));
+  }
+
+  private trainProjection(context: PlotContext) {
+    return plotProjectionForManifest(context.manifest, context.bounds);
+  }
+
+  private projectedMainPoint(coord: [number, number], context: PlotContext): [number, number] {
+    return projectPointToDisplay(coord, this.mainProjection(context));
+  }
+
   private applyAdaptiveLayout(): boolean {
     const context = this.context();
     if (!context) return false;
@@ -661,8 +747,9 @@ export class AppController {
       height: rect.height,
       gap,
       headerHeight,
-      modelAspect: domainAspectRatio(this.mainPlotBounds(context)),
-      trainAspect: domainAspectRatio(context.bounds),
+      modelAspect: domainAspectRatio(this.mainProjection(context).displayBounds),
+      trainAspect: domainAspectRatio(this.trainProjection(context).displayBounds),
+      padding: PLOT_DECORATION_INSETS,
     });
     const modelTrack = `${Math.max(1, Math.round(layout.modelTrackPx))}px`;
     const trainTrack = `${Math.max(1, Math.round(layout.trainTrackPx))}px`;
@@ -725,9 +812,8 @@ export class AppController {
         k: this.store.state.k,
         backgroundMode,
       });
-      const influenceSuffix = ` · all exported influences (${stats.renderedCount.toLocaleString()})`;
       this.dom.trainRange.textContent = this.store.state.selectedRegion
-        ? `Local region · ${backgroundLabel} · sum over ${selectedCount.toLocaleString()} candidates${influenceSuffix}${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
+        ? `Local region · ${backgroundLabel} · sum over ${selectedCount.toLocaleString()} candidates${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
         : "";
       return;
     }
@@ -745,10 +831,9 @@ export class AppController {
       sign: this.store.state.sign,
       backgroundMode,
     });
-    const influenceSuffix = ` · all exported influences (${stats.renderedCount.toLocaleString()})`;
     this.dom.trainRange.textContent = stats.maxAbs
-      ? `Local · ${backgroundLabel}${influenceSuffix} · max |I| ${formatNumber(stats.maxAbs)}`
-      : `Local · ${backgroundLabel}${influenceSuffix}`;
+      ? `Local · ${backgroundLabel} · max |I| ${formatNumber(stats.maxAbs)}`
+      : `Local · ${backgroundLabel}`;
   }
 
   private handleMainPointerDown(event: PointerEvent): void {
@@ -823,10 +908,10 @@ export class AppController {
       return;
     }
     if (distance >= DRAG_THRESHOLD_PX && context && this.mainViewport) {
-      const region = regionBoundsFromViewportDrag(
+      const region = regionBoundsFromProjectedViewportDrag(
         gesture.start,
         end,
-        this.mainPlotBounds(context),
+        this.mainProjection(context),
         this.mainViewport,
       );
       this.finalizeRegionSelection(region);
@@ -859,10 +944,10 @@ export class AppController {
 
   private updateDraftRegion(context: PlotContext): void {
     if (!this.modelGesture || !this.mainViewport) return;
-    this.draftRegion = regionBoundsFromViewportDrag(
+    this.draftRegion = regionBoundsFromProjectedViewportDrag(
       this.modelGesture.start,
       this.modelGesture.current,
-      this.mainPlotBounds(context),
+      this.mainProjection(context),
       this.mainViewport,
     );
     this.schedule("main");
@@ -906,18 +991,20 @@ export class AppController {
   private selectPointFromPointer(event: PointerEvent): void {
     const context = this.context();
     if (!context || !this.mainViewport) return;
-    const bounds = this.mainPlotBounds(context);
-    const domain = pointerInDomain(event, this.dom.mainCanvas, bounds, this.mainViewport);
+    const projection = this.mainProjection(context);
+    const domain = pointerInDomain(event, this.dom.mainCanvas, projection, this.mainViewport);
     if (!domain) return;
+    const displayDomain = projectPointToDisplay(domain, projection);
     const matrix = this.selectedMatrix();
     const candidateIndex =
       matrix?.row_source === "train_points"
         ? this.store.state.selectedCandidateIndex
-        : (this.candidateDelaunay?.find(domain[0], domain[1]) ?? 0);
+        : (this.candidateDelaunay?.find(displayDomain[0], displayDomain[1]) ?? 0);
     const trainIndex =
       matrix?.row_source === "train_points"
-        ? (this.trainDelaunay?.find(domain[0], domain[1]) ?? 0)
-        : (this.trainDelaunay?.find(domain[0], domain[1]) ?? this.store.state.selectedTrainIndex);
+        ? (this.trainDelaunay?.find(displayDomain[0], displayDomain[1]) ?? 0)
+        : (this.trainDelaunay?.find(displayDomain[0], displayDomain[1]) ??
+          this.store.state.selectedTrainIndex);
     const coord =
       matrix?.row_source === "train_points"
         ? pointAt(context.points.train_points, trainIndex, context.trainDim)

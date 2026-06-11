@@ -1,9 +1,10 @@
-import type { BackgroundMode, Bounds, InfluenceSign, SelectionMode } from "../types";
+import type { BackgroundMode, Bounds, InfluenceSign, ModelQuality, SelectionMode } from "../types";
 
 export const MAX_TOP_K = 256;
 
 export interface AppState {
-  runId: string | null;
+  problem: string | null;
+  modelQuality: ModelQuality;
   fieldId: string | null;
   matrixId: string | null;
   sign: InfluenceSign;
@@ -18,9 +19,10 @@ export interface AppState {
 }
 
 export type AppAction =
-  | { type: "run"; runId: string }
-  | { type: "field"; fieldId: string }
-  | { type: "matrix"; matrixId: string }
+  | { type: "problem"; problem: string }
+  | { type: "modelQuality"; modelQuality: ModelQuality }
+  | { type: "field"; fieldId: string | null }
+  | { type: "matrix"; matrixId: string | null }
   | { type: "sign"; sign: InfluenceSign }
   | { type: "k"; k: number }
   | { type: "selectionMode"; selectionMode: SelectionMode }
@@ -39,7 +41,8 @@ export type AppAction =
   | { type: "resetSelection" };
 
 export const initialState: AppState = {
-  runId: null,
+  problem: null,
+  modelQuality: "good",
   fieldId: null,
   matrixId: null,
   sign: "abs",
@@ -55,16 +58,10 @@ export const initialState: AppState = {
 
 export function reduceState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "run":
-      return {
-        ...state,
-        runId: action.runId,
-        selectionMode: "point",
-        selectedCandidateIndex: 0,
-        selectedTrainIndex: 0,
-        selectedRegion: null,
-        selectedRegionCandidateIndices: [],
-      };
+    case "problem":
+      return { ...state, problem: action.problem };
+    case "modelQuality":
+      return { ...state, modelQuality: action.modelQuality };
     case "field":
       return { ...state, fieldId: action.fieldId };
     case "matrix":

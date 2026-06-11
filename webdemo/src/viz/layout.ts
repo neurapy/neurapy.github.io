@@ -1,4 +1,4 @@
-import { DEFAULT_PLOT_PADDING, plotViewport } from "./geometry";
+import { DEFAULT_PLOT_PADDING, plotViewport, type PlotPadding } from "./geometry";
 
 export type PlotLayoutOrientation = "row" | "column";
 
@@ -9,7 +9,7 @@ export interface AdaptivePlotLayoutInput {
   headerHeight: number;
   modelAspect: number;
   trainAspect: number;
-  padding?: number;
+  padding?: PlotPadding;
 }
 
 export interface AdaptivePlotLayoutCandidate {
@@ -27,7 +27,12 @@ function positiveNumber(value: number, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function fittedViewportArea(aspect: number, width: number, height: number, padding: number): number {
+function fittedViewportArea(
+  aspect: number,
+  width: number,
+  height: number,
+  padding: PlotPadding,
+): number {
   if (width <= 0 || height <= 0) return 0;
   const viewport = plotViewport(
     { minX: 0, maxX: aspect, minY: 0, maxY: 1 },
@@ -47,12 +52,7 @@ export function adaptivePlotLayoutCandidates(
   const headerHeight = Math.max(0, Number.isFinite(input.headerHeight) ? input.headerHeight : 0);
   const modelAspect = positiveNumber(input.modelAspect, 1);
   const trainAspect = positiveNumber(input.trainAspect, 1);
-  const padding = Math.max(
-    0,
-    Number.isFinite(input.padding ?? DEFAULT_PLOT_PADDING)
-      ? (input.padding ?? DEFAULT_PLOT_PADDING)
-      : DEFAULT_PLOT_PADDING,
-  );
+  const padding = input.padding ?? DEFAULT_PLOT_PADDING;
 
   const rowTrackTotal = Math.max(0, width - gap);
   const rowWeightTotal = modelAspect + trainAspect;

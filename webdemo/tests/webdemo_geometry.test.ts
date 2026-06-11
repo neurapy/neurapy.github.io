@@ -45,6 +45,22 @@ describe("D3 plot geometry", () => {
     close(viewport.width / viewport.height, domainAspectRatio(bounds));
   });
 
+  it("supports asymmetric reserved plot insets", () => {
+    const bounds = { minX: 0, maxX: 2, minY: 0, maxY: 1 };
+    const viewport = plotViewport(bounds, 500, 300, {
+      top: 10,
+      right: 70,
+      bottom: 50,
+      left: 60,
+    });
+
+    close(viewport.x, 60);
+    close(viewport.y, 37.5);
+    close(viewport.width, 370);
+    close(viewport.height, 185);
+    close(viewport.width / viewport.height, 2);
+  });
+
   it("projects and unprojects with the fitted D3 scales", () => {
     const bounds = { minX: -2, maxX: 6, minY: 10, maxY: 14 };
     const { x, y, viewport } = fitScales(bounds, 800, 500);

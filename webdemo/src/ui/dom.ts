@@ -1,6 +1,9 @@
+import type { InfluenceMatrixManifest } from "../types";
+
 export interface DomRefs {
   runMeta: HTMLElement;
-  runSelect: HTMLSelectElement;
+  problemSelect: HTMLSelectElement;
+  qualityButtons: HTMLElement;
   resetButton: HTMLButtonElement;
   message: HTMLElement;
   fieldSelect: HTMLSelectElement;
@@ -44,7 +47,8 @@ function required<T extends Element>(selector: string, ctor: new (...args: never
 export function getDomRefs(): DomRefs {
   return {
     runMeta: required("#runMeta", HTMLElement),
-    runSelect: required("#runSelect", HTMLSelectElement),
+    problemSelect: required("#problemSelect", HTMLSelectElement),
+    qualityButtons: required("#qualityButtons", HTMLElement),
     resetButton: required("#resetButton", HTMLButtonElement),
     message: required("#message", HTMLElement),
     fieldSelect: required("#fieldSelect", HTMLSelectElement),
@@ -122,4 +126,27 @@ export function formatDisplayLabel(label: string | null | undefined): string {
     .replace(/\$([^$]*)\$/g, (_match, expression: string) => formatLatexExpression(expression))
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function compactInfluenceTermLabel(term: string): string {
+  const label = formatDisplayLabel(term).replace(/_/g, " ").toLowerCase();
+  if (label.includes("loss")) return "loss";
+  if (label.includes("output")) return "output";
+  return label.trim();
+}
+
+export function formatInfluenceMatrixLabel(
+  matrix: Pick<InfluenceMatrixManifest, "id" | "label" | "display_label" | "left_term" | "right_term">,
+): string {
+  const display = formatDisplayLabel(matrix.display_label || matrix.label || "")
+    .replace(/^PINNfluence\s*(?:\/|:)\s*/i, "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .trim();
+  const displayParts = display.split(/\s*->\s*/);
+  if (displayParts.length === 2 && displayParts[0] && displayParts[1]) {
+    return `${compactInfluenceTermLabel(displayParts[0])} -> ${compactInfluenceTermLabel(displayParts[1])}`;
+  }
+  if (matrix.id.includes("total_loss_output")) return "loss -> output";
+  if (matrix.id.includes("total_loss_total_loss")) return "loss -> loss";
+  return `${compactInfluenceTermLabel(matrix.left_term)} -> ${compactInfluenceTermLabel(matrix.right_term)}`;
 }

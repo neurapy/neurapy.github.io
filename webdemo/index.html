@@ -14,10 +14,17 @@
           <p id="runMeta" class="muted">Loading static data</p>
         </div>
         <div class="topbar-controls">
-          <label>
-            <span>Run</span>
-            <select id="runSelect"></select>
+          <label class="topbar-control problem-control">
+            <span>Problem</span>
+            <select id="problemSelect"></select>
           </label>
+          <div class="topbar-control quality-control">
+            <span>Model</span>
+            <div class="segmented quality-switch" id="qualityButtons" role="group" aria-label="Model quality">
+              <button type="button" data-model-quality="good" class="active">Good</button>
+              <button type="button" data-model-quality="bad">Bad</button>
+            </div>
+          </div>
           <button id="resetButton" class="icon-button" title="Reset selection" aria-label="Reset selection">
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="M6.2 7.4A8 8 0 1 1 4 12" />

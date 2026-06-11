@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { DataRepository, dequantizeInt16Values, dequantizeUint16Raster } from "../src/data/arrays";
-import { assertV6RunManifest } from "../src/data/manifest";
+import { LruCache } from "../src/data/cache";
+import {
+  assertV7Index,
+  assertV7RunManifest,
+  formatProblemLabel,
+  resolveProblemVariant,
+} from "../src/data/manifest";
 import { typedArrayFromBuffer } from "../src/data/dtypes";
 import { PriorityLoader } from "../src/data/loader";
 import {
@@ -10,6 +16,7 @@ import {
   type PrefetchContext,
 } from "../src/data/prefetcher";
 import type { InfluenceMatrixManifest, RunManifest } from "../src/types";
+import type { DataIndex, TypedArray } from "../src/types";
 
 function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
   const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
@@ -60,11 +67,12 @@ function installDeferredFetch(): DeferredFetchCall[] {
 }
 
 const manifest = {
-  schema_version: 6,
+  schema_version: 7,
   problem: "fixture",
-  folder: "fixture_float64",
-  run_id: "fixture_run",
   display_name: "Fixture",
+  model_quality: "good",
+  folder: "fixture_float64_good",
+  run_id: "fixture_run_good",
   status: "complete",
   errors: [],
   generated_at: "2026-06-09T00:00:00+0000",
@@ -161,6 +169,50 @@ const manifest = {
   ],
 } satisfies RunManifest;
 
+const goodVariant = {
+  run_id: "fixture_run_good",
+  display_name: "Fixture",
+  problem: "fixture",
+  model_quality: "good",
+  folder: "fixture_float64_good",
+  n_candidate: 2,
+  n_train: 3,
+  status: "complete",
+  manifest: "fixture_float64_good/fixture_run_good/manifest.json",
+  default_field: "pred_output_0",
+  default_matrix: "m0",
+  n_matrices: 1,
+  n_fields: 1,
+  errors: [],
+} satisfies DataIndex["problems"][number]["variants"]["good"];
+
+const badVariant = {
+  ...goodVariant,
+  run_id: "fixture_run_bad",
+  model_quality: "bad",
+  folder: "fixture_float64_bad",
+  manifest: "fixture_float64_bad/fixture_run_bad/manifest.json",
+} satisfies DataIndex["problems"][number]["variants"]["bad"];
+
+const index = {
+  schema_version: 7,
+  generated_at: "2026-06-09T00:00:00+0000",
+  matrix_mode: "core",
+  max_local_influence_points: 2,
+  row_chunk_size: 2,
+  bundle_report: "bundle_report.json",
+  problems: [
+    {
+      problem: "fixture",
+      display_name: "Fixture",
+      variants: {
+        good: goodVariant,
+        bad: badVariant,
+      },
+    },
+  ],
+} satisfies DataIndex;
+
 describe("typed array validation", () => {
   it("rejects buffers that do not match dtype and shape metadata", () => {
     expect(() =>
@@ -168,11 +220,22 @@ describe("typed array validation", () => {
     ).toThrow(/expected 12 bytes/);
   });
 
-  it("parses v6 manifests and rejects older versions", () => {
-    expect(assertV6RunManifest(manifest)).toBe(manifest);
-    expect(() => assertV6RunManifest({ ...manifest, schema_version: 5 } as unknown as RunManifest)).toThrow(
-      /expected 6/,
+  it("parses v7 indexes and manifests and rejects schema v6", () => {
+    expect(assertV7Index(index)).toBe(index);
+    expect(assertV7RunManifest(manifest)).toBe(manifest);
+    expect(() => assertV7RunManifest({ ...manifest, schema_version: 6 } as unknown as RunManifest)).toThrow(
+      /expected 7/,
     );
+    expect(() =>
+      assertV7Index({ ...index, schema_version: 6, runs: [] } as unknown as DataIndex),
+    ).toThrow(/expected 7/);
+  });
+
+  it("formats problem labels and resolves active Good/Bad variants", () => {
+    expect(formatProblemLabel("navier_stokes_nd")).toBe("Navier Stokes");
+    expect(formatProblemLabel("navier_stokes_nd_float64_bad")).toBe("Navier Stokes");
+    expect(resolveProblemVariant(index, "fixture", "good")).toBe(goodVariant);
+    expect(resolveProblemVariant(index, "fixture", "bad")).toBe(badVariant);
   });
 });
 
@@ -211,6 +274,27 @@ describe("chunk row lookup", () => {
     expect(Array.from(row.indices)).toEqual([1, 0]);
     expect(row.values[0]).toBeCloseTo(0.2);
     expect(row.values[1]).toBeCloseTo(-0.1);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("can share decoded arrays across repository instances", async () => {
+    const buffers = new Map<string, ArrayBuffer>([
+      ["http://example.test/m0/abs/chunks/0_indices.u16", bufferFrom(new Uint16Array([2, 1, 1, 0]))],
+      ["http://example.test/m0/abs/chunks/0_values.f32", bufferFrom(new Float32Array([1, -0.5, 0.2, -0.1]))],
+    ]);
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const buffer = buffers.get(input.toString());
+      if (!buffer) return new Response(null, { status: 404 });
+      return new Response(buffer.slice(0));
+    });
+    const cache = new LruCache<TypedArray>(1024);
+    const url = new URL("http://example.test/manifest.json");
+    const firstRepo = new DataRepository(url, manifest, cache);
+    const secondRepo = new DataRepository(url, manifest, cache);
+
+    await firstRepo.loadInfluenceRow(manifest.influence_matrices[0], "abs", 1);
+    await secondRepo.loadInfluenceRow(manifest.influence_matrices[0], "abs", 1);
+
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });

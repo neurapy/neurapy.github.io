@@ -26,25 +26,69 @@ def test_problem_from_folder_accepts_good_bad_raw_data_suffixes() -> None:
     assert build_static.problem_from_folder(Path("allen_cahn_float64_bad")) == "allen_cahn"
 
 
-def test_discover_runs_includes_good_bad_raw_data_folders(tmp_path) -> None:
+def test_infer_model_quality_requires_good_bad_suffixes() -> None:
+    assert build_static.infer_model_quality(Path("allen_cahn_float64_good")) == "good"
+    assert build_static.infer_model_quality(Path("allen_cahn_float64_bad")) == "bad"
+    assert build_static.infer_model_quality(Path("allen_cahn_float64")) is None
+
+
+def test_discover_runs_includes_good_bad_and_ignores_legacy_folders(tmp_path) -> None:
+    legacy_folder = tmp_path / "allen_cahn_float64"
     good_folder = tmp_path / "allen_cahn_float64_good"
     bad_folder = tmp_path / "allen_cahn_float64_bad"
     ignored_folder = tmp_path / "allen_cahn_good"
+    legacy_folder.mkdir()
     good_folder.mkdir()
     bad_folder.mkdir()
     ignored_folder.mkdir()
 
+    legacy_prefix = "allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_9_soft"
     good_prefix = "allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft"
     bad_prefix = "allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft"
+    (legacy_folder / f"{legacy_prefix}_full.pt").touch()
     (good_folder / f"{good_prefix}_full.pt").touch()
     (bad_folder / f"{bad_prefix}_influence_scores").mkdir()
 
     runs = build_static.discover_runs(tmp_path)
 
-    assert [(run.folder.name, run.problem, run.run_prefix) for run in runs] == [
-        ("allen_cahn_float64_bad", "allen_cahn", bad_prefix),
-        ("allen_cahn_float64_good", "allen_cahn", good_prefix),
+    assert [(run.folder.name, run.problem, run.model_quality, run.run_prefix) for run in runs] == [
+        ("allen_cahn_float64_bad", "allen_cahn", "bad", bad_prefix),
+        ("allen_cahn_float64_good", "allen_cahn", "good", good_prefix),
     ]
+
+
+def test_grouped_schema_v7_index_entries_require_good_and_bad_variants() -> None:
+    good = {
+        "problem": "navier_stokes_nd",
+        "display_name": "Navier Stokes",
+        "model_quality": "good",
+        "folder": "navier_stokes_nd_float64_good",
+        "run_id": "good_run",
+        "manifest": "navier_stokes_nd_float64_good/good_run/manifest.json",
+    }
+    bad = {
+        **good,
+        "model_quality": "bad",
+        "folder": "navier_stokes_nd_float64_bad",
+        "run_id": "bad_run",
+        "manifest": "navier_stokes_nd_float64_bad/bad_run/manifest.json",
+    }
+
+    problems = build_static.build_problem_index_entries([good, bad])
+
+    assert problems == [
+        {
+            "problem": "navier_stokes_nd",
+            "display_name": "Navier Stokes",
+            "variants": {"good": good, "bad": bad},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="missing required model variant\\(s\\): bad"):
+        build_static.build_problem_index_entries([good])
+
+    with pytest.raises(ValueError, match="failed to produce manifest\\(s\\) for: bad"):
+        build_static.build_problem_index_entries([{**good}, {**bad, "manifest": None}])
 
 
 def test_raster_points_are_row_major_pixel_centers_with_descending_y() -> None:
@@ -168,6 +212,26 @@ def write_influence_npz(
     )
 
 
+def test_read_npz_npy_header_reads_scores_shape_and_dtype(tmp_path) -> None:
+    matrix_path = tmp_path / "matrix.npz"
+    write_influence_npz(
+        matrix_path,
+        scores=np.zeros((4, 7), dtype=np.float32),
+        candidate_points=np.zeros((4, 2), dtype=np.float64),
+    )
+
+    header = build_static.read_npz_npy_header(matrix_path, "scores")
+    metadata = build_static.load_matrix_metadata(matrix_path)
+
+    assert header == {
+        "shape": (4, 7),
+        "fortran_order": False,
+        "dtype": np.dtype("float32"),
+    }
+    assert metadata["scores_shape"] == [4, 7]
+    assert metadata["candidate_points"].shape == (4, 2)
+
+
 def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) -> None:
     influence_dir = tmp_path / "run_influence_scores"
     influence_dir.mkdir()
@@ -183,6 +247,7 @@ def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) ->
     run = build_static.RunPaths(
         folder=tmp_path,
         problem="fixture",
+        model_quality="good",
         run_prefix="run",
         checkpoint=None,
         influence_dir=influence_dir,
@@ -227,6 +292,7 @@ def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_p
         row_indices=np.array([0, 2, 4], dtype=np.int64),
         max_local_influence_points=2,
         row_chunk_size=2,
+        matrix_metadata=build_static.load_matrix_metadata(matrix_path),
     )
 
     assert metadata["scores_shape"] == [3, 3]
@@ -286,6 +352,6 @@ def test_bundle_report_groups_chunk_files(tmp_path) -> None:
 
     report = build_static.build_bundle_report(tmp_path, budget_bytes=10_000)
 
-    assert report["schema_version"] == 6
+    assert report["schema_version"] == 7
     assert report["within_budget"] is True
     assert report["by_kind"]["influence_chunks"] == 6
