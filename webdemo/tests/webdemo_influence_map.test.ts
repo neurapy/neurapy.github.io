@@ -2,12 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeCellsInfluenceLayer,
-  computeKernelDensityInfluenceField,
-  computeLinearInfluenceField,
+  computeSmoothInfluenceField,
   influenceEntriesForBackground,
   MAX_VISIBLE_INFLUENCE_LINES,
-  type InfluenceField,
-  type InfluenceMapLayer,
   robustAbsScaleMax,
   topKInfluenceEntries,
   topKInfluenceLineEntries,
@@ -27,11 +24,6 @@ const viewport: PlotViewport = {
 
 function sample(field: { width: number; values: Float32Array }, col: number, row: number): number {
   return field.values[row * field.width + col];
-}
-
-function expectRaster(layer: InfluenceMapLayer): InfluenceField {
-  expect(layer.kind).toBe("raster");
-  return layer as InfluenceField;
 }
 
 describe("influence map samples", () => {
@@ -88,57 +80,6 @@ describe("influence map samples", () => {
 });
 
 describe("influence map interpolation methods", () => {
-  it("linearly reproduces triangle vertices and interpolates triangle centers", () => {
-    const field = expectRaster(computeLinearInfluenceField({
-      points: new Float32Array([0, 0, 1, 0, 0, 1]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0, 1, 2]),
-      values: new Float32Array([0, 2, 4]),
-      gridWidth: 101,
-      gridHeight: 101,
-    }));
-
-    expect(sample(field, 0, 100)).toBeCloseTo(0, 5);
-    expect(sample(field, 100, 100)).toBeCloseTo(2, 5);
-    expect(sample(field, 0, 0)).toBeCloseTo(4, 5);
-    expect(sample(field, 33, 67)).toBeCloseTo(2, 1);
-  });
-
-  it("falls back to Cells when fewer than three linear samples are available", () => {
-    const layer = computeLinearInfluenceField({
-      points: new Float32Array([0, 0.5, 1, 0.5]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0, 1]),
-      values: new Float32Array([-1, 1]),
-      gridWidth: 101,
-      gridHeight: 101,
-    });
-
-    expect(layer.kind).toBe("cells");
-    expect(layer.renderedCount).toBe(2);
-    expect((layer.kind === "cells" ? layer.cellCount : 0)).toBe(2);
-  });
-
-  it("falls back to Cells when Delaunay triangles are too sparse", () => {
-    const layer = computeLinearInfluenceField({
-      points: new Float32Array([0, 0, 0.01, 0, 1, 1]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0, 1, 2]),
-      values: new Float32Array([0, 1, 10]),
-      gridWidth: 101,
-      gridHeight: 101,
-    });
-
-    expect(layer.kind).toBe("cells");
-    expect((layer.kind === "cells" ? layer.cellCount : 0)).toBe(3);
-  });
-
   it("Cells creates one rendered cell per unique valid influence sample", () => {
     const layer = computeCellsInfluenceLayer({
       points: new Float32Array([0.1, 0.1, 0.9, 0.9, 2, 2]),
@@ -154,8 +95,8 @@ describe("influence map interpolation methods", () => {
     expect(layer.maxAbs).toBe(2);
   });
 
-  it("KDE smooths signed influence samples into a raster field", () => {
-    const field = computeKernelDensityInfluenceField({
+  it("Smooth renders signed influence samples into a smoothed raster field", () => {
+    const field = computeSmoothInfluenceField({
       points: new Float32Array([0.25, 0.5, 0.75, 0.5]),
       dim: 2,
       bounds,

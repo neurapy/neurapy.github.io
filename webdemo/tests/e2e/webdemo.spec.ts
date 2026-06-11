@@ -368,9 +368,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#backgroundControl")).toBeVisible();
   await expect(page.locator("#backgroundButtons button")).toHaveText([
     "Points",
-    "Linear",
-    "Cell",
-    "KDE",
+    "Smooth",
+    "Cells",
   ]);
   await expect(page.locator("button[data-background-mode='points']")).toHaveClass(/active/);
   await expect(page.locator("#kControl")).toBeVisible();
@@ -383,9 +382,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   const backgroundSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
   for (const [mode, label] of [
-    ["linear", "Linear"],
-    ["cell", "Cell"],
-    ["kde", "KDE"],
+    ["smooth", "Smooth"],
+    ["cell", "Cells"],
   ] as const) {
     await page.locator(`button[data-background-mode='${mode}']`).click();
     await expect(page.locator(`button[data-background-mode='${mode}']`)).toHaveClass(/active/);
@@ -456,7 +454,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
-  await expect(page.locator("#trainRange")).toHaveText(/Local region · Cell · sum over [1-4] candidates/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · Cells · sum over [1-4] candidates/);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await clickMainPoint(page);
@@ -586,11 +584,10 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator("#kControl")).toBeVisible();
   await expect(page.locator("#backgroundButtons button")).toHaveText([
     "Points",
-    "Linear",
-    "Cell",
-    "KDE",
+    "Smooth",
+    "Cells",
   ]);
-  for (const mode of ["cell", "kde", "linear", "points"]) {
+  for (const mode of ["cell", "smooth", "points"]) {
     await page.locator(`button[data-background-mode='${mode}']`).click();
     await expectNonblankCanvas(page, "#trainCanvas");
   }
