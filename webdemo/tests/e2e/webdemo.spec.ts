@@ -192,7 +192,17 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
     const topbarRect = topbar.getBoundingClientRect();
     const viewportRight = document.documentElement.clientWidth;
     const elements = topbar.querySelectorAll<HTMLElement>(
-      ".topbar-controls, .topbar-control, select, .segmented, .icon-button",
+      [
+        ".topbar-copy",
+        ".topbar-actions",
+        ".topbar-links",
+        ".topbar-link",
+        ".topbar-controls",
+        ".topbar-control",
+        "select",
+        ".segmented",
+        ".icon-button",
+      ].join(", "),
     );
     return Array.from(elements)
       .filter((element) => {
@@ -204,12 +214,43 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
         const rect = element.getBoundingClientRect();
         return (
           rect.left < topbarRect.left - 1 ||
-          rect.right > Math.min(topbarRect.right, viewportRight) + 1
+          rect.right > Math.min(topbarRect.right, viewportRight) + 1 ||
+          rect.top < topbarRect.top - 1 ||
+          rect.bottom > topbarRect.bottom + 1
         );
       })
       .map((element) => element.id || element.className);
   });
   expect(leaks).toEqual([]);
+
+  const topbarBottom = await page
+    .locator(".topbar")
+    .evaluate((topbar) => topbar.getBoundingClientRect().bottom);
+  expect(topbarBottom).toBeLessThanOrEqual(page.viewportSize()!.height);
+}
+
+async function expectTopbarProjectLinks(page: Page): Promise<void> {
+  const paperLink = page.locator(".topbar").getByRole("link", { name: "arXiv" });
+  const githubLink = page.locator(".topbar").getByRole("link", { name: "Github" });
+  const privacyLink = page.locator(".topbar").getByRole("link", { name: "Privacy" });
+  const impressumLink = page.locator(".topbar").getByRole("link", { name: "Impressum" });
+
+  await expect(paperLink).toBeVisible();
+  await expect(paperLink).toHaveAttribute("href", "https://arxiv.org/abs/2409.08958");
+  await expect(paperLink).toHaveAttribute("target", "_blank");
+  await expect(paperLink).toHaveAttribute("rel", /noopener/);
+  await expect(paperLink).toHaveAttribute("rel", /noreferrer/);
+
+  await expect(githubLink).toBeVisible();
+  await expect(githubLink).toHaveAttribute("href", "https://github.com/aleks-krasowski/PINNfluence/");
+  await expect(githubLink).toHaveAttribute("target", "_blank");
+  await expect(githubLink).toHaveAttribute("rel", /noopener/);
+  await expect(githubLink).toHaveAttribute("rel", /noreferrer/);
+
+  await expect(privacyLink).toBeVisible();
+  await expect(privacyLink).toHaveAttribute("href", "./legal/privacy.html");
+  await expect(impressumLink).toBeVisible();
+  await expect(impressumLink).toHaveAttribute("href", "./legal/impressum.html");
 }
 
 async function tapMainPoint(page: Page): Promise<void> {
@@ -277,6 +318,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await page.goto(FIXTURE_URL);
 
+  await expectTopbarProjectLinks(page);
   await expect(page.locator("#problemSelect option")).toHaveText([
     "Fixture",
     "Shifted Fixture",
@@ -419,6 +461,30 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
+test("legal pages load through the dev server", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "static page smoke coverage is enough on desktop");
+
+  await page.goto("/legal/privacy.html");
+  await expect(page).toHaveTitle(/Privacy Notice \| PINNfluence/);
+  await expect(page.getByRole("heading", { level: 1, name: "Privacy Notice" })).toBeVisible();
+  await expect(page.getByText("PINNfluence").first()).toBeVisible();
+  await expect(page.getByText("Fraunhofer-Gesellschaft").first()).toBeVisible();
+  await expect(
+    page.getByText("The storage of the IP address is done anonymously by removing the last block of characters."),
+  ).toBeVisible();
+  await expect(page.getByText("Information about your right to object under Article 21 of the GDPR")).toBeVisible();
+
+  await page.goto("/legal/impressum.html");
+  await expect(page).toHaveTitle(/Impressum \| PINNfluence/);
+  await expect(page.getByRole("heading", { level: 1, name: "Impressum" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Editorial Notes" })).toBeVisible();
+  await expect(page.getByText("The Fraunhofer Heinrich-Hertz Institut HHI")).toBeVisible();
+  await expect(
+    page.getByText("Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V"),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Disclaimer" })).toBeVisible();
+});
+
 test("switching models and problems preserves comparison state", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only state persistence assertions");
   await page.goto(FIXTURE_URL);
@@ -495,6 +561,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   test.skip(testInfo.project.name !== "mobile", "mobile-only viewport assertions");
   await page.goto(FIXTURE_URL);
 
+  await expectTopbarProjectLinks(page);
   await expect(page.locator("#problemSelect option")).toHaveText([
     "Fixture",
     "Shifted Fixture",
