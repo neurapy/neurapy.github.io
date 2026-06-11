@@ -1,11 +1,11 @@
 {
   "arrays": {
     "candidate_points": {
-      "bytes": 8000,
+      "bytes": 2400,
       "dtype": "float32",
       "path": "arrays/candidate_points.f32",
       "shape": [
-        1000,
+        300,
         2
       ]
     },
@@ -313,11 +313,11 @@
     }
   },
   "folder": "wave_float64",
-  "generated_at": "2026-06-11T03:22:58+0200",
+  "generated_at": "2026-06-11T04:26:54+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
-        1000,
+        300,
         2
       ],
       "display_label": "GradDot / total loss -> output 0",
@@ -332,10 +332,10 @@
       "num_pdes": 1,
       "right_term": "total_loss",
       "row_chunk_size": 256,
-      "row_count": 1000,
+      "row_count": 300,
       "row_source": "candidate_points",
       "scores_shape": [
-        1000,
+        300,
         3500
       ],
       "self_influence": false,
@@ -391,7 +391,7 @@
       },
       "top_chunks": {
         "abs": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -407,7 +407,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0028444795942933723,
+              "value_scale": 0.0031592420041952223,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -421,74 +421,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.003161012735278634,
+              "value_scale": 0.0031195440992908977,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/abs/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.0027060456776104532,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/abs/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/abs/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0031958776270207784,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/abs/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -503,7 +453,7 @@
           "values_dtype": "int16"
         },
         "neg": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -519,7 +469,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0028444795942933723,
+              "value_scale": 0.0031592420041952223,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -533,74 +483,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.003161012735278634,
+              "value_scale": 0.0031195440992908977,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/neg/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.0027060456776104532,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/neg/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/neg/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0031958776270207784,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/neg/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -615,7 +515,7 @@
           "values_dtype": "int16"
         },
         "pos": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -631,7 +531,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0028444795942933723,
+              "value_scale": 0.0031592420041952223,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -645,74 +545,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.003161012735278634,
+              "value_scale": 0.0031195440992908977,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/pos/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.0027060456776104532,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/pos/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_output_0/pos/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0031958776270207784,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_output_0/pos/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -730,7 +580,7 @@
     },
     {
       "candidate_points_shape": [
-        1000,
+        300,
         2
       ],
       "display_label": "GradDot / total loss -> total loss",
@@ -745,10 +595,10 @@
       "num_pdes": 1,
       "right_term": "total_loss",
       "row_chunk_size": 256,
-      "row_count": 1000,
+      "row_count": 300,
       "row_source": "candidate_points",
       "scores_shape": [
-        1000,
+        300,
         3500
       ],
       "self_influence": false,
@@ -804,7 +654,7 @@
       },
       "top_chunks": {
         "abs": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -820,7 +670,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0001305791788674268,
+              "value_scale": 0.00021074473572289587,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -834,74 +684,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.0001758824051959938,
+              "value_scale": 0.0003486041252594222,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.00013770171472317358,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0004718548087294888,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/abs/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -916,7 +716,7 @@
           "values_dtype": "int16"
         },
         "neg": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -932,7 +732,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0001305791788674268,
+              "value_scale": 0.00021074473572289587,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -946,74 +746,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.0001758824051959938,
+              "value_scale": 0.0003486041252594222,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.00013770171472317358,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0004718548087294888,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/neg/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1028,7 +778,7 @@
           "values_dtype": "int16"
         },
         "pos": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1044,7 +794,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 0.0001305791788674268,
+              "value_scale": 0.00021074473572289587,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1058,74 +808,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 0.0001758824051959938,
+              "value_scale": 0.0003486041252594222,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 0.00013770171472317358,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 0.0004718548087294888,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/grad_dot_total_loss_total_loss/pos/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1143,7 +843,7 @@
     },
     {
       "candidate_points_shape": [
-        1000,
+        300,
         2
       ],
       "display_label": "PINNfluence / total loss -> output 0",
@@ -1158,10 +858,10 @@
       "num_pdes": 1,
       "right_term": "total_loss",
       "row_chunk_size": 256,
-      "row_count": 1000,
+      "row_count": 300,
       "row_source": "candidate_points",
       "scores_shape": [
-        1000,
+        300,
         3500
       ],
       "self_influence": false,
@@ -1217,7 +917,7 @@
       },
       "top_chunks": {
         "abs": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1233,7 +933,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 7.084282601546444e-13,
+              "value_scale": 7.083686272153048e-13,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1247,74 +947,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_output_0/abs/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 7.079131399822765e-13,
+              "value_scale": 7.081763380918162e-13,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_output_0/abs/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/abs/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 7.045624193325481e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/abs/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/abs/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 7.07612698391531e-13,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/abs/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1329,7 +979,7 @@
           "values_dtype": "int16"
         },
         "neg": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1345,7 +995,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 7.084282601546444e-13,
+              "value_scale": 7.083686272153048e-13,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1359,74 +1009,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_output_0/neg/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 7.079131399822765e-13,
+              "value_scale": 7.081763380918162e-13,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_output_0/neg/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/neg/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 7.045624193325481e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/neg/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/neg/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 7.07612698391531e-13,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/neg/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1441,7 +1041,7 @@
           "values_dtype": "int16"
         },
         "pos": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1457,7 +1057,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 7.084282601546444e-13,
+              "value_scale": 7.083686272153048e-13,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1471,74 +1071,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_output_0/pos/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 7.079131399822765e-13,
+              "value_scale": 7.081763380918162e-13,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_output_0/pos/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/pos/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 7.045624193325481e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/pos/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_output_0/pos/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 7.07612698391531e-13,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_output_0/pos/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1556,7 +1106,7 @@
     },
     {
       "candidate_points_shape": [
-        1000,
+        300,
         2
       ],
       "display_label": "PINNfluence / total loss -> total loss",
@@ -1571,10 +1121,10 @@
       "num_pdes": 1,
       "right_term": "total_loss",
       "row_chunk_size": 256,
-      "row_count": 1000,
+      "row_count": 300,
       "row_source": "candidate_points",
       "scores_shape": [
-        1000,
+        300,
         3500
       ],
       "self_influence": false,
@@ -1630,7 +1180,7 @@
       },
       "top_chunks": {
         "abs": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1646,7 +1196,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 1.0083850893150274e-12,
+              "value_scale": 1.7314328524546393e-12,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1660,74 +1210,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_total_loss/abs/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 8.612002068840805e-13,
+              "value_scale": 2.7311439512603824e-12,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_total_loss/abs/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/abs/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 9.508362669935951e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/abs/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/abs/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 4.197569539219258e-12,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/abs/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1742,7 +1242,7 @@
           "values_dtype": "int16"
         },
         "neg": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1758,7 +1258,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 1.0083850893150274e-12,
+              "value_scale": 1.7314328524546393e-12,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1772,74 +1272,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_total_loss/neg/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 8.612002068840805e-13,
+              "value_scale": 2.7311439512603824e-12,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_total_loss/neg/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/neg/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 9.508362669935951e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/neg/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/neg/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 4.197569539219258e-12,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/neg/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1854,7 +1304,7 @@
           "values_dtype": "int16"
         },
         "pos": {
-          "chunk_count": 4,
+          "chunk_count": 2,
           "chunks": [
             {
               "id": 0,
@@ -1870,7 +1320,7 @@
               "k": 3500,
               "row_count": 256,
               "row_start": 0,
-              "value_scale": 1.0083850893150274e-12,
+              "value_scale": 1.7314328524546393e-12,
               "values": {
                 "bytes": 1792000,
                 "dtype": "int16",
@@ -1884,74 +1334,24 @@
             {
               "id": 1,
               "indices": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "uint16",
                 "path": "influence/influences_total_loss_total_loss/pos/chunks/1_indices.u16",
                 "shape": [
-                  256,
+                  44,
                   3500
                 ]
               },
               "k": 3500,
-              "row_count": 256,
+              "row_count": 44,
               "row_start": 256,
-              "value_scale": 8.612002068840805e-13,
+              "value_scale": 2.7311439512603824e-12,
               "values": {
-                "bytes": 1792000,
+                "bytes": 308000,
                 "dtype": "int16",
                 "path": "influence/influences_total_loss_total_loss/pos/chunks/1_values.i16",
                 "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 2,
-              "indices": {
-                "bytes": 1792000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/pos/chunks/2_indices.u16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 256,
-              "row_start": 512,
-              "value_scale": 9.508362669935951e-13,
-              "values": {
-                "bytes": 1792000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/pos/chunks/2_values.i16",
-                "shape": [
-                  256,
-                  3500
-                ]
-              }
-            },
-            {
-              "id": 3,
-              "indices": {
-                "bytes": 1624000,
-                "dtype": "uint16",
-                "path": "influence/influences_total_loss_total_loss/pos/chunks/3_indices.u16",
-                "shape": [
-                  232,
-                  3500
-                ]
-              },
-              "k": 3500,
-              "row_count": 232,
-              "row_start": 768,
-              "value_scale": 4.197569539219258e-12,
-              "values": {
-                "bytes": 1624000,
-                "dtype": "int16",
-                "path": "influence/influences_total_loss_total_loss/pos/chunks/3_values.i16",
-                "shape": [
-                  232,
+                  44,
                   3500
                 ]
               }
@@ -1970,7 +1370,7 @@
   ],
   "matrix_mode": "core",
   "max_local_influence_points": 3500,
-  "n_candidate": 1000,
+  "n_candidate": 300,
   "n_outputs": 1,
   "n_train": 3500,
   "num_bcs": 4,

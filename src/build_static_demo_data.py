@@ -92,7 +92,7 @@ def parse_args() -> argparse.Namespace:
         "--max_local_influence_points",
         default=64,
         type=int,
-        help="Number Calculated Train-Influences per Candidate Point",
+        help="Number of train influences to export per candidate point, capped at exported train count.",
     )
     parser.add_argument(
         "--n-candidate",
@@ -100,7 +100,7 @@ def parse_args() -> argparse.Namespace:
         dest="n_candidate",
         default=None,
         type=int,
-        help="Number of candidate points to export. Default: all available candidate points.",
+        help="Number of candidate points to export. Default: all available; capped at available count.",
     )
     parser.add_argument(
         "--n-train",
@@ -108,7 +108,7 @@ def parse_args() -> argparse.Namespace:
         dest="n_train",
         default=None,
         type=int,
-        help="Number of train points to export. Default: all available train points.",
+        help="Number of train points to export. Default: all available; capped at available count.",
     )
     parser.add_argument("--row-chunk-size", default=256, type=int)  # NOTE:
     parser.add_argument("--bundle-size-budget-mb", default=750, type=int)  # NOTE:
@@ -181,7 +181,7 @@ def deterministic_spread_indices(total: int, count: int | None, label: str) -> n
     if count < 1:
         raise ValueError(f"{label} count must be >= 1")
     if count > total:
-        raise ValueError(f"Requested {count} {label} points, but only {total} are available")
+        count = total
     return np.linspace(0, total - 1, count, dtype=np.int64)
 
 
@@ -1049,6 +1049,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
     )
     train_points = source_train_points[train_indices]
     candidate_points = source_candidate_points[candidate_indices]
+    max_local_influence_points = min(args.max_local_influence_points, len(train_points))
     num_pdes = int(first_meta["num_pdes"]) if first_meta else 0
     num_bcs = int(first_meta["num_bcs"]) if first_meta else 0
     n_outputs = (
@@ -1176,7 +1177,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         n_train=len(train_points),
         source_n_train=source_n_train,
         train_indices=train_indices,
-        max_local_influence_points=args.max_local_influence_points,
+        max_local_influence_points=max_local_influence_points,
         row_chunk_size=args.row_chunk_size,
         workers=int(getattr(args, "workers", 1)),
     )
@@ -1206,7 +1207,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "errors": errors,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
-        "max_local_influence_points": args.max_local_influence_points,
+        "max_local_influence_points": max_local_influence_points,
         "row_chunk_size": args.row_chunk_size,
         "axes": ["x", "y"][: candidate_points.shape[1]],
         "bounds": (

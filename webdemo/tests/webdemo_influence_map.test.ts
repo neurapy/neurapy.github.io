@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  adaptiveInfluenceSigma,
   computeCellsInfluenceLayer,
-  computeGaussianInfluenceField,
   computeLinearInfluenceField,
   influenceEntriesForMap,
   type InfluenceField,
@@ -32,77 +30,7 @@ function expectRaster(layer: InfluenceMapLayer): InfluenceField {
   return layer as InfluenceField;
 }
 
-describe("Gaussian influence maps", () => {
-  it("clamps adaptive sigma to stable lower and upper bounds", () => {
-    expect(adaptiveInfluenceSigma({ width: 100, height: 100 }, 100_000)).toBe(6);
-    expect(adaptiveInfluenceSigma({ width: 1000, height: 1000 }, 1)).toBe(24);
-  });
-
-  it("preserves positive and negative signed regions after smoothing", () => {
-    const field = computeGaussianInfluenceField({
-      points: new Float32Array([0.25, 0.5, 0.75, 0.5]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0, 1]),
-      values: new Float32Array([2, -1]),
-      sigma: 5,
-      gridWidth: 101,
-      gridHeight: 101,
-    });
-
-    expect(sample(field, 25, 50)).toBeGreaterThan(1.9);
-    expect(sample(field, 75, 50)).toBeLessThan(-0.9);
-    expect(field.maxAbs).toBeGreaterThan(1.9);
-  });
-
-  it("returns an empty field for empty influence values", () => {
-    const field = computeGaussianInfluenceField({
-      points: new Float32Array([0.5, 0.5]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([]),
-      values: new Float32Array([]),
-      sigma: 8,
-      gridWidth: 16,
-      gridHeight: 16,
-    });
-
-    expect(field.renderedCount).toBe(0);
-    expect(field.maxAbs).toBe(0);
-    expect(Array.from(field.values).every((value) => value === 0)).toBe(true);
-    expect(Array.from(field.support).every((value) => value === 0)).toBe(true);
-  });
-
-  it("normalizes by Gaussian support instead of amplifying dense duplicate points", () => {
-    const single = computeGaussianInfluenceField({
-      points: new Float32Array([0.5, 0.5]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0]),
-      values: new Float32Array([5]),
-      sigma: 8,
-      gridWidth: 101,
-      gridHeight: 101,
-    });
-    const duplicate = computeGaussianInfluenceField({
-      points: new Float32Array([0.5, 0.5, 0.5, 0.5]),
-      dim: 2,
-      bounds,
-      viewport,
-      indices: new Uint16Array([0, 1]),
-      values: new Float32Array([5, 5]),
-      sigma: 8,
-      gridWidth: 101,
-      gridHeight: 101,
-    });
-
-    expect(sample(single, 50, 50)).toBeCloseTo(5, 5);
-    expect(sample(duplicate, 50, 50)).toBeCloseTo(sample(single, 50, 50), 5);
-  });
-
+describe("influence map samples", () => {
   it("averages duplicate sample locations before interpolation", () => {
     const layer = computeCellsInfluenceLayer({
       points: new Float32Array([0.5, 0.5, 0.5, 0.5]),

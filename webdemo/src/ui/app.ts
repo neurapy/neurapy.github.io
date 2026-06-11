@@ -54,7 +54,6 @@ const SUMMARY_LABELS: Record<SummaryName, string> = {
 const INFLUENCE_MAP_METHOD_LABELS: Record<InfluenceMapMethod, string> = {
   linear: "Linear",
   cells: "Cells",
-  gaussian: "Blur",
 };
 const DRAG_THRESHOLD_PX = 8;
 const DOUBLE_TAP_MS = 350;
@@ -172,8 +171,7 @@ export class AppController {
     });
     this.dom.influenceMapMethodSelect.addEventListener("change", () => {
       const value = this.dom.influenceMapMethodSelect.value;
-      const influenceMapMethod: InfluenceMapMethod =
-        value === "cells" || value === "gaussian" ? value : "linear";
+      const influenceMapMethod: InfluenceMapMethod = value === "cells" ? value : "linear";
       this.store.dispatch({ type: "influenceMapMethod", influenceMapMethod });
       this.refreshResponsiveLayout();
       this.schedule("train");

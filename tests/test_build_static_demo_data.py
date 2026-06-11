@@ -107,9 +107,17 @@ def test_deterministic_spread_indices_cover_full_source_range() -> None:
         build_static.deterministic_spread_indices(8, 1, "train"),
         np.array([0], dtype=np.int64),
     )
+    np.testing.assert_array_equal(
+        build_static.deterministic_spread_indices(3, 10_000, "train"),
+        np.arange(3, dtype=np.int64),
+    )
+    np.testing.assert_array_equal(
+        build_static.deterministic_spread_indices(0, 10_000, "candidate"),
+        np.array([], dtype=np.int64),
+    )
 
-    with pytest.raises(ValueError, match="only 3"):
-        build_static.deterministic_spread_indices(3, 4, "train")
+    with pytest.raises(ValueError, match="count must be >= 1"):
+        build_static.deterministic_spread_indices(3, 0, "train")
 
 
 def write_influence_npz(

@@ -177,7 +177,6 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
     "Linear",
     "Cells",
-    "Blur",
   ]);
   await expect(page.locator("#kControl")).toBeHidden();
   await expect(page.locator("#trainRange")).toHaveText(/Local map · Linear · all exported influences \(\d+\)/);
@@ -187,7 +186,6 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   const methodSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
   for (const [method, label] of [
     ["cells", "Cells"],
-    ["gaussian", "Blur"],
   ] as const) {
     await page.locator("#influenceMapMethodSelect").selectOption(method);
     await expect(page.locator("#trainRange")).toHaveText(
@@ -285,9 +283,8 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator("#influenceMapMethodSelect option")).toHaveText([
     "Linear",
     "Cells",
-    "Blur",
   ]);
-  for (const method of ["cells", "gaussian", "linear"]) {
+  for (const method of ["cells", "linear"]) {
     await page.locator("#influenceMapMethodSelect").selectOption(method);
     await expectNonblankCanvas(page, "#trainCanvas");
   }

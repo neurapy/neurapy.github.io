@@ -66,10 +66,6 @@ export interface InfluenceField {
   renderedCount: number;
 }
 
-export interface GaussianInfluenceField extends InfluenceField {
-  sigma: number;
-}
-
 export interface InfluenceSample {
   x: number;
   y: number;
@@ -111,8 +107,6 @@ const FIXED_INFLUENCE_RADIUS = 4;
 const MIN_MAP_GRID_CELL_SIZE_PX = 2;
 const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
-const GAUSSIAN_SUPPORT_SIGMAS = 3;
-const MIN_GAUSSIAN_SUPPORT = 1e-6;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
 
 function clampNumber(value: number, min: number, max: number): number {
@@ -346,75 +340,6 @@ export function computeCellsInfluenceLayer(args: InfluenceFieldArgs): CellsInflu
     scaleMax: robustAbsScaleMax(values),
     renderedCount: sampleSet.renderedCount,
     cellCount: sampleSet.samples.length,
-  };
-}
-
-export function adaptiveInfluenceSigma(
-  viewport: Pick<PlotViewport, "width" | "height">,
-  trainCount: number,
-): number {
-  const area = Math.max(1, viewport.width * viewport.height);
-  const spacing = Math.sqrt(area / Math.max(1, trainCount));
-  return clampNumber(spacing * 1.35, 6, 24);
-}
-
-export function computeGaussianInfluenceField(args: {
-  points: Float32Array;
-  dim: number;
-  bounds: Bounds;
-  viewport: PlotViewport;
-  indices: ArrayLike<number>;
-  values: ArrayLike<number>;
-  sigma?: number;
-  gridWidth?: number;
-  gridHeight?: number;
-}): GaussianInfluenceField {
-  const trainCount = Math.floor(args.points.length / Math.max(1, args.dim));
-  const sampleSet = collectInfluenceSamples(args);
-  const { width, height, samples, renderedCount } = sampleSet;
-  const sigma = args.sigma ?? adaptiveInfluenceSigma(args.viewport, trainCount);
-  const values = new Float32Array(width * height);
-  const support = new Float32Array(width * height);
-  const weighted = new Float32Array(width * height);
-  const sigmaX = Math.max(0.001, (sigma * width) / Math.max(1, args.viewport.width));
-  const sigmaY = Math.max(0.001, (sigma * height) / Math.max(1, args.viewport.height));
-  const supportX = Math.ceil(sigmaX * GAUSSIAN_SUPPORT_SIGMAS);
-  const supportY = Math.ceil(sigmaY * GAUSSIAN_SUPPORT_SIGMAS);
-
-  for (const sample of samples) {
-    const minCol = Math.max(0, Math.floor(sample.x - supportX));
-    const maxCol = Math.min(width - 1, Math.ceil(sample.x + supportX));
-    const minRow = Math.max(0, Math.floor(sample.y - supportY));
-    const maxRow = Math.min(height - 1, Math.ceil(sample.y + supportY));
-    for (let row = minRow; row <= maxRow; row += 1) {
-      const dy = (row - sample.y) / sigmaY;
-      const rowOffset = row * width;
-      for (let col = minCol; col <= maxCol; col += 1) {
-        const dx = (col - sample.x) / sigmaX;
-        const weight = Math.exp(-0.5 * (dx * dx + dy * dy));
-        const offset = rowOffset + col;
-        weighted[offset] += sample.value * weight;
-        support[offset] += weight;
-      }
-    }
-  }
-
-  for (let index = 0; index < values.length; index += 1) {
-    if (support[index] <= MIN_GAUSSIAN_SUPPORT) continue;
-    values[index] = weighted[index] / support[index];
-  }
-
-  const field = finalizeInfluenceField({
-    width,
-    height,
-    values,
-    support,
-    renderedCount,
-    minSupport: MIN_GAUSSIAN_SUPPORT,
-  });
-  return {
-    ...field,
-    sigma,
   };
 }
 
@@ -795,7 +720,7 @@ function drawInfluenceFieldLayer(args: {
   const color = divergingColorScale([-field.scaleMax, field.scaleMax]);
 
   for (let index = 0; index < field.values.length; index += 1) {
-    if (field.support[index] <= MIN_GAUSSIAN_SUPPORT) continue;
+    if (field.support[index] <= 0) continue;
     const value = field.values[index];
     const parsed = parseD3Color(color(value));
     if (!parsed) continue;
@@ -892,11 +817,9 @@ function renderInfluenceMapLayer(args: {
     values: args.values,
   };
   const field =
-    args.method === "gaussian"
-      ? computeGaussianInfluenceField(fieldArgs)
-      : args.method === "cells"
-        ? computeCellsInfluenceLayer(fieldArgs)
-        : computeLinearInfluenceField(fieldArgs);
+    args.method === "cells"
+      ? computeCellsInfluenceLayer(fieldArgs)
+      : computeLinearInfluenceField(fieldArgs);
   if (field.kind === "cells") {
     drawCellsInfluenceLayer({ ctx: args.ctx, viewport: args.viewport, field });
   } else {
