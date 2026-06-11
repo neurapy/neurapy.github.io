@@ -139,6 +139,38 @@ def write_influence_npz(
     )
 
 
+def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) -> None:
+    influence_dir = tmp_path / "run_influence_scores"
+    influence_dir.mkdir()
+    for name in [
+        "influences_total_loss_output_0.npz",
+        "influences_total_loss_total_loss.npz",
+        "influences_bc_loss_total_loss.npz",
+        "grad_dot_total_loss_output_0.npz",
+        "graddot_total_loss_total_loss.npz",
+    ]:
+        (influence_dir / name).touch()
+
+    run = build_static.RunPaths(
+        folder=tmp_path,
+        problem="fixture",
+        run_prefix="run",
+        checkpoint=None,
+        influence_dir=influence_dir,
+        validation_dir=None,
+    )
+
+    assert {path.stem for path in build_static.candidate_influence_files(run, "core")} == {
+        "influences_total_loss_output_0",
+        "influences_total_loss_total_loss",
+    }
+    assert {path.stem for path in build_static.candidate_influence_files(run, "all")} == {
+        "influences_total_loss_output_0",
+        "influences_total_loss_total_loss",
+        "influences_bc_loss_total_loss",
+    }
+
+
 def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_path) -> None:
     matrix_path = tmp_path / "matrix.npz"
     scores = np.arange(30, dtype=np.float32).reshape(5, 6)

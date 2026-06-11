@@ -172,7 +172,6 @@ def parse_run_experiment_args():
             "PINNfluence",
             "RAR",
             "random",
-            "grad_dot",
             "steepest_prediction_gradient",
             "steepest_loss_gradient",
         ],
@@ -238,7 +237,7 @@ def parse_precalculate_args():
         "--scoring_method",
         type=str,
         default="PINNfluence",
-        choices=["PINNfluence", "grad_dot"],
+        choices=["PINNfluence"],
         help="Scoring strategy",
     )
     parser.add_argument(

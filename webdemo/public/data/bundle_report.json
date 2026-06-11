@@ -3,16 +3,17 @@
   "by_kind": {
     "arrays": 301711,
     "field_rasters": 67096576,
-    "global_summaries": 2072080,
+    "global_summaries": 1036040,
     "index": 5371,
-    "influence_chunks": 372974400,
-    "manifest": 269763
+    "influence_chunks": 186487200,
+    "json": 158464,
+    "manifest": 163483
   },
   "by_suffix": {
-    ".f32": 2296088,
-    ".i16": 186539002,
-    ".json": 275134,
-    ".u16": 249551264,
+    ".f32": 1260048,
+    ".i16": 93295402,
+    ".json": 327318,
+    ".u16": 156307664,
     ".u8": 4058413
   },
   "files": [
@@ -80,176 +81,6 @@
       "bytes": 28000,
       "kind": "arrays",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 1792000,
@@ -422,9 +253,14 @@
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 38207,
+      "bytes": 23026,
       "kind": "manifest",
       "path": "allen_cahn_float64/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_12_soft/manifest.json"
+    },
+    {
+      "bytes": 158464,
+      "kind": "json",
+      "path": "bundle_report.json"
     },
     {
       "bytes": 2400,
@@ -485,176 +321,6 @@
       "bytes": 28000,
       "kind": "arrays",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 1792000,
@@ -827,7 +493,7 @@
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 37747,
+      "bytes": 22563,
       "kind": "manifest",
       "path": "burgers_float64/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -890,176 +556,6 @@
       "bytes": 9600,
       "kind": "arrays",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 614400,
@@ -1232,7 +728,7 @@
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 37691,
+      "bytes": 22526,
       "kind": "manifest",
       "path": "diffusion_float64/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -1300,176 +796,6 @@
       "bytes": 9600,
       "kind": "arrays",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 614400,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 105600,
-      "kind": "influence_chunks",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 4800,
-      "kind": "global_summaries",
-      "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 614400,
@@ -1642,7 +968,7 @@
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 38162,
+      "bytes": 23003,
       "kind": "manifest",
       "path": "drift_diffusion_float64/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_9_soft/manifest.json"
     },
@@ -1750,176 +1076,6 @@
       "bytes": 80000,
       "kind": "arrays",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 5120000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 880000,
-      "kind": "influence_chunks",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 40000,
-      "kind": "global_summaries",
-      "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 5120000,
@@ -2092,7 +1248,7 @@
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 41862,
+      "bytes": 26633,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_9_soft/manifest.json"
     },
@@ -2150,176 +1306,6 @@
       "bytes": 24008,
       "kind": "arrays",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1536512,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 264088,
-      "kind": "influence_chunks",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 12004,
-      "kind": "global_summaries",
-      "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 1536512,
@@ -2492,7 +1478,7 @@
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 37393,
+      "bytes": 22212,
       "kind": "manifest",
       "path": "poisson_disk_float64/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_9_soft/manifest.json"
     },
@@ -2565,176 +1551,6 @@
       "bytes": 28000,
       "kind": "arrays",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/arrays/train_points.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_output_0/summary_positive_mass.f32"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/abs/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/neg/chunks/1_values.i16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_indices.u16"
-    },
-    {
-      "bytes": 1792000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/0_values.i16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_indices.u16"
-    },
-    {
-      "bytes": 308000,
-      "kind": "influence_chunks",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/pos/chunks/1_values.i16"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_max_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_abs.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_mean_signed.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_negative_mass.f32"
-    },
-    {
-      "bytes": 14000,
-      "kind": "global_summaries",
-      "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/grad_dot_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
       "bytes": 1792000,
@@ -2907,13 +1723,13 @@
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/influence/influences_total_loss_total_loss/summary_positive_mass.f32"
     },
     {
-      "bytes": 38701,
+      "bytes": 23520,
       "kind": "manifest",
       "path": "wave_float64/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_9_soft/manifest.json"
     }
   ],
   "root": ".",
   "schema_version": 5,
-  "total_bytes": 442719901,
+  "total_bytes": 255248845,
   "within_budget": true
 }

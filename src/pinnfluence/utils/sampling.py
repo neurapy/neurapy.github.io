@@ -110,7 +110,6 @@ class Scorer:
             "PINNfluence",
             "steepest_loss_gradient",
             "steepest_prediction_gradient",
-            "grad_dot",
         ], f"Strategy {strategy} not implemented"
 
         dde.config.set_random_seed(seed)
@@ -135,7 +134,6 @@ class Scorer:
                 model=self.model,
                 potential_precalculated=potential_precalculated,
                 summation_sign=summation_sign,
-                tda_method="PINNfluence",
                 show_progress=verbose,
             )
         elif self.strategy == "steepest_loss_gradient":
@@ -144,15 +142,6 @@ class Scorer:
             )
         elif self.strategy == "steepest_prediction_gradient":
             self.score_points = partial(score_steepest_prediction_gradient, model=self.model)
-        elif self.strategy == "grad_dot":
-            self.score_points = partial(
-                score_TDA,
-                model=self.model,
-                potential_precalculated=potential_precalculated,
-                summation_sign=summation_sign,
-                tda_method="grad_dot",
-                show_progress=verbose,
-            )
         else:
             raise NotImplementedError(
                 f"Strategy {strategy} not implemented (and how did you get past the assert?)"
@@ -190,7 +179,6 @@ class Scorer:
             model=self.model,
             potential_precalculated=None,
             summation_sign="abs",
-            tda_method="PINNfluence",
         )
 
 
@@ -227,20 +215,14 @@ def score_TDA(
     candidate_points,
     potential_precalculated: str = None,
     summation_sign="abs",
-    tda_method="PINNfluence",
     show_progress=False,
 ):
-    """Score using Training Data Analysis (Influence Functions or Gradient Dot)"""
+    """Score using PINNfluence."""
     assert summation_sign in [
         "abs",
         "pos",
         "neg",
     ], "Please choose summation_sign from ['abs', 'pos', 'neg']"
-
-    assert tda_method in [
-        "PINNfluence",
-        "grad_dot",
-    ], "Please choose tda_method from ['PINNfluence', 'grad_dot']"
 
     if potential_precalculated is not None:
         print(f"Precalculated exists: {os.path.exists(potential_precalculated)}")
@@ -258,13 +240,7 @@ def score_TDA(
 
     else:
         batch_size = 1024
-        # Calculate scores from scratch
-        if tda_method == "PINNfluence":
-            tda_instance = instantiate_IF(model, show_progress=show_progress)
-        elif tda_method == "grad_dot":
-            tda_instance = instantiate_grad_dot(model)
-        else:
-            raise NotImplementedError(f"Method {tda_method} not implemented")
+        tda_instance = instantiate_IF(model, model_name=None, show_progress=show_progress)
         influence_scores = calculate_influence_scores(
             candidate_points, tda_instance, show_progress=show_progress, batch_size=batch_size
         )
@@ -317,11 +293,6 @@ def score_steepest_prediction_gradient(model, candidate_points):
     grad_l2_norm = grad_l2_norm.detach().numpy()
 
     return grad_l2_norm
-
-
-def score_grad_dot(_, candidate_points):
-    """Score by gradient dot product (not implemented)"""
-    raise NotImplementedError("Not implemented yet")
 
 
 def apply_sign(scores, sign):
@@ -451,48 +422,9 @@ def instantiate_IF_individual_loss_term(
     return if_instance, defined_mask
 
 
-def instantiate_grad_dot(
-    model,
-    batch_size: int = None,
-    use_train_set: bool = True,
-    show_progress: bool = False,
-):
-    """Create an instance of gradient-dot product estimator"""
-    data = model.data
-    net = model.net
-
-    pde_net = ModelWrapper(
-        net,
-        pde=data.pde,
-        bcs=data.bcs,
-    )
-
-    if batch_size is None:
-        batch_size = len(data.train_x_all)
-
-    if use_train_set:
-        print("Using training set for grad dot")
-        trainset = DummyDataset(data.train_x_all, return_zeroes=True)
-    else:
-        print("Using random points for grad dot")
-        trainset = DummyDataset(data.geom.random_points(1_000, random="pseudo"), return_zeroes=True)
-
-    graddot = captum.influence.TracInCP(
-        model=pde_net,
-        loss_fn=PINNLoss(),
-        train_dataset=trainset,
-        checkpoints=["dummy"],
-        # Set checkpoint contribution to 1 to get grad dot product
-        checkpoints_load_func=lambda x, y: 1,
-        batch_size=batch_size,
-    )
-
-    return graddot
-
-
 def calculate_influence_scores(
     candidate_points,
-    tda_instance: captum.influence.ArnoldiInfluenceFunction | captum.influence.TracInCP,
+    tda_instance: captum.influence.ArnoldiInfluenceFunction,
     show_progress: bool = False,
     batch_size: int = None,
 ):

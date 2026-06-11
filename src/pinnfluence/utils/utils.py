@@ -537,7 +537,7 @@ def get_directionality_indicator(
         broken=broken,
     )
 
-    # Load influence/grad_dot file with new naming convention
+    # Load influence file with new naming convention
     _infl_base = influence_load_path if influence_load_path is not None else load_path
     infl_path = _infl_base.joinpath(f"{model_name}_influence_scores")
     infl_file = infl_path / f"{method}_{right_term}_{left_term}.npz"

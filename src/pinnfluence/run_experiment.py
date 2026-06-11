@@ -94,8 +94,6 @@ def main(
     potential_save_path = None
     if scoring_method == "PINNfluence":
         potential_save_path = f"{DEFAULTS['model_zoo_src']}/{model_name}_influence_scores.npz"
-    elif scoring_method == "grad_dot":
-        potential_save_path = f"{DEFAULTS['model_zoo_src']}/{model_name}_graddot_scores.npz"
 
     # Initialize sampling strategy for selecting points
     sampler = Sampler(

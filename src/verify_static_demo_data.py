@@ -232,6 +232,16 @@ def source_file_for_matrix(
     )
 
 
+def verify_matrix_is_supported(matrix: dict[str, Any]) -> None:
+    matrix_id = str(matrix.get("id", ""))
+    method = str(matrix.get("method", ""))
+    if matrix_id.startswith(("grad_dot", "graddot")) or method.lower() in {
+        "graddot",
+        "grad_dot",
+    }:
+        raise AssertionError(f"{matrix_id}: GradDot matrices are not supported")
+
+
 def verify_topk(
     manifest_path: Path,
     samples: int,
@@ -267,6 +277,7 @@ def verify_topk(
     verify_rasters(base, manifest)
 
     for matrix in manifest["influence_matrices"]:
+        verify_matrix_is_supported(matrix)
         row_source = matrix["row_source"]
         if row_source == "candidate_points":
             expected_rows = n_candidate

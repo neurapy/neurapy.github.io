@@ -149,6 +149,20 @@ def test_verify_rejects_float32_raster(tmp_path: Path) -> None:
         verify_static.verify_topk(manifest_path, samples=1)
 
 
+def test_verify_rejects_graddot_matrix(tmp_path: Path) -> None:
+    manifest = lean_manifest(tmp_path)
+    manifest["influence_matrices"] = [
+        {
+            "id": "grad_dot_total_loss_total_loss",
+            "method": "GradDot",
+        }
+    ]
+    manifest_path = write_manifest(tmp_path, manifest)
+
+    with pytest.raises(AssertionError, match="GradDot matrices are not supported"):
+        verify_static.verify_topk(manifest_path, samples=1)
+
+
 def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) -> None:
     base = tmp_path / "data" / "folder" / "run"
     base.mkdir(parents=True)

@@ -31,8 +31,6 @@ from pinnfluence.utils.utils import loss_term_names
 CORE_MATRIX_IDS = {
     "influences_total_loss_output_0",
     "influences_total_loss_total_loss",
-    "grad_dot_total_loss_output_0",
-    "grad_dot_total_loss_total_loss",
 }
 
 DTYPES = {
@@ -468,6 +466,8 @@ def candidate_influence_files(run: RunPaths, matrix_mode: str) -> list[Path]:
     for path in sorted(run.influence_dir.glob("*.npz")):
         if path.name.startswith("."):
             continue
+        if path.stem.startswith(("grad_dot", "graddot")):
+            continue
         if matrix_mode == "core" and path.stem not in CORE_MATRIX_IDS:
             continue
         files.append(path)
@@ -760,7 +760,7 @@ def process_influence_matrix(
         source_candidate_points = np.asarray(data["candidate_points"])
         metadata: dict[str, Any] = {
             "id": path.stem,
-            "method": "GradDot" if path.stem.startswith("grad_dot") else "PINNfluence",
+            "method": "PINNfluence",
             "left_term": str(data["left_term"]),
             "right_term": str(data["right_term"]),
             "num_pdes": int(data["num_pdes"]),

@@ -21,7 +21,6 @@ from .utils.models import ModelWrapper, NetPredWrapper, PINNLoss
 from .utils.parse_args import parse_precalculate_args as parse_args
 from .utils.sampling import (
     calculate_influence_scores,
-    instantiate_grad_dot,
     instantiate_IF,
     sample_random_points,
 )
@@ -161,7 +160,6 @@ def legacy_main(
 ):
     """
     Legacy implementation: computes all influence matrices and saves to monolithic file.
-    This function is unchanged from the original implementation.
     """
     # reproduce sampling of Scorer class
     dde.config.set_random_seed(42)
@@ -181,25 +179,8 @@ def legacy_main(
 
     batch_size = 1024
 
-    if scoring_method == "grad_dot":
-        graddot = instantiate_grad_dot(model)
-
-        infl_scores = calculate_influence_scores(
-            tda_instance=graddot, candidate_points=candidate_points, batch_size=batch_size
-        )
-        infl_scores_abs = np.abs(infl_scores).sum(axis=0)
-        infl_scores_pos = infl_scores.sum(axis=0)
-        infl_scores_neg = -infl_scores.sum(axis=0)
-
-        np.savez_compressed(
-            f"{save_path}/{model_name}_graddot_scores.npz",
-            candidate_points=candidate_points,
-            scores_abs=infl_scores_abs,
-            scores_pos=infl_scores_pos,
-            scores_neg=infl_scores_neg,
-            scores=infl_scores,
-        )
-
+    if scoring_method != "PINNfluence":
+        raise ValueError("Legacy precomputation only supports PINNfluence")
     else:
         if os.path.exists(f"{save_path}/{model_name}_influence_scores.npz"):
             print(
@@ -597,10 +578,7 @@ def main(
         if wrt_individual_loss_terms:
             raise ValueError("--wrt_individual_loss_terms is only available with --legacy")
 
-    assert scoring_method in [
-        "PINNfluence",
-        "grad_dot",
-    ], "Can only precompute PINNfluence or grad_dot"
+    assert scoring_method == "PINNfluence", "Can only precompute PINNfluence"
     if use_float64:
         dde.config.set_default_float("float64")
     dde.config.set_random_seed(seed)
@@ -649,9 +627,7 @@ def main(
         )
     else:
         # ===== NEW MODE: Single influence matrix computation =====
-        assert scoring_method in ["PINNfluence", "grad_dot"], (
-            "New mode only supports PINNfluence or grad_dot method"
-        )
+        assert scoring_method == "PINNfluence", "New mode only supports PINNfluence"
 
         # Get number of PDEs and BCs
         n_outputs = model.net.linears[-1].out_features
@@ -682,16 +658,13 @@ def main(
 
         # Instantiate IF
         print("Instantiating influence function...")
-        if scoring_method == "grad_dot":
-            IF_instance = instantiate_grad_dot(model, use_train_set=True, show_progress=False)
-        else:
-            IF_instance = instantiate_IF(
-                model,
-                use_train_set=True,
-                show_progress=False,
-                model_name=model_name,
-                prefer_load_R=False,
-            )
+        IF_instance = instantiate_IF(
+            model,
+            use_train_set=True,
+            show_progress=False,
+            model_name=model_name,
+            prefer_load_R=False,
+        )
 
         # Compute single influence matrix
         infl_scores = compute_single_influence(
@@ -714,8 +687,7 @@ def main(
 
         # Create filename
         suffix = "_self" if self_influence else ""
-        prefix = "influences" if scoring_method == "PINNfluence" else "grad_dot"
-        filename = f"{prefix}_{right}_{left}{suffix}.npz"
+        filename = f"influences_{right}_{left}{suffix}.npz"
         filepath = os.path.join(influence_dir, filename)
 
         # Save to file

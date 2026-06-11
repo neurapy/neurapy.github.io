@@ -80,6 +80,8 @@ uv run python src/build_static_demo_data.py \
 --workers 8 \
 
 # matrix-mode all generates more plots
+# matrix-mode core exports only the two PINNfluence matrices:
+# influences_total_loss_output_0 and influences_total_loss_total_loss
 # max_local_influence_points is  max number of influence point per candidate_point
 # n-candidate / n-train control how many existing raw points are exported
 # raster-max-resolution is resolution of precomputed prediction / loss graphs on the longest axis
@@ -117,7 +119,6 @@ Have fun on ICML
 - Impressum & Datenschutzerklärung rein (Aleks schätzt die IT schickt nochma was)
 - Drift Diffusion 1:1
 - Selfhosting configuren? Warte auf was die it zu aleks sagt zu wie wir hosten
-- Evtl. Kommt graddot raus, warten auf was Rene und Jonas sagen. 
 - Loss nicht mehr nach unterschiedlichen Terms aufsplitten
 - Checkbox, und ansonsten nichts preloaden.
 - Axis Labels und Colorbar
@@ -127,4 +128,3 @@ Have fun on ICML
 
 
 - Manchmal clustern Influences an bestimmten regionen von boundaries. Wieso?
-
