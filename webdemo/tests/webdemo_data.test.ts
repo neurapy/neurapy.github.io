@@ -436,7 +436,6 @@ describe("priority loader", () => {
 describe("run prefetch planner", () => {
   const context: PrefetchContext = {
     fieldId: "pred_output_0",
-    fieldKind: "prediction",
     matrixId: "m0",
     sign: "abs",
     selectedCandidateIndex: 0,

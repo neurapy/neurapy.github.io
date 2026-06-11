@@ -1,6 +1,5 @@
 import type {
   ArraySpec,
-  FieldKind,
   InfluenceMatrixManifest,
   InfluenceSign,
   RunManifest,
@@ -12,7 +11,6 @@ const INFLUENCE_SIGNS: InfluenceSign[] = ["abs", "pos", "neg"];
 
 export interface PrefetchContext {
   fieldId: string | null;
-  fieldKind: FieldKind;
   matrixId: string | null;
   sign: InfluenceSign;
   selectedCandidateIndex: number;
@@ -125,12 +123,7 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
   add(manifest.field_raster?.mask, 0, "field-raster-mask");
 
   for (const [fieldId, field] of Object.entries(manifest.fields)) {
-    const rank =
-      fieldId === context.fieldId
-        ? 1
-        : field.kind === context.fieldKind
-          ? 10
-          : 60;
+    const rank = fieldId === context.fieldId ? 1 : 10;
     add(field.raster, rank, `field:${fieldId}`);
   }
 

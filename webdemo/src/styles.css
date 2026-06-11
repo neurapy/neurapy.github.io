@@ -370,10 +370,6 @@ select {
   flex-basis: 210px;
 }
 
-.kind-control {
-  flex-basis: 168px;
-}
-
 .sign-control {
   flex-basis: 124px;
 }
@@ -389,10 +385,6 @@ select {
 .plot-actions[data-control-layout="bar"] .field-control,
 .plot-actions[data-control-layout="bar"] .matrix-control {
   flex-basis: min(100%, 220px);
-}
-
-.plot-actions[data-control-layout="bar"] .kind-control {
-  flex-basis: min(100%, 168px);
 }
 
 .plot-actions[data-control-layout="bar"] .sign-control {
@@ -436,11 +428,6 @@ select {
 .plot-actions[data-control-layout="inline"] .matrix-control,
 .plot-actions[data-control-layout="bar"] .matrix-control {
   min-width: 170px;
-}
-
-.plot-actions[data-control-layout="inline"] .kind-control,
-.plot-actions[data-control-layout="bar"] .kind-control {
-  min-width: 150px;
 }
 
 .plot-actions[data-control-layout="inline"] .sign-control,
@@ -512,10 +499,6 @@ select {
 
 .model-menu .plot-control:first-child {
   width: auto;
-}
-
-.model-menu .segmented {
-  width: 100%;
 }
 
 .k-control span {

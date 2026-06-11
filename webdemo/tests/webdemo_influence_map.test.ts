@@ -4,9 +4,11 @@ import {
   computeCellsInfluenceLayer,
   computeLinearInfluenceField,
   influenceEntriesForBackground,
+  MAX_VISIBLE_INFLUENCE_ARROWS,
   type InfluenceField,
   type InfluenceMapLayer,
   robustAbsScaleMax,
+  visibleTopKInfluenceEntries,
 } from "../src/viz/plots";
 import { divergingColorScale } from "../src/viz/color";
 import type { Bounds, PlotViewport } from "../src/types";
@@ -61,6 +63,21 @@ describe("influence map samples", () => {
       indices: [10, 13],
       values: [-4, -1],
     });
+  });
+
+  it("caps visible top-k overlays without trimming background influence entries", () => {
+    const count = MAX_VISIBLE_INFLUENCE_ARROWS * 2;
+    const indices = Uint16Array.from({ length: count }, (_unused, index) => index);
+    const values = Float32Array.from({ length: count }, (_unused, index) => index + 0.5);
+
+    const visible = visibleTopKInfluenceEntries(indices, values, count);
+
+    expect(indices).toHaveLength(count);
+    expect(values).toHaveLength(count);
+    expect(visible.count).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
+    expect(visible.indices.length).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
+    expect(visible.values.length).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
+    expect(visible.indices[visible.count - 1]).toBe(MAX_VISIBLE_INFLUENCE_ARROWS - 1);
   });
 });
 

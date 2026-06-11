@@ -165,9 +165,18 @@ async function touchDoubleTapThenDragRegion(page: Page): Promise<void> {
   await page.locator("#mainCanvas").evaluate((canvas) => {
     const element = canvas as HTMLCanvasElement;
     const box = element.getBoundingClientRect();
+    const axisFrame = document.querySelector<SVGRectElement>("#mainSvg .axis-frame");
+    const frame = axisFrame
+      ? {
+          x: Number(axisFrame.getAttribute("x")),
+          y: Number(axisFrame.getAttribute("y")),
+          width: Number(axisFrame.getAttribute("width")),
+          height: Number(axisFrame.getAttribute("height")),
+        }
+      : { x: 0, y: 0, width: box.width, height: box.height };
     const point = (xRatio: number, yRatio: number): [number, number] => [
-      box.left + box.width * xRatio,
-      box.top + box.height * yRatio,
+      box.left + frame.x + frame.width * xRatio,
+      box.top + frame.y + frame.height * yRatio,
     ];
     const fire = (type: string, pointValue: [number, number], pointerId: number) => {
       element.dispatchEvent(
@@ -219,7 +228,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#mainRange")).toHaveText(/Prediction output/);
   await expect(page.locator("#trainTitle")).toHaveText("Train");
   await expect(page.locator(".model-panel #fieldSelect")).toBeVisible();
-  await expect(page.locator(".model-panel #fieldKindButtons")).toBeVisible();
+  await expect(page.locator(".model-panel #fieldKindButtons")).toHaveCount(0);
   await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator(".train-panel #matrixSelect")).toHaveCount(1);
@@ -297,7 +306,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect.poll(() => requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(true);
   await expect.poll(() => requests.some((url) => url.includes("abs/chunks/1_indices.u16"))).toBe(true);
 
-  await page.locator("button[data-kind='loss']").click();
+  await openControlsIfMenu(page, "model");
+  await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#mainTitle")).toHaveText("Model");
   await expect(page.locator("#mainRange")).toHaveText(/Total loss/);
 

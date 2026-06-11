@@ -5,7 +5,6 @@ export const MAX_TOP_K = 256;
 export interface AppState {
   runId: string | null;
   fieldId: string | null;
-  fieldKind: "prediction" | "loss";
   matrixId: string | null;
   sign: InfluenceSign;
   k: number;
@@ -21,7 +20,6 @@ export interface AppState {
 export type AppAction =
   | { type: "run"; runId: string }
   | { type: "field"; fieldId: string }
-  | { type: "fieldKind"; fieldKind: AppState["fieldKind"] }
   | { type: "matrix"; matrixId: string }
   | { type: "sign"; sign: InfluenceSign }
   | { type: "k"; k: number }
@@ -43,7 +41,6 @@ export type AppAction =
 export const initialState: AppState = {
   runId: null,
   fieldId: null,
-  fieldKind: "prediction",
   matrixId: null,
   sign: "abs",
   k: 25,
@@ -70,8 +67,6 @@ export function reduceState(state: AppState, action: AppAction): AppState {
       };
     case "field":
       return { ...state, fieldId: action.fieldId };
-    case "fieldKind":
-      return { ...state, fieldKind: action.fieldKind };
     case "matrix":
       return { ...state, matrixId: action.matrixId, selectedTrainIndex: 0 };
     case "sign":

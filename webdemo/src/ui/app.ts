@@ -3,7 +3,6 @@ import type {
   BackgroundMode,
   Bounds,
   DataIndex,
-  FieldKind,
   IndexRunEntry,
   InfluenceAggregate,
   InfluenceMatrixManifest,
@@ -125,14 +124,6 @@ export class AppController {
         this.schedule("train");
         this.updateStats();
       });
-    });
-    this.dom.fieldKindButtons.addEventListener("click", (event) => {
-      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-kind]");
-      if (!button) return;
-      const kind = button.dataset.kind === "loss" ? "loss" : "prediction";
-      this.store.dispatch({ type: "fieldKind", fieldKind: kind });
-      this.populateFieldSelect(kind);
-      void this.loadRaster(this.dom.fieldSelect.value);
     });
     this.dom.signButtons.addEventListener("click", (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>("button[data-sign]");
@@ -426,12 +417,11 @@ export class AppController {
       Object.entries(this.manifest.fields).find(([, field]) => field.kind === "prediction")?.[0] ??
       Object.keys(this.manifest.fields)[0] ??
       null;
-    const fieldKind = firstField ? this.manifest.fields[firstField]?.kind ?? "prediction" : "prediction";
-    this.store.dispatch({ type: "fieldKind", fieldKind });
-    this.populateFieldSelect(fieldKind);
+    this.populateFieldSelect();
     if (firstField) {
-      this.dom.fieldSelect.value = firstField;
-      this.store.dispatch({ type: "field", fieldId: firstField });
+      const hasDefault = Array.from(this.dom.fieldSelect.options).some((option) => option.value === firstField);
+      if (hasDefault) this.dom.fieldSelect.value = firstField;
+      this.store.dispatch({ type: "field", fieldId: this.dom.fieldSelect.value });
     }
 
     const matrices = this.manifest.influence_matrices;
@@ -455,31 +445,26 @@ export class AppController {
     this.dom.kSlider.value = String(Math.min(this.store.state.k, MAX_TOP_K));
     this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
     this.dom.kOutput.value = String(this.store.state.k);
-    this.setActiveButtons(this.dom.fieldKindButtons, fieldKind, "kind");
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
     this.setActiveButtons(this.dom.backgroundButtons, this.store.state.backgroundMode, "backgroundMode");
     this.updateTrainControlVisibility();
   }
 
-  private populateFieldSelect(kind: "prediction" | "loss"): void {
+  private populateFieldSelect(): void {
     if (!this.manifest) return;
-    const options = Object.entries(this.manifest.fields)
-      .filter(([, field]) => field.kind === kind)
-      .map(([id, field]) => new Option(formatDisplayLabel(field.label), id));
-    if (!options.length) {
-      options.push(
-        ...Object.entries(this.manifest.fields).map(
-          ([id, field]) => new Option(formatDisplayLabel(field.label), id),
-        ),
-      );
-    }
+    const entries = Object.entries(this.manifest.fields);
+    const orderedEntries = [
+      ...entries.filter(([, field]) => field.kind === "prediction"),
+      ...entries.filter(([id]) => id === "loss_total"),
+      ...entries.filter(([id, field]) => field.kind !== "prediction" && id !== "loss_total"),
+    ];
+    const options = orderedEntries.map(([id, field]) => new Option(formatDisplayLabel(field.label), id));
     this.dom.fieldSelect.replaceChildren(...options);
     const selected = this.store.state.fieldId;
     if (selected && options.some((option) => option.value === selected)) {
       this.dom.fieldSelect.value = selected;
     }
     this.store.dispatch({ type: "field", fieldId: this.dom.fieldSelect.value });
-    this.setActiveButtons(this.dom.fieldKindButtons, kind, "kind");
   }
 
   private setActiveButtons(group: HTMLElement, value: string, datasetName: string): void {
@@ -634,7 +619,6 @@ export class AppController {
     if (!this.manifest) return null;
     return {
       fieldId: this.store.state.fieldId,
-      fieldKind: this.store.state.fieldKind as FieldKind,
       matrixId: this.store.state.matrixId,
       sign: this.store.state.sign,
       selectedCandidateIndex: this.store.state.selectedCandidateIndex,

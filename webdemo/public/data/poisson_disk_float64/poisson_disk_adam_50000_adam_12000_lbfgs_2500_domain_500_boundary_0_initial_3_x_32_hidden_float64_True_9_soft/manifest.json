@@ -104,98 +104,6 @@
     "width": 1024
   },
   "fields": {
-    "loss_bc": {
-      "display_domain": [
-        -1.0,
-        1.0
-      ],
-      "encoding": {
-        "kind": "linear",
-        "max": 1.964068360393867e-06,
-        "min": 0.0,
-        "missing": 65535
-      },
-      "kind": "loss",
-      "label": "BC Loss",
-      "raster": {
-        "bytes": 2097152,
-        "dtype": "uint16",
-        "path": "arrays/loss_bc_raster.u16",
-        "shape": [
-          1024,
-          1024
-        ]
-      }
-    },
-    "loss_bc_0": {
-      "display_domain": [
-        -1.0,
-        1.0
-      ],
-      "encoding": {
-        "kind": "linear",
-        "max": 1.964068360393867e-06,
-        "min": 0.0,
-        "missing": 65535
-      },
-      "kind": "loss",
-      "label": "Dirichlet BC ($u(x) = 0$ at $||{x}||=1$)",
-      "raster": {
-        "bytes": 2097152,
-        "dtype": "uint16",
-        "path": "arrays/loss_bc_0_raster.u16",
-        "shape": [
-          1024,
-          1024
-        ]
-      }
-    },
-    "loss_pde": {
-      "display_domain": [
-        4.909138748843133e-09,
-        0.0018479325855150638
-      ],
-      "encoding": {
-        "kind": "linear",
-        "max": 699.6171264648438,
-        "min": 2.0082105623105194e-17,
-        "missing": 65535
-      },
-      "kind": "loss",
-      "label": "PDE Loss",
-      "raster": {
-        "bytes": 2097152,
-        "dtype": "uint16",
-        "path": "arrays/loss_pde_raster.u16",
-        "shape": [
-          1024,
-          1024
-        ]
-      }
-    },
-    "loss_pde_0": {
-      "display_domain": [
-        4.909138748843133e-09,
-        0.0018479325855150638
-      ],
-      "encoding": {
-        "kind": "linear",
-        "max": 699.6171264648438,
-        "min": 2.0082105623105194e-17,
-        "missing": 65535
-      },
-      "kind": "loss",
-      "label": "PDE Loss",
-      "raster": {
-        "bytes": 2097152,
-        "dtype": "uint16",
-        "path": "arrays/loss_pde_0_raster.u16",
-        "shape": [
-          1024,
-          1024
-        ]
-      }
-    },
     "loss_total": {
       "display_domain": [
         4.909138748843133e-09,
@@ -244,7 +152,7 @@
     }
   },
   "folder": "poisson_disk_float64",
-  "generated_at": "2026-06-11T06:36:37+0200",
+  "generated_at": "2026-06-11T08:48:36+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [

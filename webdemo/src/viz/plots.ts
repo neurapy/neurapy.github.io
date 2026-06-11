@@ -109,6 +109,7 @@ const MIN_MAP_GRID_CELL_SIZE_PX = 2;
 const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
+export const MAX_VISIBLE_INFLUENCE_ARROWS = 64;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -125,6 +126,32 @@ function maxAbsValue(values: ArrayLike<number>, count = values.length): number {
     if (Number.isFinite(value)) maxAbs = Math.max(maxAbs, Math.abs(value));
   }
   return maxAbs;
+}
+
+function sliceArrayLike(values: ArrayLike<number>, count: number): ArrayLike<number> {
+  const typedValues = values as ArrayLike<number> & {
+    subarray?: (start: number, end?: number) => ArrayLike<number>;
+  };
+  if (typeof typedValues.subarray === "function") return typedValues.subarray(0, count);
+  return Array.from({ length: count }, (_unused, index) => values[index]);
+}
+
+export function visibleTopKInfluenceEntries(
+  indices: ArrayLike<number>,
+  values: ArrayLike<number>,
+  k: number,
+): { indices: ArrayLike<number>; values: ArrayLike<number>; count: number } {
+  const count = Math.min(
+    Math.max(0, Math.trunc(k)),
+    indices.length,
+    values.length,
+    MAX_VISIBLE_INFLUENCE_ARROWS,
+  );
+  return {
+    indices: sliceArrayLike(indices, count),
+    values: sliceArrayLike(values, count),
+    count,
+  };
 }
 
 function influenceStrength(value: number, scaleMax: number): number {
@@ -1017,9 +1044,11 @@ export function renderLocalInfluencePlot(args: {
     values: backgroundEntries.values,
     backgroundMode: args.backgroundMode,
   });
-  const topKCount = Math.min(Math.max(0, args.k), args.row.values.length);
-  const topKValues = args.row.values.subarray(0, topKCount);
-  const topKIndices = args.row.indices.subarray(0, topKCount);
+  const { indices: topKIndices, values: topKValues } = visibleTopKInfluenceEntries(
+    args.row.indices,
+    args.row.values,
+    args.k,
+  );
   const topKMaxAbs = maxAbsValue(topKValues);
   const scaleMax = topKMaxAbs > 0 ? topKMaxAbs : backgroundStats.scaleMax;
 
@@ -1084,9 +1113,11 @@ export function renderRegionalInfluencePlot(args: {
     values: args.aggregate.values,
     backgroundMode: args.backgroundMode,
   });
-  const topKCount = Math.min(Math.max(0, args.k), args.aggregate.values.length);
-  const topKValues = args.aggregate.values.subarray(0, topKCount);
-  const topKIndices = args.aggregate.indices.subarray(0, topKCount);
+  const { indices: topKIndices, values: topKValues } = visibleTopKInfluenceEntries(
+    args.aggregate.indices,
+    args.aggregate.values,
+    args.k,
+  );
   const topKMaxAbs = maxAbsValue(topKValues);
   const scaleMax = topKMaxAbs > 0 ? topKMaxAbs : backgroundStats.scaleMax;
   drawTopKInfluencePoints({

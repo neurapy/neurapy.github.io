@@ -5,7 +5,6 @@ export interface DomRefs {
   message: HTMLElement;
   fieldSelect: HTMLSelectElement;
   matrixSelect: HTMLSelectElement;
-  fieldKindButtons: HTMLElement;
   signButtons: HTMLElement;
   backgroundButtons: HTMLElement;
   kControl: HTMLElement;
@@ -50,7 +49,6 @@ export function getDomRefs(): DomRefs {
     message: required("#message", HTMLElement),
     fieldSelect: required("#fieldSelect", HTMLSelectElement),
     matrixSelect: required("#matrixSelect", HTMLSelectElement),
-    fieldKindButtons: required("#fieldKindButtons", HTMLElement),
     signButtons: required("#signButtons", HTMLElement),
     backgroundButtons: required("#backgroundButtons", HTMLElement),
     kControl: required("#kControl", HTMLElement),

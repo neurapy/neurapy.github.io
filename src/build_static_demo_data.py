@@ -666,8 +666,6 @@ def predict_fields(
     model: Any,
     data: Any,
     points: np.ndarray,
-    num_pdes: int,
-    num_bcs: int,
     float64: bool,
     batch_size: int = 512,
 ) -> dict[str, np.ndarray]:
@@ -705,16 +703,6 @@ def predict_fields(
         fields[f"pred_output_{idx}"] = pred_all[:, idx].astype(np.float32)
 
     fields["loss_total"] = squared.sum(axis=1).astype(np.float32)
-    if num_pdes > 0:
-        fields["loss_pde"] = squared[:, :num_pdes].sum(axis=1).astype(np.float32)
-        for idx in range(num_pdes):
-            fields[f"loss_pde_{idx}"] = squared[:, idx].astype(np.float32)
-    if num_bcs > 0:
-        bc_start = num_pdes
-        bc_stop = num_pdes + num_bcs
-        fields["loss_bc"] = squared[:, bc_start:bc_stop].sum(axis=1).astype(np.float32)
-        for idx in range(num_bcs):
-            fields[f"loss_bc_{idx}"] = squared[:, bc_start + idx].astype(np.float32)
     return fields
 
 
@@ -1032,8 +1020,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                         model=model,
                         data=data,
                         points=raster_grid.points,
-                        num_pdes=num_pdes,
-                        num_bcs=num_bcs,
                         float64=params["float64"],
                     )
                 else:
