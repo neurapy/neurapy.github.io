@@ -21,6 +21,12 @@ async function expectNonblankCanvas(page: Page, selector: string): Promise<void>
   await expect.poll(() => canvasIsNonblank(page, selector), { timeout: 10_000 }).toBe(true);
 }
 
+async function expectContourPaths(page: Page, panel: "model" | "train"): Promise<void> {
+  await expect
+    .poll(() => page.locator(`.${panel}-panel .contours path`).count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+}
+
 async function canvasSignature(page: Page, selector: string): Promise<number> {
   return page.locator(selector).evaluate((canvas) => {
     const element = canvas as HTMLCanvasElement;
@@ -157,6 +163,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("button[data-train-mode='local']")).toHaveClass(/active/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  await expectContourPaths(page, "model");
+  await expectContourPaths(page, "train");
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toBeVisible();
   await expect(page.locator("#methodControl")).toBeHidden();
@@ -241,6 +249,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectVisibleControlsInsidePanels(page);
   await expect(page.locator("#trainRange")).toHaveText(/Global ·/);
   await expectNonblankCanvas(page, "#trainCanvas");
+  await expectContourPaths(page, "train");
   await expect(page.locator("#globalCanvas")).toHaveCount(0);
 
   await page.locator("button[data-train-mode='local']").click();

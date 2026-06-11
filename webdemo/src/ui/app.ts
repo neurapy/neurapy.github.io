@@ -594,6 +594,7 @@ export class AppController {
       contourPaths: response.contourPaths,
     };
     this.schedule("main");
+    this.schedule("train");
     this.updateStats();
   }
 
@@ -772,6 +773,8 @@ export class AppController {
           canvas: this.dom.trainCanvas,
           svg: this.dom.trainSvg,
           context,
+          raster: this.raster,
+          rasterResult: this.rasterResult,
           aggregate: this.influenceAggregate,
           k: this.store.state.k,
           mode: influenceMode,
@@ -795,6 +798,8 @@ export class AppController {
         canvas: this.dom.trainCanvas,
         svg: this.dom.trainSvg,
         context,
+        raster: this.raster,
+        rasterResult: this.rasterResult,
         matrix,
         row: this.influenceRow,
         selectedCandidateIndex: this.store.state.selectedCandidateIndex,
@@ -822,6 +827,8 @@ export class AppController {
       canvas: this.dom.trainCanvas,
       svg: this.dom.trainSvg,
       context,
+      raster: this.raster,
+      rasterResult: this.rasterResult,
       values: this.summaryValues,
       diverging:
         this.store.state.summary === "mean_signed" ||

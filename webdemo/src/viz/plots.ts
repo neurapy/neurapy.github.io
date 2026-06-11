@@ -556,6 +556,51 @@ export function renderAxes(
     .call(axisLeft(y).ticks(Math.max(3, Math.floor(height / 150))).tickFormat(format(".2~g")));
 }
 
+function boundsSpan(min: number, max: number): number {
+  const span = max - min;
+  return Number.isFinite(span) && span > 0 ? span : 1;
+}
+
+function rasterPlotBounds(context: PlotContext): Bounds {
+  return context.manifest.field_raster
+    ? boundsFromAxisMap(context.manifest.field_raster.bounds, context.manifest.field_raster.axes)
+    : context.bounds;
+}
+
+function renderContourOverlay(args: {
+  svg: SVGSVGElement;
+  raster: RasterData | null;
+  rasterResult: RasterRenderResult | null;
+  rasterBounds: Bounds;
+  targetBounds: Bounds;
+  viewport: PlotViewport;
+}): void {
+  if (!args.raster || !args.rasterResult?.contourPaths.length) return;
+  const targetSpanX = boundsSpan(args.targetBounds.minX, args.targetBounds.maxX);
+  const targetSpanY = boundsSpan(args.targetBounds.minY, args.targetBounds.maxY);
+  const rasterSpanX = boundsSpan(args.rasterBounds.minX, args.rasterBounds.maxX);
+  const rasterSpanY = boundsSpan(args.rasterBounds.minY, args.rasterBounds.maxY);
+  const scaleX =
+    (rasterSpanX / targetSpanX) * (args.viewport.width / Math.max(1, args.raster.width));
+  const scaleY =
+    (rasterSpanY / targetSpanY) * (args.viewport.height / Math.max(1, args.raster.height));
+  const offsetX =
+    args.viewport.x +
+    ((args.rasterBounds.minX - args.targetBounds.minX) / targetSpanX) * args.viewport.width;
+  const offsetY =
+    args.viewport.y +
+    ((args.targetBounds.maxY - args.rasterBounds.maxY) / targetSpanY) * args.viewport.height;
+  const root = select(args.svg)
+    .append("g")
+    .attr("class", "contours")
+    .attr("transform", `translate(${offsetX},${offsetY}) scale(${scaleX},${scaleY})`);
+  root
+    .selectAll("path")
+    .data(args.rasterResult.contourPaths)
+    .join("path")
+    .attr("d", (pathValue) => pathValue);
+}
+
 export function drawPointMarker(
   ctx: CanvasRenderingContext2D,
   sx: number,
@@ -612,12 +657,7 @@ export function renderMainPlot(args: {
 }): PlotViewport {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
-  const rasterBounds = args.context.manifest.field_raster
-    ? boundsFromAxisMap(
-        args.context.manifest.field_raster.bounds,
-        args.context.manifest.field_raster.axes,
-      )
-    : args.context.bounds;
+  const rasterBounds = rasterPlotBounds(args.context);
   const viewport = plotViewport(rasterBounds, width, height);
 
   if (args.raster && args.rasterResult) {
@@ -657,17 +697,14 @@ export function renderMainPlot(args: {
   }
 
   renderAxes(args.svg, rasterBounds, width, height, viewport);
-  if (args.rasterResult?.contourPaths.length) {
-    const root = select(args.svg).append("g").attr("class", "contours");
-    const scaleX = viewport.width / Math.max(1, args.raster?.width ?? 1);
-    const scaleY = viewport.height / Math.max(1, args.raster?.height ?? 1);
-    root
-      .selectAll("path")
-      .data(args.rasterResult.contourPaths)
-      .join("path")
-      .attr("d", (pathValue) => pathValue)
-      .attr("transform", `translate(${viewport.x},${viewport.y}) scale(${scaleX},${scaleY})`);
-  }
+  renderContourOverlay({
+    svg: args.svg,
+    raster: args.raster,
+    rasterResult: args.rasterResult,
+    rasterBounds,
+    targetBounds: rasterBounds,
+    viewport,
+  });
   return viewport;
 }
 
@@ -872,6 +909,8 @@ export function renderLocalInfluencePlot(args: {
   canvas: HTMLCanvasElement;
   svg: SVGSVGElement;
   context: PlotContext;
+  raster: RasterData | null;
+  rasterResult: RasterRenderResult | null;
   matrix: InfluenceMatrixManifest;
   row: InfluenceRow | null;
   selectedCandidateIndex: number;
@@ -885,6 +924,14 @@ export function renderLocalInfluencePlot(args: {
   clearCanvas(ctx, width, height);
   const viewport = plotViewport(args.context.bounds, width, height);
   renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  renderContourOverlay({
+    svg: args.svg,
+    raster: args.raster,
+    rasterResult: args.rasterResult,
+    rasterBounds: rasterPlotBounds(args.context),
+    targetBounds: args.context.bounds,
+    viewport,
+  });
   drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, args.context.bounds, viewport, {
     color: "#526070",
     alpha: 0.18,
@@ -959,6 +1006,8 @@ export function renderRegionalInfluencePlot(args: {
   canvas: HTMLCanvasElement;
   svg: SVGSVGElement;
   context: PlotContext;
+  raster: RasterData | null;
+  rasterResult: RasterRenderResult | null;
   aggregate: InfluenceAggregate | null;
   k: number;
   mode: InfluenceDisplayMode;
@@ -968,6 +1017,14 @@ export function renderRegionalInfluencePlot(args: {
   clearCanvas(ctx, width, height);
   const viewport = plotViewport(args.context.bounds, width, height);
   renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  renderContourOverlay({
+    svg: args.svg,
+    raster: args.raster,
+    rasterResult: args.rasterResult,
+    rasterBounds: rasterPlotBounds(args.context),
+    targetBounds: args.context.bounds,
+    viewport,
+  });
   drawPointCloudLayer(ctx, args.context.points.train_points, args.context.trainDim, args.context.bounds, viewport, {
     color: "#526070",
     alpha: 0.18,
@@ -1012,6 +1069,8 @@ export function renderGlobalPlot(args: {
   canvas: HTMLCanvasElement;
   svg: SVGSVGElement;
   context: PlotContext;
+  raster: RasterData | null;
+  rasterResult: RasterRenderResult | null;
   values: Float32Array | null;
   diverging: boolean;
 }): [number, number] {
@@ -1019,6 +1078,14 @@ export function renderGlobalPlot(args: {
   clearCanvas(ctx, width, height);
   const viewport = plotViewport(args.context.bounds, width, height);
   renderAxes(args.svg, args.context.bounds, width, height, viewport);
+  renderContourOverlay({
+    svg: args.svg,
+    raster: args.raster,
+    rasterResult: args.rasterResult,
+    rasterBounds: rasterPlotBounds(args.context),
+    targetBounds: args.context.bounds,
+    viewport,
+  });
   const count = Math.floor(args.context.points.train_points.length / args.context.trainDim);
   const values = args.values ?? new Float32Array(count);
   const domain = args.diverging ? finiteExtent(values) : finiteExtent(values);
