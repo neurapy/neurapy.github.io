@@ -4,11 +4,12 @@ import {
   computeCellsInfluenceLayer,
   computeLinearInfluenceField,
   influenceEntriesForBackground,
-  MAX_VISIBLE_INFLUENCE_ARROWS,
+  MAX_VISIBLE_INFLUENCE_LINES,
   type InfluenceField,
   type InfluenceMapLayer,
   robustAbsScaleMax,
-  visibleTopKInfluenceEntries,
+  topKInfluenceEntries,
+  topKInfluenceLineEntries,
 } from "../src/viz/plots";
 import { divergingColorScale } from "../src/viz/color";
 import type { Bounds, PlotViewport } from "../src/types";
@@ -65,19 +66,23 @@ describe("influence map samples", () => {
     });
   });
 
-  it("caps visible top-k overlays without trimming background influence entries", () => {
-    const count = MAX_VISIBLE_INFLUENCE_ARROWS * 2;
+  it("caps top-k lines while leaving point highlights at the requested k", () => {
+    const count = MAX_VISIBLE_INFLUENCE_LINES * 2;
     const indices = Uint16Array.from({ length: count }, (_unused, index) => index);
     const values = Float32Array.from({ length: count }, (_unused, index) => index + 0.5);
 
-    const visible = visibleTopKInfluenceEntries(indices, values, count);
+    const points = topKInfluenceEntries(indices, values, count);
+    const lines = topKInfluenceLineEntries(indices, values, count);
 
     expect(indices).toHaveLength(count);
     expect(values).toHaveLength(count);
-    expect(visible.count).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
-    expect(visible.indices.length).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
-    expect(visible.values.length).toBe(MAX_VISIBLE_INFLUENCE_ARROWS);
-    expect(visible.indices[visible.count - 1]).toBe(MAX_VISIBLE_INFLUENCE_ARROWS - 1);
+    expect(points.count).toBe(count);
+    expect(points.indices.length).toBe(count);
+    expect(points.values.length).toBe(count);
+    expect(lines.count).toBe(MAX_VISIBLE_INFLUENCE_LINES);
+    expect(lines.indices.length).toBe(MAX_VISIBLE_INFLUENCE_LINES);
+    expect(lines.values.length).toBe(MAX_VISIBLE_INFLUENCE_LINES);
+    expect(lines.indices[lines.count - 1]).toBe(MAX_VISIBLE_INFLUENCE_LINES - 1);
   });
 });
 

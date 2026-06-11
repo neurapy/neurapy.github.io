@@ -109,7 +109,7 @@ const MIN_MAP_GRID_CELL_SIZE_PX = 2;
 const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
-export const MAX_VISIBLE_INFLUENCE_ARROWS = 64;
+export const MAX_VISIBLE_INFLUENCE_LINES = 64;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -136,22 +136,25 @@ function sliceArrayLike(values: ArrayLike<number>, count: number): ArrayLike<num
   return Array.from({ length: count }, (_unused, index) => values[index]);
 }
 
-export function visibleTopKInfluenceEntries(
+export function topKInfluenceEntries(
   indices: ArrayLike<number>,
   values: ArrayLike<number>,
   k: number,
 ): { indices: ArrayLike<number>; values: ArrayLike<number>; count: number } {
-  const count = Math.min(
-    Math.max(0, Math.trunc(k)),
-    indices.length,
-    values.length,
-    MAX_VISIBLE_INFLUENCE_ARROWS,
-  );
+  const count = Math.min(Math.max(0, Math.trunc(k)), indices.length, values.length);
   return {
     indices: sliceArrayLike(indices, count),
     values: sliceArrayLike(values, count),
     count,
   };
+}
+
+export function topKInfluenceLineEntries(
+  indices: ArrayLike<number>,
+  values: ArrayLike<number>,
+  k: number,
+): { indices: ArrayLike<number>; values: ArrayLike<number>; count: number } {
+  return topKInfluenceEntries(indices, values, Math.min(k, MAX_VISIBLE_INFLUENCE_LINES));
 }
 
 function influenceStrength(value: number, scaleMax: number): number {
@@ -619,7 +622,9 @@ export function drawPointCloudLayer(
   for (let index = 0; index < count; index += stride) {
     const [x, y] = pointAt(points, index, dim);
     const [sx, sy] = projectPointToViewport(x, y, bounds, viewport);
-    ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
+    ctx.beginPath();
+    ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -1044,7 +1049,12 @@ export function renderLocalInfluencePlot(args: {
     values: backgroundEntries.values,
     backgroundMode: args.backgroundMode,
   });
-  const { indices: topKIndices, values: topKValues } = visibleTopKInfluenceEntries(
+  const { indices: topKIndices, values: topKValues } = topKInfluenceEntries(
+    args.row.indices,
+    args.row.values,
+    args.k,
+  );
+  const { indices: topKLineIndices, values: topKLineValues } = topKInfluenceLineEntries(
     args.row.indices,
     args.row.values,
     args.k,
@@ -1056,8 +1066,8 @@ export function renderLocalInfluencePlot(args: {
     ctx,
     context: args.context,
     viewport,
-    indices: topKIndices,
-    values: topKValues,
+    indices: topKLineIndices,
+    values: topKLineValues,
     scaleMax,
     rowSx,
     rowSy,
@@ -1113,7 +1123,7 @@ export function renderRegionalInfluencePlot(args: {
     values: args.aggregate.values,
     backgroundMode: args.backgroundMode,
   });
-  const { indices: topKIndices, values: topKValues } = visibleTopKInfluenceEntries(
+  const { indices: topKIndices, values: topKValues } = topKInfluenceEntries(
     args.aggregate.indices,
     args.aggregate.values,
     args.k,
