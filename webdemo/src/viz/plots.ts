@@ -30,6 +30,7 @@ import {
   plotViewport,
   projectPointToViewport,
 } from "./geometry";
+import { plotVisualScale, scaledPlotPx } from "./scale";
 
 export interface RasterRenderResult {
   image: HTMLCanvasElement;
@@ -471,6 +472,10 @@ export function renderAxes(
   viewport: PlotViewport,
 ): void {
   resizeSvg(svg, width, height);
+  const visualScale = plotVisualScale(viewport);
+  svg.style.setProperty("--plot-visual-scale", String(visualScale));
+  svg.style.setProperty("--plot-axis-stroke-width", `${visualScale}px`);
+  svg.style.setProperty("--plot-contour-stroke-width", `${0.7 * visualScale}px`);
   const { x, y } = fitScales(bounds, width, height);
   const root = select(svg);
   root.selectAll("*").remove();
@@ -543,12 +548,14 @@ export function drawPointMarker(
   sx: number,
   sy: number,
   radius: number,
+  visualScale = 1,
 ): void {
+  const scaledRadius = Math.max(0, radius * visualScale);
   ctx.beginPath();
-  ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+  ctx.arc(sx, sy, scaledRadius, 0, Math.PI * 2);
   ctx.fillStyle = "#f2b84b";
   ctx.fill();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * visualScale;
   ctx.strokeStyle = "#182230";
   ctx.stroke();
 }
@@ -568,7 +575,17 @@ export function drawPointCloudLayer(
 ): void {
   const count = Math.floor(points.length / dim);
   const stride = options.maxPoints && count > options.maxPoints ? Math.ceil(count / options.maxPoints) : 1;
-  const size = options.size ?? Math.max(1.5, Math.min(3.5, Math.sqrt((viewport.width * viewport.height) / Math.max(1, count)) * 0.2));
+  const visualScale = plotVisualScale(viewport);
+  const size =
+    options.size === undefined
+      ? Math.max(
+          1.5 * visualScale,
+          Math.min(
+            3.5 * visualScale,
+            Math.sqrt((viewport.width * viewport.height) / Math.max(1, count)) * 0.2,
+          ),
+        )
+      : options.size * visualScale;
   ctx.save();
   ctx.globalAlpha = options.alpha ?? 0.18;
   ctx.fillStyle = options.color ?? "#364252";
@@ -624,7 +641,7 @@ export function renderMainPlot(args: {
   }
   if (args.selectedCoord) {
     const [sx, sy] = projectPointToViewport(args.selectedCoord[0], args.selectedCoord[1], rasterBounds, viewport);
-    drawPointMarker(ctx, sx, sy, 7);
+    drawPointMarker(ctx, sx, sy, 7, plotVisualScale(viewport));
   }
   if (args.selectedRegion) {
     drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, false);
@@ -658,11 +675,12 @@ function drawRegionOverlay(
   const y = Math.min(y0, y1);
   const width = Math.abs(x1 - x0);
   const height = Math.abs(y1 - y0);
+  const visualScale = plotVisualScale(viewport);
   ctx.save();
   ctx.fillStyle = draft ? "rgba(242, 184, 75, 0.16)" : "rgba(12, 124, 120, 0.14)";
   ctx.strokeStyle = draft ? "#f2b84b" : "#0c7c78";
-  ctx.lineWidth = draft ? 1.4 : 2;
-  ctx.setLineDash(draft ? [6, 4] : []);
+  ctx.lineWidth = (draft ? 1.4 : 2) * visualScale;
+  ctx.setLineDash(draft ? [6 * visualScale, 4 * visualScale] : []);
   ctx.fillRect(x, y, width, height);
   ctx.strokeRect(x, y, width, height);
   ctx.restore();
@@ -680,7 +698,7 @@ function drawInfluencePointLayer(args: {
   const color = divergingColorScale([-args.scaleMax, args.scaleMax]);
   const count = Math.min(args.indices.length, args.values.length);
   const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
-  const size = args.size ?? BASE_INFLUENCE_POINT_SIZE;
+  const size = scaledPlotPx(args.size ?? BASE_INFLUENCE_POINT_SIZE, args.viewport);
   let renderedCount = 0;
   args.ctx.save();
   for (let index = 0; index < count; index += 1) {
@@ -732,7 +750,7 @@ function drawTopKInfluenceLinks(args: {
     args.ctx.beginPath();
     args.ctx.moveTo(args.rowSx, args.rowSy);
     args.ctx.lineTo(sx, sy);
-    args.ctx.lineWidth = 1 + strength * 1.6;
+    args.ctx.lineWidth = scaledPlotPx(1 + strength * 1.6, args.viewport);
     args.ctx.stroke();
   }
   args.ctx.restore();
@@ -756,12 +774,15 @@ function drawTopKInfluencePoints(args: {
     const trainPoint = pointAt(args.context.points.train_points, trainIndex, args.context.trainDim);
     const [sx, sy] = projectPointToViewport(trainPoint[0], trainPoint[1], args.context.bounds, args.viewport);
     const strength = influenceStrength(value, args.scaleMax);
-    const size = MIN_TOP_K_POINT_SIZE + strength * (MAX_TOP_K_POINT_SIZE - MIN_TOP_K_POINT_SIZE);
+    const size = scaledPlotPx(
+      MIN_TOP_K_POINT_SIZE + strength * (MAX_TOP_K_POINT_SIZE - MIN_TOP_K_POINT_SIZE),
+      args.viewport,
+    );
     args.ctx.beginPath();
     args.ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
     args.ctx.fillStyle = influenceRgba(value, args.scaleMax, 0.94);
     args.ctx.fill();
-    args.ctx.lineWidth = 1.1;
+    args.ctx.lineWidth = scaledPlotPx(1.1, args.viewport);
     args.ctx.strokeStyle = "rgba(24, 34, 48, 0.78)";
     args.ctx.stroke();
   }
@@ -874,9 +895,17 @@ function drawCellsInfluenceLayer(args: {
     args.ctx.fill();
   }
 
+  const fieldToCssScale = Math.sqrt(
+    (args.viewport.width / Math.max(1, field.width)) *
+      (args.viewport.height / Math.max(1, field.height)),
+  );
+  const cssToFieldScale = fieldToCssScale > 0 ? 1 / fieldToCssScale : 1;
   const markerSize = Math.max(
-    1,
-    Math.min(2.2, Math.sqrt((field.width * field.height) / Math.max(1, field.samples.length)) * 0.04),
+    scaledPlotPx(1, args.viewport) * cssToFieldScale,
+    Math.min(
+      scaledPlotPx(2.2, args.viewport) * cssToFieldScale,
+      Math.sqrt((field.width * field.height) / Math.max(1, field.samples.length)) * 0.04,
+    ),
   );
   args.ctx.globalAlpha = 0.42;
   args.ctx.fillStyle = "#17202a";
@@ -976,7 +1005,7 @@ export function renderLocalInfluencePlot(args: {
   const rowPoint = pointAt(rowSourcePoints, clampIndex(rowIndex, args.matrix.row_count), rowDim);
   const [rowSx, rowSy] = projectPointToViewport(rowPoint[0], rowPoint[1], args.context.bounds, viewport);
   if (!args.row) {
-    drawPointMarker(ctx, rowSx, rowSy, 7);
+    drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
     return emptyInfluenceStats(args.backgroundMode);
   }
   const backgroundEntries = influenceEntriesForBackground(args.row.indices, args.row.values, args.sign);
@@ -1013,7 +1042,7 @@ export function renderLocalInfluencePlot(args: {
     scaleMax,
   });
 
-  drawPointMarker(ctx, rowSx, rowSy, 7);
+  drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
   return { ...backgroundStats, scaleMax };
 }
 

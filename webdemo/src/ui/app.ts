@@ -195,6 +195,9 @@ export class AppController {
       this.closeMenus();
       this.clearRegionSelection();
     });
+    window.addEventListener("resize", () => this.handleViewportScaleChange());
+    window.visualViewport?.addEventListener("resize", () => this.handleViewportScaleChange());
+    this.observeDevicePixelRatio();
   }
 
   private toggleMenu(menu: "model" | "train"): void {
@@ -334,13 +337,32 @@ export class AppController {
 
   private observeLayout(): void {
     const observer = new ResizeObserver(() => {
-      this.refreshResponsiveLayout();
-      this.schedule("main");
-      this.schedule("train");
+      this.handleViewportScaleChange();
     });
     observer.observe(this.dom.plotGrid);
     observer.observe(this.dom.modelPanel);
     observer.observe(this.dom.trainPanel);
+  }
+
+  private handleViewportScaleChange(): void {
+    this.refreshResponsiveLayout();
+    this.schedule("main");
+    this.schedule("train");
+  }
+
+  private observeDevicePixelRatio(): void {
+    if (!window.matchMedia) return;
+    let query: MediaQueryList | null = null;
+    const handleChange = () => {
+      query?.removeEventListener("change", handleChange);
+      this.handleViewportScaleChange();
+      bindQuery();
+    };
+    const bindQuery = () => {
+      query = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      query.addEventListener("change", handleChange);
+    };
+    bindQuery();
   }
 
   private populateRunSelect(): void {

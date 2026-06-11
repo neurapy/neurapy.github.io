@@ -43,6 +43,71 @@ async function canvasSignature(page: Page, selector: string): Promise<number> {
   });
 }
 
+async function selectedMarkerMetrics(page: Page): Promise<{
+  width: number;
+  height: number;
+  count: number;
+  dpr: number;
+  scale: number;
+  cssWidth: number;
+  backingWidth: number;
+  axisStrokeWidth: number;
+} | null> {
+  return page.locator("#mainCanvas").evaluate((canvas) => {
+    const element = canvas as HTMLCanvasElement;
+    const ctx = element.getContext("2d");
+    const svg = document.querySelector<SVGSVGElement>("#mainSvg");
+    if (!ctx || !svg || element.width === 0 || element.height === 0) return null;
+
+    const data = ctx.getImageData(0, 0, element.width, element.height).data;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let count = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const red = data[index];
+      const green = data[index + 1];
+      const blue = data[index + 2];
+      const alpha = data[index + 3];
+      const isSelectedMarker =
+        red >= 232 &&
+        red <= 248 &&
+        green >= 170 &&
+        green <= 200 &&
+        blue >= 55 &&
+        blue <= 90 &&
+        alpha > 220;
+      if (!isSelectedMarker) continue;
+      const pixel = index / 4;
+      const x = pixel % element.width;
+      const y = Math.floor(pixel / element.width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      count += 1;
+    }
+    if (!count) return null;
+
+    const rect = element.getBoundingClientRect();
+    const axisFrame = svg.querySelector<SVGRectElement>(".axis-frame");
+    const axisStrokeWidth = axisFrame
+      ? Number.parseFloat(getComputedStyle(axisFrame).strokeWidth)
+      : Number.NaN;
+    return {
+      width: maxX - minX + 1,
+      height: maxY - minY + 1,
+      count,
+      dpr: window.devicePixelRatio || 1,
+      scale: Number(svg.style.getPropertyValue("--plot-visual-scale")) || 0,
+      cssWidth: rect.width,
+      backingWidth: element.width,
+      axisStrokeWidth,
+    };
+  });
+}
+
 async function dragMainRegion(page: Page): Promise<void> {
   const box = await page.locator("#mainCanvas").boundingBox();
   if (!box) throw new Error("Missing main canvas bounds");
@@ -320,4 +385,25 @@ test("settings use wrapped in-panel bars when there is tile space", async ({ pag
   await openControlsIfMenu(page, "model");
   await openControlsIfMenu(page, "train");
   await expectVisibleControlsInsidePanels(page);
+});
+
+test("high-DPI rendering keeps point and line overlays proportional to the plot", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-hidpi", "high-DPI-only viewport assertions");
+  await page.goto(FIXTURE_URL);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expect.poll(async () => (await selectedMarkerMetrics(page))?.count ?? 0).toBeGreaterThan(0);
+
+  const metrics = await selectedMarkerMetrics(page);
+  expect(metrics).not.toBeNull();
+  expect(metrics!.dpr).toBe(2);
+  expect(metrics!.backingWidth).toBe(Math.round(metrics!.cssWidth * metrics!.dpr));
+  expect(metrics!.scale).toBeGreaterThan(0);
+  expect(metrics!.scale).toBeLessThan(0.75);
+  expect(metrics!.axisStrokeWidth).toBeCloseTo(metrics!.scale, 1);
+
+  const expectedYellowInterior = 12 * metrics!.scale * metrics!.dpr;
+  expect(metrics!.width).toBeGreaterThan(expectedYellowInterior * 0.65);
+  expect(metrics!.width).toBeLessThan(expectedYellowInterior * 1.5);
+  expect(metrics!.height).toBeGreaterThan(expectedYellowInterior * 0.65);
+  expect(metrics!.height).toBeLessThan(expectedYellowInterior * 1.5);
 });

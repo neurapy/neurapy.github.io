@@ -557,6 +557,7 @@ canvas {
 .axis path,
 .axis line {
   stroke: var(--axis);
+  stroke-width: var(--plot-axis-stroke-width, 1px);
   shape-rendering: crispEdges;
 }
 
@@ -568,13 +569,14 @@ canvas {
 .axis-frame {
   fill: none;
   stroke: var(--axis);
-  stroke-width: 1;
+  stroke-width: var(--plot-axis-stroke-width, 1px);
 }
 
 .contours path {
   fill: none;
   stroke: rgba(24, 34, 48, 0.24);
-  stroke-width: 0.7;
+  stroke-width: var(--plot-contour-stroke-width, 0.7px);
+  vector-effect: non-scaling-stroke;
 }
 
 output {

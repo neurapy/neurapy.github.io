@@ -34,5 +34,13 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    {
+      name: "desktop-hidpi",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 720, height: 520 },
+        deviceScaleFactor: 2,
+      },
+    },
   ],
 });
