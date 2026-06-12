@@ -156,14 +156,15 @@ export class PriorityLoader {
 
   private async run(request: QueuedRequest): Promise<void> {
     const activePriority = request.activePriority;
-    if (!activePriority || !request.controller) return;
+    const controller = request.controller;
+    if (!activePriority || !controller) return;
     let buffer: ArrayBuffer | null = null;
     let error: unknown = null;
     try {
       const headers = new Headers({
         Accept: "application/octet-stream",
       });
-      const init: RequestInit = { signal: request.controller.signal, headers };
+      const init: RequestInit = { signal: controller.signal, headers };
       if (request.range) {
         headers.set("Range", `bytes=${request.range.start}-${request.range.endExclusive - 1}`);
       }
@@ -174,9 +175,9 @@ export class PriorityLoader {
       if (!request.range && !response.ok) {
         throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
       }
-      const responseBuffer = await response.arrayBuffer();
       if (request.range) {
         if (response.status === 200) {
+          const responseBuffer = await response.arrayBuffer();
           assertBinaryFullResponse(request.url, response, responseBuffer, request.range);
           this.fullResponsesByUrl.set(request.url.toString(), responseBuffer);
           buffer = sliceFullResponse(
@@ -187,14 +188,20 @@ export class PriorityLoader {
           );
         } else {
           const expectedBytes = request.range.endExclusive - request.range.start;
-          if (responseBuffer.byteLength !== expectedBytes) {
-            throw new Error(
-              `${request.url.toString()}: expected ${expectedBytes} range bytes, got ${responseBuffer.byteLength}`,
-            );
+          let responseBuffer: ArrayBuffer | null = null;
+          try {
+            responseBuffer = await response.arrayBuffer();
+          } catch (caught) {
+            if (isAbortError(caught)) throw caught;
           }
-          buffer = responseBuffer;
+          if (responseBuffer?.byteLength === expectedBytes) {
+            buffer = responseBuffer;
+          } else {
+            buffer = await this.loadFullResponseSlice(request.url, request.range, controller.signal);
+          }
         }
       } else {
+        const responseBuffer = await response.arrayBuffer();
         buffer = responseBuffer;
       }
     } catch (caught) {
@@ -276,6 +283,30 @@ export class PriorityLoader {
     const queue = this.queues[priority];
     const index = queue.indexOf(request);
     if (index >= 0) queue.splice(index, 1);
+  }
+
+  private async loadFullResponseSlice(
+    url: URL,
+    range: ByteRange,
+    signal: AbortSignal,
+  ): Promise<ArrayBuffer> {
+    const cached = this.fullResponsesByUrl.get(url.toString());
+    if (cached) return sliceFullResponse(url, cached, range.start, range.endExclusive);
+
+    const response = await fetch(url, {
+      signal,
+      headers: new Headers({ Accept: "application/octet-stream" }),
+    });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}: ${url.toString()}`);
+    }
+    if (response.status !== 200) {
+      throw new Error(`${url.toString()}: expected full binary response, got HTTP ${response.status}`);
+    }
+    const buffer = await response.arrayBuffer();
+    assertBinaryFullResponse(url, response, buffer, range);
+    this.fullResponsesByUrl.set(url.toString(), buffer);
+    return sliceFullResponse(url, buffer, range.start, range.endExclusive);
   }
 }
 

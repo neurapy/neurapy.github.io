@@ -382,6 +382,49 @@ describe("priority loader", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to a full response when a partial range decodes to extra bytes", async () => {
+    const full = bufferFrom(new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]));
+    globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get("Range");
+      if (range) {
+        return new Response(bufferFrom(new Uint8Array([1, 2, 3, 4])), { status: 206 });
+      }
+      return new Response(full.slice(0));
+    });
+    const loader = new PriorityLoader();
+    const url = new URL("http://example.test/compressed-range.bin");
+
+    const first = await loader.loadRange(url, 1, 4);
+    const second = await loader.loadRange(url, 4, 7);
+
+    expect(Array.from(new Uint8Array(first))).toEqual([1, 2, 3]);
+    expect(Array.from(new Uint8Array(second))).toEqual([4, 5, 6]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(fetchRangeHeader(0)).toBe("bytes=1-3");
+    expect(fetchRangeHeader(1)).toBe(null);
+  });
+
+  it("falls back to a full response when partial range decoding fails", async () => {
+    const full = bufferFrom(new Uint8Array([0, 10, 20, 30, 40, 50]));
+    globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get("Range");
+      if (range) {
+        const partial = new Response(null, { status: 206 });
+        vi.spyOn(partial, "arrayBuffer").mockRejectedValue(new TypeError("Decoding failed."));
+        return partial;
+      }
+      return new Response(full.slice(0));
+    });
+    const loader = new PriorityLoader();
+
+    const buffer = await loader.loadRange(new URL("http://example.test/decoding-failed.bin"), 2, 5);
+
+    expect(Array.from(new Uint8Array(buffer))).toEqual([20, 30, 40]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(fetchRangeHeader(0)).toBe("bytes=2-4");
+    expect(fetchRangeHeader(1)).toBe(null);
+  });
+
   it("rejects HTML fallbacks for missing ranged binary assets", async () => {
     globalThis.fetch = vi.fn(async () =>
       new Response("<!doctype html>", {
