@@ -431,22 +431,41 @@ input[type="range"]:focus-visible {
 
 .selection-readout {
   min-width: 0;
-  flex: 0 1 auto;
-  display: grid;
-  grid-template-columns: auto minmax(0, auto) auto minmax(0, auto);
+  flex: 2 1 260px;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: baseline;
-  gap: 2px 8px;
+  justify-content: flex-end;
+  gap: 8px;
   padding: 1px 0;
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
   box-shadow: none;
 }
 
+.readout-item {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.readout-point {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.readout-scalar {
+  flex: 0 0 auto;
+}
+
 .readout-label {
+  flex: 0 0 auto;
   color: var(--axis);
   font-weight: 640;
   font-size: 10px;
@@ -454,12 +473,20 @@ input[type="range"]:focus-visible {
 
 .readout-value {
   min-width: 0;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
   color: var(--text);
   font-weight: 680;
+}
+
+.readout-point .readout-value {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
+.readout-scalar .readout-value {
+  flex: 0 0 auto;
 }
 
 .plot-actions {
@@ -483,8 +510,6 @@ input[type="range"]:focus-visible {
 .plot-control select {
   width: 100%;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .plot-controls {
@@ -507,17 +532,20 @@ input[type="range"]:focus-visible {
 }
 
 .field-control {
-  flex: 0 1 150px;
-  min-width: 78px;
+  flex: 0 0 58px;
+  min-width: 54px;
+  container-type: inline-size;
 }
 
 .matrix-control {
-  flex: 1 1 128px;
-  min-width: 62px;
+  flex: 0 0 82px;
+  min-width: 76px;
+  container-type: inline-size;
 }
 
 .sign-control {
-  flex: 0 0 80px;
+  flex: 0 0 76px;
+  container-type: inline-size;
 }
 
 .k-control {
@@ -530,8 +558,26 @@ input[type="range"]:focus-visible {
 }
 
 .background-control {
-  flex: 1 1 150px;
-  min-width: 108px;
+  flex: 0 0 122px;
+  min-width: 112px;
+  container-type: inline-size;
+}
+
+.plot-controls select {
+  min-height: 30px;
+  padding: 0 20px 0 7px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 9px center / 4px 4px no-repeat,
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 5px center / 4px 4px no-repeat,
+    linear-gradient(180deg, #ffffff, #f9fbfd);
+  font-size: clamp(10px, 16cqw, 12px);
+  line-height: 1;
+}
+
+.matrix-control select {
+  padding-right: 18px;
+  padding-left: 6px;
+  font-size: clamp(10px, 13cqw, 11.5px);
 }
 
 .plot-controls .segmented {
@@ -542,14 +588,16 @@ input[type="range"]:focus-visible {
 
 .plot-controls .segmented button {
   min-height: 24px;
-  padding: 0 7px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 0 6px;
+  font-size: clamp(9px, 10cqw, 11px);
+  line-height: 1;
   white-space: nowrap;
 }
 
 .sign-control .segmented button {
-  padding: 0 0px;
+  padding: 0 2px;
+  font-size: clamp(8.5px, 13cqw, 10px);
+  font-weight: 760;
 }
 
 .k-control output {
@@ -627,6 +675,9 @@ canvas {
   background: var(--plot-bg);
   cursor: crosshair;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   position: relative;
   z-index: 1;
 }
@@ -637,6 +688,29 @@ canvas {
   pointer-events: none;
   overflow: visible;
   z-index: 2;
+}
+
+.train-summary-badge {
+  position: absolute;
+  z-index: 4;
+  min-width: 0;
+  max-width: calc(100% - 16px);
+  padding: 2px 6px;
+  border: 1px solid rgba(191, 205, 221, 0.88);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 4px 12px rgba(24, 34, 48, 0.08);
+  font-size: 10px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .model-interaction-hint {
@@ -970,19 +1044,18 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .selection-readout {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 2px 6px;
+    gap: 5px;
     padding: 1px 0;
-    font-size: 11px;
-    flex: 0 1 142px;
+    font-size: 10px;
+    flex: 2 1 170px;
   }
 
   .readout-label {
     font-size: 10px;
   }
 
-  .readout-value {
-    max-width: 92px;
+  .readout-point .readout-value {
+    max-width: none;
   }
 
   .plot-title-group {
@@ -1018,15 +1091,17 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .field-control {
-    min-width: 68px;
+    flex-basis: 54px;
+    min-width: 44px;
   }
 
   .matrix-control {
-    min-width: 46px;
+    flex-basis: 78px;
+    min-width: 72px;
   }
 
   .sign-control {
-    flex-basis: 58px;
+    flex-basis: 64px;
   }
 
   .k-control {
@@ -1036,11 +1111,16 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .background-control {
-    min-width: 88px;
+    flex-basis: 104px;
+    min-width: 96px;
   }
 
   .plot-controls .segmented button {
-    padding: 0 5px;
+    padding: 0 4px;
+  }
+
+  .sign-control .segmented button {
+    padding: 0 1px;
   }
 
   .icon-button {

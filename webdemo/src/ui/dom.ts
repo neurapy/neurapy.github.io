@@ -91,6 +91,24 @@ export function formatNumber(value: number | null | undefined): string {
   return value.toLocaleString(undefined, { maximumSignificantDigits: 5 });
 }
 
+export function formatReadoutNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if ((abs > 0 && abs < 0.001) || abs >= 10000) {
+    return value.toExponential(2);
+  }
+  return value.toLocaleString(undefined, { maximumSignificantDigits: 4 });
+}
+
+export function formatRegionReadoutNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "-";
+  const abs = Math.abs(value);
+  if ((abs > 0 && abs < 0.01) || abs >= 1000) {
+    return value.toExponential(1);
+  }
+  return value.toLocaleString(undefined, { maximumSignificantDigits: 3 });
+}
+
 function formatLatexExpression(expression: string): string {
   return expression
     .replace(
@@ -118,15 +136,72 @@ export function formatDisplayLabel(label: string | null | undefined): string {
     .trim();
 }
 
-function compactInfluenceTermLabel(term: string): string {
-  const label = formatDisplayLabel(term).replace(/_/g, " ").toLowerCase();
-  if (label.includes("loss")) return "loss";
-  if (label.includes("output")) return "output";
-  return label.trim();
+const LOSS_SYMBOL = "ℒ";
+const OUTPUT_FALLBACK_SYMBOL = "ŷ";
+const TERM_ARROW = "→";
+
+function subscriptDigits(value: string): string {
+  const subscripts: Record<string, string> = {
+    "0": "₀",
+    "1": "₁",
+    "2": "₂",
+    "3": "₃",
+    "4": "₄",
+    "5": "₅",
+    "6": "₆",
+    "7": "₇",
+    "8": "₈",
+    "9": "₉",
+  };
+  return value.replace(/\d/g, (digit) => subscripts[digit] ?? digit);
+}
+
+function normalizeMathLabel(label: string): string {
+  return formatDisplayLabel(label).replace(/_/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function outputFallbackSymbol(source: string): string {
+  const outputIndex = source.match(/output\s*([0-9]+)/i)?.[1];
+  return outputIndex ? `${OUTPUT_FALLBACK_SYMBOL}${subscriptDigits(outputIndex)}` : OUTPUT_FALLBACK_SYMBOL;
+}
+
+function compactMathTerm(label: string, source = label): string {
+  const display = normalizeMathLabel(label);
+  const lowerDisplay = display.toLowerCase();
+  const lowerSource = source.replace(/_/g, " ").toLowerCase();
+  if (lowerDisplay.includes("loss") || lowerSource.includes("loss")) return LOSS_SYMBOL;
+
+  const predictionSymbol = display.replace(/^prediction\s+/i, "").trim();
+  if (predictionSymbol && predictionSymbol !== display) {
+    return predictionSymbol.toLowerCase().includes("output")
+      ? outputFallbackSymbol(`${source} ${predictionSymbol}`)
+      : predictionSymbol;
+  }
+
+  if (lowerDisplay.includes("output") || lowerSource.includes("output")) {
+    return outputFallbackSymbol(`${source} ${display}`);
+  }
+  return display;
+}
+
+function termLabelSource(term: string, termLabels?: Record<string, string>): string {
+  const normalizedTerm = term.replace(/\s+/g, "_");
+  return termLabels?.[normalizedTerm] ?? termLabels?.[term] ?? term;
+}
+
+function compactInfluenceTermLabel(term: string, termLabels?: Record<string, string>): string {
+  const source = termLabelSource(term, termLabels);
+  return compactMathTerm(source, source === term ? term : source);
+}
+
+export function formatFieldSelectLabel(label: string | null | undefined): string {
+  if (!label) return "";
+  return compactMathTerm(label);
 }
 
 export function formatInfluenceMatrixLabel(
   matrix: Pick<InfluenceMatrixManifest, "id" | "label" | "display_label" | "left_term" | "right_term">,
+  termLabels?: Record<string, string>,
 ): string {
   const display = formatDisplayLabel(matrix.display_label || matrix.label || "")
     .replace(/^PINNfluence\s*(?:\/|:)\s*/i, "")
@@ -134,9 +209,11 @@ export function formatInfluenceMatrixLabel(
     .trim();
   const displayParts = display.split(/\s*->\s*/);
   if (displayParts.length === 2 && displayParts[0] && displayParts[1]) {
-    return `${compactInfluenceTermLabel(displayParts[0])} -> ${compactInfluenceTermLabel(displayParts[1])}`;
+    return `${compactInfluenceTermLabel(displayParts[0], termLabels)} ${TERM_ARROW} ${compactInfluenceTermLabel(displayParts[1], termLabels)}`;
   }
-  if (matrix.id.includes("total_loss_output")) return "loss -> output";
-  if (matrix.id.includes("total_loss_total_loss")) return "loss -> loss";
-  return `${compactInfluenceTermLabel(matrix.left_term)} -> ${compactInfluenceTermLabel(matrix.right_term)}`;
+  if (matrix.id.includes("total_loss_output")) {
+    return `${LOSS_SYMBOL} ${TERM_ARROW} ${compactInfluenceTermLabel(matrix.left_term, termLabels)}`;
+  }
+  if (matrix.id.includes("total_loss_total_loss")) return `${LOSS_SYMBOL} ${TERM_ARROW} ${LOSS_SYMBOL}`;
+  return `${compactInfluenceTermLabel(matrix.left_term, termLabels)} ${TERM_ARROW} ${compactInfluenceTermLabel(matrix.right_term, termLabels)}`;
 }

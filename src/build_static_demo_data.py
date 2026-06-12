@@ -31,6 +31,8 @@ from pinnfluence.utils.utils import loss_term_names
 
 CORE_MATRIX_IDS = {
     "influences_total_loss_output_0",
+    "influences_total_loss_output_1",
+    "influences_total_loss_output_2",
     "influences_total_loss_total_loss",
 }
 
@@ -55,7 +57,8 @@ DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
 DEFAULT_FIELD_BATCH_SIZE = 8192
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
-DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
+PREFERRED_DEFAULT_MATRIX_ID = "influences_total_loss_output_0"
+FALLBACK_DEFAULT_MATRIX_ID = "influences_total_loss_total_loss"
 RAW_DATA_VARIANT_SUFFIXES = ("_good", "_bad")
 MODEL_QUALITIES = ("good", "bad")
 
@@ -588,6 +591,16 @@ def candidate_influence_files(run: RunPaths, matrix_mode: str) -> list[Path]:
             continue
         files.append(path)
     return files
+
+
+def default_influence_matrix_id(
+    matrix_ids: set[str],
+    influence_entries: list[dict[str, Any]],
+) -> str | None:
+    for matrix_id in (PREFERRED_DEFAULT_MATRIX_ID, FALLBACK_DEFAULT_MATRIX_ID):
+        if matrix_id in matrix_ids:
+            return matrix_id
+    return influence_entries[0]["id"] if influence_entries else None
 
 
 def read_npz_npy_header(path: Path, array_name: str) -> dict[str, Any]:
@@ -1268,11 +1281,7 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "pred_output_0" if "pred_output_0" in field_entries else (next(iter(field_entries), None))
     )
     matrix_ids = {entry["id"] for entry in influence_entries}
-    default_matrix = (
-        DEFAULT_MATRIX_ID
-        if DEFAULT_MATRIX_ID in matrix_ids
-        else (influence_entries[0]["id"] if influence_entries else None)
-    )
+    default_matrix = default_influence_matrix_id(matrix_ids, influence_entries)
 
     manifest = {
         "schema_version": SCHEMA_VERSION,

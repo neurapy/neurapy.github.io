@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDisplayLabel, formatInfluenceMatrixLabel } from "../src/ui/dom";
+import { formatDisplayLabel, formatFieldSelectLabel, formatInfluenceMatrixLabel } from "../src/ui/dom";
 
 describe("UI display labels", () => {
   it("formats common manifest math labels without exposing raw LaTeX", () => {
@@ -18,13 +18,26 @@ describe("UI display labels", () => {
       display_label: "PINNfluence / total loss -> output 0",
       left_term: "output_0",
       right_term: "total_loss",
-    })).toBe("loss -> output");
+    })).toBe("ℒ → ŷ₀");
+    expect(formatInfluenceMatrixLabel({
+      id: "influences_total_loss_output_0",
+      label: "PINNfluence: output_0 -> total_loss",
+      display_label: "PINNfluence / total loss -> output 0",
+      left_term: "output_0",
+      right_term: "total_loss",
+    }, { output_0: "$\\hat u$", total_loss: "Total Loss" })).toBe("ℒ → û");
     expect(formatInfluenceMatrixLabel({
       id: "influences_total_loss_total_loss",
       label: "PINNfluence: total_loss -> total_loss",
       display_label: "PINNfluence / total loss -> total loss",
       left_term: "total_loss",
       right_term: "total_loss",
-    })).toBe("loss -> loss");
+    })).toBe("ℒ → ℒ");
+  });
+
+  it("compacts field labels to plot-control symbols", () => {
+    expect(formatFieldSelectLabel("Prediction $\\hat u$")).toBe("û");
+    expect(formatFieldSelectLabel("Prediction output")).toBe("ŷ");
+    expect(formatFieldSelectLabel("Total Loss")).toBe("ℒ");
   });
 });

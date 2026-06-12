@@ -82,8 +82,9 @@ uv run python src/build_static_demo_data.py \
 --workers 8 \
 
 # matrix-mode all generates more plots
-# matrix-mode core exports only the two PINNfluence matrices:
-# influences_total_loss_output_0 and influences_total_loss_total_loss
+# matrix-mode core exports the main PINNfluence output/loss matrices:
+# influences_total_loss_output_0, influences_total_loss_output_1,
+# influences_total_loss_output_2, and influences_total_loss_total_loss
 # each influence matrix is exported as one dense scores.f32 file for HTTP byte-range loading
 # max_local_influence_points is max number of influence points shown per candidate point
 # n-candidate / n-train control how many existing raw points are exported

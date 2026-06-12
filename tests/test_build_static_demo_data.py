@@ -237,6 +237,8 @@ def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) ->
     influence_dir.mkdir()
     for name in [
         "influences_total_loss_output_0.npz",
+        "influences_total_loss_output_1.npz",
+        "influences_total_loss_output_2.npz",
         "influences_total_loss_total_loss.npz",
         "influences_bc_loss_total_loss.npz",
         "grad_dot_total_loss_output_0.npz",
@@ -256,13 +258,41 @@ def test_candidate_influence_files_excludes_graddot_and_limits_core(tmp_path) ->
 
     assert {path.stem for path in build_static.candidate_influence_files(run, "core")} == {
         "influences_total_loss_output_0",
+        "influences_total_loss_output_1",
+        "influences_total_loss_output_2",
         "influences_total_loss_total_loss",
     }
     assert {path.stem for path in build_static.candidate_influence_files(run, "all")} == {
         "influences_total_loss_output_0",
+        "influences_total_loss_output_1",
+        "influences_total_loss_output_2",
         "influences_total_loss_total_loss",
         "influences_bc_loss_total_loss",
     }
+
+
+def test_default_influence_matrix_prefers_first_output_over_total_loss() -> None:
+    entries = [
+        {"id": "influences_total_loss_total_loss"},
+        {"id": "influences_total_loss_output_0"},
+    ]
+
+    assert (
+        build_static.default_influence_matrix_id({entry["id"] for entry in entries}, entries)
+        == "influences_total_loss_output_0"
+    )
+
+
+def test_default_influence_matrix_falls_back_to_total_loss() -> None:
+    entries = [
+        {"id": "influences_total_loss_total_loss"},
+        {"id": "influences_bc_loss_total_loss"},
+    ]
+
+    assert (
+        build_static.default_influence_matrix_id({entry["id"] for entry in entries}, entries)
+        == "influences_total_loss_total_loss"
+    )
 
 
 def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_path) -> None:

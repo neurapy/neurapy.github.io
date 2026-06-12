@@ -318,14 +318,94 @@ async function expectPlotControlsStayInline(page: Page): Promise<void> {
       const rowIssues = visibleControls
         .filter((element) => Math.abs(element.getBoundingClientRect().top - firstTop) > 2)
         .map((element) => `${containerElement.className}:${element.id || element.className}:wrapped`);
+      const clippedButtonIssues = Array.from(
+        containerElement.querySelectorAll<HTMLButtonElement>(".segmented button"),
+      )
+        .filter((button) => {
+          const style = getComputedStyle(button);
+          const rect = button.getBoundingClientRect();
+          return style.display !== "none" && rect.width > 0 && button.scrollWidth > button.clientWidth + 1;
+        })
+        .map((button) => `${containerElement.className}:${button.textContent ?? ""}:clipped`);
+      const clippedSelectIssues = Array.from(
+        containerElement.querySelectorAll<HTMLSelectElement>("select"),
+      )
+        .filter((select) => {
+          const style = getComputedStyle(select);
+          const rect = select.getBoundingClientRect();
+          if (style.display === "none" || rect.width <= 0) return false;
+          const selectedText = select.selectedOptions[0]?.textContent ?? "";
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          if (!context) return false;
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          const textWidth = context.measureText(selectedText).width;
+          const usableWidth =
+            select.clientWidth -
+            Number.parseFloat(style.paddingLeft) -
+            Number.parseFloat(style.paddingRight);
+          return textWidth > usableWidth + 1;
+        })
+        .map((select) => `${containerElement.className}:${select.id}:clipped`);
       const overflowIssues =
         containerElement.scrollWidth > containerElement.clientWidth + 2 ||
         containerElement.scrollHeight > containerElement.clientHeight + 2
           ? [`${containerElement.className}:overflow`]
           : [];
-      return [...rowIssues, ...overflowIssues];
+      return [...rowIssues, ...clippedButtonIssues, ...clippedSelectIssues, ...overflowIssues];
     }),
   );
+  expect(issues).toEqual([]);
+}
+
+async function expectReadoutFits(page: Page): Promise<void> {
+  const issues = await page.locator(".selection-readout").evaluate((readout) => {
+    const elements = Array.from(readout.querySelectorAll<HTMLElement>(".readout-item, .readout-value"));
+    return elements
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && element.scrollWidth > element.clientWidth + 1;
+      })
+      .map((element) => `${element.id || element.className}:clipped`);
+  });
+  expect(issues).toEqual([]);
+}
+
+async function expectTrainSummaryBadgeFits(page: Page): Promise<void> {
+  const issues = await page.locator("#trainPanel").evaluate((panel) => {
+    const badge = panel.querySelector<HTMLElement>("#trainRange");
+    const body = panel.querySelector<HTMLElement>(".plot-body");
+    const frame = panel.querySelector<SVGRectElement>("#trainSvg .axis-frame");
+    if (!badge || !body || !frame) return ["missing"];
+
+    const badgeStyle = getComputedStyle(badge);
+    const badgeRect = badge.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const intersectsFrame =
+      badgeRect.left < frameRect.right - 1 &&
+      badgeRect.right > frameRect.left + 1 &&
+      badgeRect.top < frameRect.bottom - 1 &&
+      badgeRect.bottom > frameRect.top + 1;
+    const outsideBody =
+      badgeRect.left < bodyRect.left - 1 ||
+      badgeRect.right > bodyRect.right + 1 ||
+      badgeRect.top < bodyRect.top - 1 ||
+      badgeRect.bottom > bodyRect.bottom + 1;
+    const clipped =
+      badge.scrollWidth > badge.clientWidth + 1 ||
+      badge.scrollHeight > badge.clientHeight + 1;
+
+    return [
+      badgeStyle.display === "none" || badgeStyle.visibility === "hidden" || badgeRect.width <= 0
+        ? "hidden"
+        : "",
+      clipped ? "clipped" : "",
+      intersectsFrame ? "intersects-frame" : "",
+      outsideBody ? "outside-body" : "",
+    ].filter(Boolean);
+  });
   expect(issues).toEqual([]);
 }
 
@@ -401,7 +481,7 @@ async function tapMainPoint(page: Page): Promise<void> {
   await page.touchscreen.tap(box.x + box.width * 0.68, box.y + box.height * 0.36);
 }
 
-async function touchDoubleTapThenDragRegion(page: Page): Promise<void> {
+async function touchDragMainRegion(page: Page): Promise<void> {
   await page.locator("#mainCanvas").evaluate((canvas) => {
     const element = canvas as HTMLCanvasElement;
     const box = element.getBoundingClientRect();
@@ -434,22 +514,13 @@ async function touchDoubleTapThenDragRegion(page: Page): Promise<void> {
         }),
       );
     };
-    const tap = (pointValue: [number, number], pointerId: number) => {
-      fire("pointerdown", pointValue, pointerId);
-      fire("pointerup", pointValue, pointerId);
-    };
-
-    const tapPoint = point(0.44, 0.44);
-    tap(tapPoint, 21);
-    tap(tapPoint, 22);
-
     const start = point(0.22, 0.24);
     const mid = point(0.52, 0.56);
     const end = point(0.82, 0.82);
-    fire("pointerdown", start, 23);
-    fire("pointermove", mid, 23);
-    fire("pointermove", end, 23);
-    fire("pointerup", end, 23);
+    fire("pointerdown", start, 21);
+    fire("pointermove", mid, 21);
+    fire("pointermove", end, 21);
+    fire("pointerup", end, 21);
   });
 }
 
@@ -504,13 +575,13 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#globalPanel")).toHaveCount(0);
   await expect(page.locator("#mainTitle")).toHaveText("Model");
   await expect(page.locator("#mainRange")).toHaveText("");
-  await expect(page.locator("#trainTitle")).toHaveText("Train");
+  await expect(page.locator("#trainTitle")).toHaveText("Training");
   await expect(page.locator(".model-panel #fieldSelect")).toBeVisible();
   await expect(page.locator(".model-panel #fieldKindButtons")).toHaveCount(0);
   await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator(".train-panel #matrixSelect")).toHaveCount(1);
-  await expect(page.locator(".train-panel #matrixSelect option")).toHaveText(["loss -> loss"]);
+  await expect(page.locator(".train-panel #matrixSelect option")).toHaveText(["ℒ → ℒ"]);
   await expect(page.locator(".train-panel #signButtons")).toHaveCount(1);
   await expect(page.locator(".train-panel #kSlider")).toHaveCount(1);
   await expectVisibleControlsInsidePanels(page);
@@ -540,9 +611,9 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#influenceMapToggle")).toHaveCount(0);
   await expect(page.locator("#backgroundControl")).toBeVisible();
   await expect(page.locator("#backgroundButtons button")).toHaveText([
-    "Points",
-    "Smooth",
-    "Cells",
+    "Pts",
+    "KDE",
+    "Cell",
   ]);
   await expect(page.locator("button[data-background-mode='points']")).toHaveClass(/active/);
   await expect(page.locator("#kControl")).toBeVisible();
@@ -551,6 +622,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#kOutput")).toHaveText("25");
   await expect(page.locator("#trainRange")).toHaveText(/Local · Points( · max \|I\| .*)?/);
   await expect(page.locator("#trainRange")).not.toHaveText(/all exported influences/);
+  await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   const backgroundSignatures: number[] = [await canvasSignature(page, "#trainCanvas")];
@@ -565,6 +637,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
       new RegExp(`Local · ${label}( · max \\|I\\| .*)?`),
     );
     await expect(page.locator("#trainRange")).not.toHaveText(/all exported influences/);
+    await expectTrainSummaryBadgeFits(page);
     await expectNonblankCanvas(page, "#trainCanvas");
     await expect.poll(() => canvasSignature(page, "#trainCanvas")).not.toBe(backgroundSignatures.at(-1));
     backgroundSignatures.push(await canvasSignature(page, "#trainCanvas"));
@@ -620,18 +693,24 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#globalCanvas")).toHaveCount(0);
 
   await dragMainRegion(page);
-  await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
+  await expect(page.locator("#selectedPoint")).toHaveText(/x\[.+,.+\] y\[.+,.+\]/);
+  await expectReadoutFits(page);
   await expect(page.locator("#trainRange")).toHaveText(/Local region · Cells · average over [1-4] candidates · mean I -?(?:\d|\.)/);
+  await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await clickMainPoint(page);
-  await expect(page.locator("#selectedPoint")).toHaveText(/\(.+, .+\)/);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(.+,.+\)/);
+  await expectReadoutFits(page);
   await expect(page.locator("#trainRange")).toHaveText(/Local/);
+  await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await clickTrainPlotRatio(page, 0.82, 0.75);
-  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.875, 0.625\)/);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.875,0.625\)/);
+  await expectReadoutFits(page);
   await expect(page.locator("#trainRange")).toHaveText(/Local/);
+  await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
@@ -675,7 +754,8 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expect(page.locator("#kOutput")).toHaveText("7");
 
   await clickMainPlotRatio(page, 0.22, 0.78);
-  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.125, 0.875\)/);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.125,0.875\)/);
+  await expectReadoutFits(page);
   const selectedBeforeModelSwitch = await page.locator("#selectedPoint").textContent();
 
   await page.locator("button[data-model-quality='bad']").click();
@@ -686,6 +766,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
   await expect(page.locator("#kOutput")).toHaveText("7");
   await expect(page.locator("#selectedPoint")).toHaveText(selectedBeforeModelSwitch ?? "");
+  await expectReadoutFits(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
@@ -697,12 +778,13 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
   await expect(page.locator("#kOutput")).toHaveText("7");
-  await expect(page.locator("#selectedPoint")).toHaveText(/\(11.25, 3.75\)/);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(11.25,3.75\)/);
+  await expectReadoutFits(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
-test("drift diffusion uses a compressed physical pi axis", async ({ page }, testInfo) => {
+test("drift diffusion uses a square physical pi axis", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only visual axis assertions");
   await page.goto(FIXTURE_URL);
 
@@ -711,8 +793,8 @@ test("drift diffusion uses a compressed physical pi axis", async ({ page }, test
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
-  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeGreaterThan(1.9);
-  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeLessThan(2.1);
+  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeGreaterThan(0.95);
+  await expect.poll(() => axisFrameRatio(page, "#mainSvg")).toBeLessThan(1.05);
   await expect(page.locator(".model-panel .axis-label-x")).toHaveText("x");
   await expect(page.locator(".model-panel .axis-label-y")).toHaveText("t");
   await expect(page.locator(".train-panel .axis-label-y")).toHaveText("t");
@@ -729,6 +811,7 @@ test("drift diffusion uses a compressed physical pi axis", async ({ page }, test
   await clickMainPlotRatio(page, 0.96, 0.52);
   const selected = (await page.locator("#selectedPoint").textContent()) ?? "";
   expect(selected).toMatch(/\((5|6)/);
+  await expectReadoutFits(page);
 });
 
 test("mobile keeps Model and Train visible in the first viewport", async ({ page }, testInfo) => {
@@ -754,9 +837,9 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator("#backgroundControl")).toBeVisible();
   await expect(page.locator("#kControl")).toBeVisible();
   await expect(page.locator("#backgroundButtons button")).toHaveText([
-    "Points",
-    "Smooth",
-    "Cells",
+    "Pts",
+    "KDE",
+    "Cell",
   ]);
   for (const mode of ["cell", "smooth", "points"]) {
     await page.locator(`button[data-background-mode='${mode}']`).click();
@@ -776,11 +859,21 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
   await tapMainPoint(page);
-  await expect(page.locator("#selectedPoint")).toHaveText(/\(.+, .+\)/);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(.+,.+\)/);
+  await expectReadoutFits(page);
+  const contextMenuCancelled = await page
+    .locator("#mainCanvas")
+    .evaluate(
+      (canvas) =>
+        !canvas.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })),
+    );
+  expect(contextMenuCancelled).toBe(true);
 
-  await touchDoubleTapThenDragRegion(page);
-  await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
+  await touchDragMainRegion(page);
+  await expect(page.locator("#selectedPoint")).toHaveText(/x\[.+,.+\] y\[.+,.+\]/);
+  await expectReadoutFits(page);
   await expect(page.locator("#trainRange")).toHaveText(/Local region · Points · average over [1-4] candidates · mean I -?(?:\d|\.)/);
+  await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
@@ -799,6 +892,7 @@ test("polish states clear loading and update range progress", async ({ page }, t
   await expect(page.locator(".menu-button")).toHaveCount(0);
   await expect(page.locator(".plot-menu")).toHaveCount(0);
   await expectPlotControlsStayInline(page);
+  await expectReadoutFits(page);
 
   await page.locator("#kSlider").fill("128");
   await expect(page.locator("#kOutput")).toHaveText("128");
@@ -828,11 +922,13 @@ test("settings stay inline and label-free in plot tiles", async ({ page }, testI
   await expect(page.locator("#backgroundButtons")).toHaveAttribute("aria-label", "Influence background");
   await expectVisibleControlsInsidePanels(page);
   await expectPlotControlsStayInline(page);
+  await expectReadoutFits(page);
 
   await page.setViewportSize({ width: 390, height: 900 });
   await expectTopbarControlsFit(page);
   await expectVisibleControlsInsidePanels(page);
   await expectPlotControlsStayInline(page);
+  await expectReadoutFits(page);
 });
 
 test("high-DPI rendering keeps point and line overlays proportional to the plot", async ({ page }, testInfo) => {

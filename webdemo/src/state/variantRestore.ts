@@ -141,17 +141,17 @@ function defaultFieldId(manifest: RunManifest, ordered = orderedFieldEntries(man
 
 function defaultMatrixId(manifest: RunManifest, preferredDefaultMatrixId: string): string | null {
   const matrices = manifest.influence_matrices;
+  const preferredDefault = matrices.find((matrix) => matrix.id === preferredDefaultMatrixId)?.id;
+  if (preferredDefault) {
+    return preferredDefault;
+  }
   if (
     manifest.default_matrix &&
     matrices.some((matrix) => matrix.id === manifest.default_matrix)
   ) {
     return manifest.default_matrix;
   }
-  return (
-    matrices.find((matrix) => matrix.id === preferredDefaultMatrixId)?.id ??
-    matrices[0]?.id ??
-    null
-  );
+  return matrices[0]?.id ?? null;
 }
 
 function matrixRestoreSignature(matrix: InfluenceMatrixManifest): MatrixRestoreSignature {

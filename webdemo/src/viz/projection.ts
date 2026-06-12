@@ -39,15 +39,20 @@ function formatCompactNumber(value: number): string {
   });
 }
 
-function piTickLabel(displayX: number): string {
-  if (!Number.isFinite(displayX)) return "";
-  const rounded = Math.round(displayX);
-  if (Math.abs(displayX - rounded) < 1e-6) {
+function piMultipleTickLabel(multiple: number): string {
+  if (!Number.isFinite(multiple)) return "";
+  const rounded = Math.round(multiple);
+  if (Math.abs(multiple - rounded) < 1e-6) {
     if (rounded === 0) return "0";
     if (rounded === 1) return "π";
+    if (rounded === -1) return "-π";
     return `${rounded}π`;
   }
-  return `${formatCompactNumber(displayX)}π`;
+  return `${formatCompactNumber(multiple)}π`;
+}
+
+function physicalPiTickLabel(physicalX: number): string {
+  return piMultipleTickLabel(physicalX / Math.PI);
 }
 
 export function axisLabelsForProblem(problem: string, axes: string[] = ["x", "y"]): AxisLabels {
@@ -64,26 +69,31 @@ function driftDiffusionProjection(
   labels: AxisLabels,
 ): PlotProjection {
   const safeBounds = normalizedBounds(physicalBounds);
-  const xScale = Math.PI;
+  const xSpan = safeBounds.maxX - safeBounds.minX || 1;
+  const ySpan = safeBounds.maxY - safeBounds.minY || 1;
+  const projectX = (x: number) => ((x - safeBounds.minX) / xSpan) * ySpan;
+  const unprojectX = (x: number) => safeBounds.minX + (x / ySpan) * xSpan;
   const displayBounds = {
-    minX: safeBounds.minX / xScale,
-    maxX: safeBounds.maxX / xScale,
+    minX: 0,
+    maxX: ySpan,
     minY: safeBounds.minY,
     maxY: safeBounds.maxY,
   };
-  const minTick = Math.ceil(displayBounds.minX);
-  const maxTick = Math.floor(displayBounds.maxX);
+  const minPiTick = Math.ceil(safeBounds.minX / Math.PI);
+  const maxPiTick = Math.floor(safeBounds.maxX / Math.PI);
   return {
     physicalBounds: safeBounds,
     displayBounds,
     labels,
-    projectPoint: (x, y) => [x / xScale, y],
-    unprojectPoint: (x, y) => [x * xScale, y],
-    formatXTick: piTickLabel,
+    projectPoint: (x, y) => [projectX(x), y],
+    unprojectPoint: (x, y) => [unprojectX(x), y],
+    formatXTick: (x) => physicalPiTickLabel(unprojectX(x)),
     formatYTick: formatCompactNumber,
     xTickValues:
-      maxTick >= minTick
-        ? Array.from({ length: maxTick - minTick + 1 }, (_unused, index) => minTick + index)
+      maxPiTick >= minPiTick
+        ? Array.from({ length: maxPiTick - minPiTick + 1 }, (_unused, index) =>
+            projectX((minPiTick + index) * Math.PI),
+          )
         : undefined,
   };
 }

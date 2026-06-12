@@ -53,10 +53,14 @@
                 <span id="mainRange" class="muted"></span>
               </div>
               <div class="selection-readout" aria-live="polite">
-                <span id="selectedPointLabel" class="readout-label">Point</span>
-                <span id="selectedPoint" class="readout-value">-</span>
-                <span id="selectedValueLabel" class="readout-label">Value</span>
-                <span id="selectedValue" class="readout-value">-</span>
+                <span class="readout-item readout-point">
+                  <span id="selectedPointLabel" class="readout-label">Point</span>
+                  <span id="selectedPoint" class="readout-value">-</span>
+                </span>
+                <span class="readout-item readout-scalar">
+                  <span id="selectedValueLabel" class="readout-label">Value</span>
+                  <span id="selectedValue" class="readout-value">-</span>
+                </span>
               </div>
               <div class="plot-actions model-actions">
                 <div class="plot-controls model-controls">
@@ -86,8 +90,7 @@
           <article id="trainPanel" class="plot-panel train-panel">
             <div class="plot-header train-header">
               <div class="plot-title-group">
-                <h2 id="trainTitle">Train</h2>
-                <span id="trainRange" class="muted"></span>
+                <h2 id="trainTitle">Training</h2>
               </div>
               <div class="plot-actions train-actions">
                 <div class="plot-controls train-controls">
@@ -96,9 +99,9 @@
                   </div>
                   <div class="plot-control sign-control">
                     <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
-                      <button data-sign="abs" class="active" aria-label="Absolute influence">|·|</button>
-                      <button data-sign="pos" aria-label="Positive influence">+</button>
-                      <button data-sign="neg" aria-label="Negative influence">-</button>
+                      <button data-sign="abs" class="active" aria-label="Absolute influence">|I|</button>
+                      <button data-sign="pos" aria-label="Positive influence">I⁺</button>
+                      <button data-sign="neg" aria-label="Negative influence">I⁻</button>
                     </div>
                   </div>
                   <label id="kControl" class="plot-control k-control">
@@ -107,9 +110,9 @@
                   </label>
                   <div id="backgroundControl" class="plot-control background-control">
                     <div class="segmented" id="backgroundButtons" role="group" aria-label="Influence background">
-                      <button data-background-mode="points" class="active" aria-label="Points background">Points</button>
-                      <button data-background-mode="smooth" aria-label="Smooth background">Smooth</button>
-                      <button data-background-mode="cell" aria-label="Cells background">Cells</button>
+                      <button data-background-mode="points" class="active" aria-label="Points background">Pts</button>
+                      <button data-background-mode="smooth" aria-label="Smooth background">KDE</button>
+                      <button data-background-mode="cell" aria-label="Cells background">Cell</button>
                     </div>
                   </div>
                 </div>
@@ -118,6 +121,7 @@
             <div class="plot-body">
               <canvas id="trainCanvas"></canvas>
               <svg id="trainSvg" class="plot-overlay" aria-hidden="true"></svg>
+              <span id="trainRange" class="train-summary-badge" aria-live="polite"></span>
             </div>
           </article>
         </section>

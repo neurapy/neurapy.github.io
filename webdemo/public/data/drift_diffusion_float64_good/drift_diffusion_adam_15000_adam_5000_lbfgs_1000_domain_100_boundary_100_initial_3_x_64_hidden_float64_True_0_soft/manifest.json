@@ -152,7 +152,7 @@
     }
   },
   "folder": "drift_diffusion_float64_good",
-  "generated_at": "2026-06-12T02:17:34+0200",
+  "generated_at": "2026-06-12T23:53:19+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [

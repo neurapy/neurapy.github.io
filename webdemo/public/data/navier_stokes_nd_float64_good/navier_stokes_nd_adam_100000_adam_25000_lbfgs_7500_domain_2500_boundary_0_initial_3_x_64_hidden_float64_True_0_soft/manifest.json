@@ -46,6 +46,8 @@
   },
   "available_terms": [
     "output_0",
+    "output_1",
+    "output_2",
     "total_loss"
   ],
   "axes": [
@@ -198,7 +200,7 @@
     }
   },
   "folder": "navier_stokes_nd_float64_good",
-  "generated_at": "2026-06-12T02:17:43+0200",
+  "generated_at": "2026-06-12T23:53:23+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
@@ -227,6 +229,98 @@
         "bytes": 12000000,
         "dtype": "float32",
         "path": "influence/influences_total_loss_output_0/scores.f32",
+        "shape": [
+          300,
+          10000
+        ]
+      },
+      "scores_shape": [
+        300,
+        10000
+      ],
+      "self_influence": false,
+      "source_candidate_points_shape": [
+        10000,
+        2
+      ],
+      "source_scores_shape": [
+        10000,
+        10000
+      ]
+    },
+    {
+      "candidate_points_shape": [
+        300,
+        2
+      ],
+      "display_label": "PINNfluence / total loss -> output 1",
+      "id": "influences_total_loss_output_1",
+      "k": 3500,
+      "label": "PINNfluence: total_loss -> output_1",
+      "left_term": "output_1",
+      "max_local_influence_points": 3500,
+      "method": "PINNfluence",
+      "n_outputs": 3,
+      "num_bcs": 6,
+      "num_pdes": 3,
+      "right_term": "total_loss",
+      "row_count": 300,
+      "row_source": "candidate_points",
+      "score_layout": {
+        "data_offset_bytes": 0,
+        "kind": "dense_row_major",
+        "row_stride_bytes": 40000
+      },
+      "scores": {
+        "bytes": 12000000,
+        "dtype": "float32",
+        "path": "influence/influences_total_loss_output_1/scores.f32",
+        "shape": [
+          300,
+          10000
+        ]
+      },
+      "scores_shape": [
+        300,
+        10000
+      ],
+      "self_influence": false,
+      "source_candidate_points_shape": [
+        10000,
+        2
+      ],
+      "source_scores_shape": [
+        10000,
+        10000
+      ]
+    },
+    {
+      "candidate_points_shape": [
+        300,
+        2
+      ],
+      "display_label": "PINNfluence / total loss -> output 2",
+      "id": "influences_total_loss_output_2",
+      "k": 3500,
+      "label": "PINNfluence: total_loss -> output_2",
+      "left_term": "output_2",
+      "max_local_influence_points": 3500,
+      "method": "PINNfluence",
+      "n_outputs": 3,
+      "num_bcs": 6,
+      "num_pdes": 3,
+      "right_term": "total_loss",
+      "row_count": 300,
+      "row_source": "candidate_points",
+      "score_layout": {
+        "data_offset_bytes": 0,
+        "kind": "dense_row_major",
+        "row_stride_bytes": 40000
+      },
+      "scores": {
+        "bytes": 12000000,
+        "dtype": "float32",
+        "path": "influence/influences_total_loss_output_2/scores.f32",
         "shape": [
           300,
           10000
@@ -310,6 +404,8 @@
   "status": "complete",
   "term_labels": {
     "output_0": "$\\hat u$",
+    "output_1": "$\\hat v$",
+    "output_2": "$\\hat p$",
     "total_loss": "Total Loss"
   },
   "validation": {

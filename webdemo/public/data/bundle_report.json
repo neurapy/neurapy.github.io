@@ -4,13 +4,14 @@
     "arrays": 429336,
     "field_rasters": 41889792,
     "index": 12732,
-    "influence_matrices": 86342400,
-    "manifest": 196628
+    "influence_matrices": 115142400,
+    "json": 36854,
+    "manifest": 201218
   },
   "by_suffix": {
-    ".f32": 86663808,
+    ".f32": 115463808,
     ".i16": 71952,
-    ".json": 209360,
+    ".json": 250804,
     ".u16": 33824768,
     ".u8": 8101000
   },
@@ -114,6 +115,11 @@
       "bytes": 7163,
       "kind": "manifest",
       "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
+    },
+    {
+      "bytes": 36854,
+      "kind": "json",
+      "path": "bundle_report.json"
     },
     {
       "bytes": 2400,
@@ -473,10 +479,20 @@
     {
       "bytes": 2400000,
       "kind": "influence_matrices",
+      "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_output_1/scores.f32"
+    },
+    {
+      "bytes": 2400000,
+      "kind": "influence_matrices",
+      "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_output_2/scores.f32"
+    },
+    {
+      "bytes": 2400000,
+      "kind": "influence_matrices",
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 8215,
+      "bytes": 10505,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -533,10 +549,20 @@
     {
       "bytes": 12000000,
       "kind": "influence_matrices",
+      "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_output_1/scores.f32"
+    },
+    {
+      "bytes": 12000000,
+      "kind": "influence_matrices",
+      "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_output_2/scores.f32"
+    },
+    {
+      "bytes": 12000000,
+      "kind": "influence_matrices",
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 8261,
+      "bytes": 10561,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -743,6 +769,6 @@
   ],
   "root": ".",
   "schema_version": 8,
-  "total_bytes": 128870888,
+  "total_bytes": 157712332,
   "within_budget": true
 }

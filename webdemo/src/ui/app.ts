@@ -64,15 +64,17 @@ import {
   regionBoundsFromProjectedViewportDrag,
 } from "../viz/projection";
 import {
-  formatDisplayLabel,
+  formatFieldSelectLabel,
   formatInfluenceMatrixLabel,
   formatNumber,
+  formatRegionReadoutNumber,
+  formatReadoutNumber,
   getDomRefs,
   showMessage,
   type DomRefs,
 } from "./dom";
 
-const DEFAULT_MATRIX_ID = "influences_total_loss_total_loss";
+const DEFAULT_MATRIX_ID = "influences_total_loss_output_0";
 const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
   points: "Points",
   smooth: "Smooth",
@@ -232,9 +234,11 @@ export class AppController {
     this.dom.mainCanvas.addEventListener("pointermove", (event) => this.handleMainPointerMove(event));
     this.dom.mainCanvas.addEventListener("pointerup", (event) => this.handleMainPointerUp(event));
     this.dom.mainCanvas.addEventListener("pointercancel", (event) => this.handleMainPointerCancel(event));
+    this.dom.mainCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
     this.dom.trainCanvas.addEventListener("pointerdown", (event) => this.handleTrainPointerDown(event));
     this.dom.trainCanvas.addEventListener("pointerup", (event) => this.handleTrainPointerUp(event));
     this.dom.trainCanvas.addEventListener("pointercancel", (event) => this.handleTrainPointerCancel(event));
+    this.dom.trainCanvas.addEventListener("contextmenu", (event) => event.preventDefault());
     window.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
       this.clearRegionSelection();
@@ -479,7 +483,7 @@ export class AppController {
     const matrices = this.manifest.influence_matrices;
     this.dom.matrixSelect.replaceChildren(
       ...matrices.map(
-        (matrix) => new Option(formatInfluenceMatrixLabel(matrix), matrix.id),
+        (matrix) => new Option(formatInfluenceMatrixLabel(matrix, this.manifest?.term_labels), matrix.id),
       ),
     );
     const matrixId = resolveRestoredMatrixId(this.manifest, snapshot, DEFAULT_MATRIX_ID);
@@ -502,7 +506,7 @@ export class AppController {
   private populateFieldSelect(selectedFieldId: string | null): string | null {
     if (!this.manifest) return null;
     const orderedEntries = orderedFieldEntries(this.manifest);
-    const options = orderedEntries.map(([id, field]) => new Option(formatDisplayLabel(field.label), id));
+    const options = orderedEntries.map(([id, field]) => new Option(formatFieldSelectLabel(field.label), id));
     this.dom.fieldSelect.replaceChildren(...options);
     if (selectedFieldId && options.some((option) => option.value === selectedFieldId)) {
       this.dom.fieldSelect.value = selectedFieldId;
@@ -814,11 +818,12 @@ export class AppController {
     const matrix = this.selectedMatrix();
     if (!matrix) {
       this.trainViewport = null;
+      this.setTrainSummary("", null);
       return;
     }
     const backgroundMode = this.store.state.backgroundMode;
     const backgroundLabel = BACKGROUND_MODE_LABELS[backgroundMode];
-    this.dom.trainTitle.textContent = "Train";
+    this.dom.trainTitle.textContent = "Training";
     if (this.store.state.selectionMode === "region") {
       const selectedCount = this.store.state.selectedRegionCandidateIndices.length;
       const stats = renderRegionalInfluencePlot({
@@ -833,9 +838,9 @@ export class AppController {
       });
       this.trainViewport = stats.viewport;
       const meanValue = this.influenceAggregate?.meanValue;
-      this.dom.trainRange.textContent = this.store.state.selectedRegion
+      this.setTrainSummary(this.store.state.selectedRegion
         ? `Local region · ${backgroundLabel} · average over ${selectedCount.toLocaleString()} candidates${Number.isFinite(meanValue) ? ` · mean I ${formatNumber(meanValue)}` : ""}`
-        : "";
+        : "", stats.viewport);
       return;
     }
     const stats = renderLocalInfluencePlot({
@@ -854,9 +859,40 @@ export class AppController {
       selectionPulse,
     });
     this.trainViewport = stats.viewport;
-    this.dom.trainRange.textContent = stats.maxAbs
+    this.setTrainSummary(stats.maxAbs
       ? `Local · ${backgroundLabel} · max |I| ${formatNumber(stats.maxAbs)}`
-      : `Local · ${backgroundLabel}`;
+      : `Local · ${backgroundLabel}`, stats.viewport);
+  }
+
+  private setTrainSummary(text: string, viewport: PlotViewport | null): void {
+    const badge = this.dom.trainRange;
+    badge.textContent = text;
+    if (!text || !viewport) {
+      badge.hidden = true;
+      badge.style.removeProperty("left");
+      badge.style.removeProperty("top");
+      badge.style.removeProperty("max-width");
+      return;
+    }
+
+    badge.hidden = false;
+    const body = badge.closest<HTMLElement>(".plot-body");
+    const bodyWidth = body?.getBoundingClientRect().width ?? viewport.right;
+    const bodyHeight = body?.getBoundingClientRect().height ?? viewport.bottom + 36;
+    const preferredLeft = Math.round(viewport.x);
+    badge.style.left = `${preferredLeft}px`;
+    badge.style.maxWidth = `${Math.round(Math.max(80, bodyWidth - preferredLeft - 6))}px`;
+    if (badge.scrollWidth > badge.clientWidth + 1) {
+      badge.style.left = "8px";
+      badge.style.maxWidth = `${Math.round(Math.max(80, bodyWidth - 16))}px`;
+    }
+
+    const badgeHeight = badge.getBoundingClientRect().height || 16;
+    const top = Math.min(
+      viewport.bottom + 18,
+      Math.max(viewport.bottom + 2, bodyHeight - badgeHeight - 2),
+    );
+    badge.style.top = `${Math.round(top)}px`;
   }
 
   private handleMainPointerDown(event: PointerEvent): void {
@@ -889,9 +925,12 @@ export class AppController {
     this.modelGesture.current = this.canvasPointer(event);
     const distance = this.gestureDistance(this.modelGesture, this.modelGesture.current);
     if (this.modelGesture.mode === "pending") {
-      if (this.modelGesture.pointerType === "touch" || distance < DRAG_THRESHOLD_PX) return;
+      if (distance < DRAG_THRESHOLD_PX) return;
+      this.touchRegionArmed = false;
+      this.lastTouchTap = null;
       this.modelGesture.mode = "region";
     }
+    event.preventDefault();
     this.updateDraftRegion(context);
   }
 
@@ -917,6 +956,16 @@ export class AppController {
     this.draftRegion = null;
     if (gesture.pointerType === "touch") {
       if (distance >= DRAG_THRESHOLD_PX) {
+        if (context && this.mainViewport) {
+          const region = regionBoundsFromProjectedViewportDrag(
+            gesture.start,
+            end,
+            this.mainProjection(context),
+            this.mainViewport,
+          );
+          this.finalizeRegionSelection(region);
+          return;
+        }
         this.schedule("main");
         return;
       }
@@ -1155,7 +1204,7 @@ export class AppController {
       this.dom.selectedPointLabel.textContent = "Region";
       this.dom.selectedValueLabel.textContent = "Value";
       this.dom.selectedPoint.textContent = region
-        ? `x ${formatNumber(region.minX)} … ${formatNumber(region.maxX)}, y ${formatNumber(region.minY)} … ${formatNumber(region.maxY)}`
+        ? `x[${formatRegionReadoutNumber(region.minX)},${formatRegionReadoutNumber(region.maxX)}] y[${formatRegionReadoutNumber(region.minY)},${formatRegionReadoutNumber(region.maxY)}]`
         : "-";
       this.dom.selectedValue.textContent = "-";
       this.refreshResponsiveLayout();
@@ -1173,8 +1222,8 @@ export class AppController {
       : (this.store.state.selectedCoord ?? [Number.NaN, Number.NaN]);
     this.dom.selectedPointLabel.textContent = "Point";
     this.dom.selectedValueLabel.textContent = "Value";
-    this.dom.selectedPoint.textContent = `(${formatNumber(x)}, ${formatNumber(y)})`;
-    this.dom.selectedValue.textContent = formatNumber(sample?.value);
+    this.dom.selectedPoint.textContent = `(${formatReadoutNumber(x)},${formatReadoutNumber(y)})`;
+    this.dom.selectedValue.textContent = formatReadoutNumber(sample?.value);
     this.refreshResponsiveLayout();
   }
 }

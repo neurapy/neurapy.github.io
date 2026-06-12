@@ -148,7 +148,19 @@ describe("variant restore helpers", () => {
     };
 
     expect(resolveRestoredMatrixId(next, snapshot, "preferred")).toBe("compatible");
-    expect(resolveRestoredMatrixId(next, null, "preferred")).toBe("default");
+    expect(resolveRestoredMatrixId(next, null, "missing")).toBe("default");
+  });
+
+  it("prefers the configured output matrix over the manifest default", () => {
+    const next = manifest({
+      default_matrix: "default",
+      influence_matrices: [
+        matrix("default", "total_loss", "total_loss"),
+        matrix("preferred", "total_loss", "output_0"),
+      ],
+    });
+
+    expect(resolveRestoredMatrixId(next, null, "preferred")).toBe("preferred");
   });
 
   it("captures and restores point selections by normalized plot position", () => {
