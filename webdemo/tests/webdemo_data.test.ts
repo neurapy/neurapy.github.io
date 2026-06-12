@@ -359,6 +359,7 @@ describe("priority loader", () => {
   it("requests byte ranges with a Range header", async () => {
     globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       expect(new Headers(init?.headers).get("Range")).toBe("bytes=2-4");
+      expect(new Headers(init?.headers).get("Accept")).toBe("application/octet-stream");
       return new Response(bufferFrom(new Uint8Array([20, 30, 40])), { status: 206 });
     });
     const loader = new PriorityLoader();
@@ -379,6 +380,19 @@ describe("priority loader", () => {
     expect(Array.from(new Uint8Array(first))).toEqual([1, 2, 3]);
     expect(Array.from(new Uint8Array(second))).toEqual([2, 3, 4]);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects HTML fallbacks for missing ranged binary assets", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response("<!doctype html>", {
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    const loader = new PriorityLoader();
+
+    await expect(loader.loadRange(new URL("http://example.test/missing.f32"), 12, 24)).rejects.toThrow(
+      /HTML fallback/,
+    );
   });
 
   it("does not start background requests while foreground work is active", async () => {

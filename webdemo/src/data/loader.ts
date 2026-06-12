@@ -160,11 +160,12 @@ export class PriorityLoader {
     let buffer: ArrayBuffer | null = null;
     let error: unknown = null;
     try {
-      const init: RequestInit = { signal: request.controller.signal };
+      const headers = new Headers({
+        Accept: "application/octet-stream",
+      });
+      const init: RequestInit = { signal: request.controller.signal, headers };
       if (request.range) {
-        init.headers = {
-          Range: `bytes=${request.range.start}-${request.range.endExclusive - 1}`,
-        };
+        headers.set("Range", `bytes=${request.range.start}-${request.range.endExclusive - 1}`);
       }
       const response = await fetch(request.url, init);
       if (request.range && response.status !== 206 && response.status !== 200) {
@@ -176,6 +177,7 @@ export class PriorityLoader {
       const responseBuffer = await response.arrayBuffer();
       if (request.range) {
         if (response.status === 200) {
+          assertBinaryFullResponse(request.url, response, responseBuffer, request.range);
           this.fullResponsesByUrl.set(request.url.toString(), responseBuffer);
           buffer = sliceFullResponse(
             request.url,
@@ -300,4 +302,21 @@ function sliceFullResponse(
     );
   }
   return buffer.slice(start, endExclusive);
+}
+
+function assertBinaryFullResponse(
+  url: URL,
+  response: Response,
+  buffer: ArrayBuffer,
+  range: ByteRange,
+): void {
+  const contentType = response.headers.get("Content-Type")?.toLowerCase() ?? "";
+  if (contentType.includes("text/html")) {
+    throw new Error(`${url.toString()}: expected binary range response, got HTML fallback`);
+  }
+  if (range.endExclusive > buffer.byteLength) {
+    throw new Error(
+      `${url.toString()}: server ignored Range but full response is only ${buffer.byteLength} bytes; expected at least ${range.endExclusive}`,
+    );
+  }
 }
