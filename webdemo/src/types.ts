@@ -186,6 +186,7 @@ export interface InfluenceAggregate {
   rowIndices: number[];
   indices: Uint32Array;
   values: Float32Array;
+  meanValue: number;
 }
 
 export interface PlotViewport {

@@ -33,6 +33,7 @@ export interface DomRefs {
   trainCanvas: HTMLCanvasElement;
   mainSvg: SVGSVGElement;
   trainSvg: SVGSVGElement;
+  modelInteractionHint: HTMLElement;
   trainPanel: HTMLElement;
 }
 
@@ -78,6 +79,7 @@ export function getDomRefs(): DomRefs {
     trainCanvas: required("#trainCanvas", HTMLCanvasElement),
     mainSvg: required("#mainSvg", SVGSVGElement),
     trainSvg: required("#trainSvg", SVGSVGElement),
+    modelInteractionHint: required("#modelInteractionHint", HTMLElement),
     trainPanel: required("#trainPanel", HTMLElement),
   };
 }

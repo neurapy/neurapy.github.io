@@ -383,6 +383,35 @@ async function touchDoubleTapThenDragRegion(page: Page): Promise<void> {
   });
 }
 
+test("model plot shows an initial interaction hint", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only timing coverage is enough");
+  await page.goto(FIXTURE_URL);
+  await expectNonblankCanvas(page, "#mainCanvas");
+
+  const hint = page.locator("#modelInteractionHint");
+  await expect(hint).toHaveText("Click or Drag to see Influences.");
+  await expect(hint).toHaveAttribute("data-state", "visible");
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveCSS("pointer-events", "none");
+
+  const hintBox = await hint.boundingBox();
+  const bodyBox = await page.locator("#modelPanel .plot-body").boundingBox();
+  expect(hintBox).not.toBeNull();
+  expect(bodyBox).not.toBeNull();
+  expect(hintBox!.x).toBeGreaterThanOrEqual(bodyBox!.x - 1);
+  expect(hintBox!.x + hintBox!.width).toBeLessThanOrEqual(bodyBox!.x + bodyBox!.width + 1);
+  expect(hintBox!.y).toBeGreaterThanOrEqual(bodyBox!.y - 1);
+  expect(hintBox!.y + hintBox!.height).toBeLessThanOrEqual(bodyBox!.y + bodyBox!.height + 1);
+
+  await expect(hint).toBeHidden({ timeout: 5_000 });
+
+  await page.goto(FIXTURE_URL);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expect(hint).toHaveAttribute("data-state", "visible");
+  await clickMainPoint(page);
+  await expect(hint).toBeHidden({ timeout: 2_000 });
+});
+
 test("desktop renders two plots and continues background prefetching", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   const requests: string[] = [];
@@ -524,7 +553,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await dragMainRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
-  await expect(page.locator("#trainRange")).toHaveText(/Local region · Cells · sum over [1-4] candidates/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · Cells · average over [1-4] candidates · mean I -?(?:\d|\.)/);
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await clickMainPoint(page);
@@ -684,7 +713,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
 
   await touchDoubleTapThenDragRegion(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/x .* y /);
-  await expect(page.locator("#trainRange")).toHaveText(/Local region · Points · sum over [1-4] candidates/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local region · Points · average over [1-4] candidates · mean I -?(?:\d|\.)/);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 

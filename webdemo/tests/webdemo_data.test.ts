@@ -295,7 +295,7 @@ function fetchRangeHeader(index: number): string | null {
 }
 
 describe("dense influence row aggregation", () => {
-  it("aggregates contiguous rows from one range", async () => {
+  it("averages contiguous rows from one range", async () => {
     installScoreFetch(aggregateScores());
     const matrix = aggregateMatrix();
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
@@ -305,15 +305,16 @@ describe("dense influence row aggregation", () => {
     expect(Array.from(aggregate.rowIndices)).toEqual([0, 1]);
     expect(Array.from(aggregate.indices)).toEqual([1, 2, 0]);
     expect(Array.from(aggregate.values)).toEqual([
-      expect.closeTo(-0.25),
-      expect.closeTo(0.15),
-      expect.closeTo(0.1),
+      expect.closeTo(-0.125),
+      expect.closeTo(0.075),
+      expect.closeTo(0.05),
     ]);
+    expect(aggregate.meanValue).toBeCloseTo(0.05 / 6);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(fetchRangeHeader(0)).toBe("bytes=0-23");
   });
 
-  it("aggregates rows across disjoint ranges", async () => {
+  it("averages rows across disjoint ranges", async () => {
     installScoreFetch(aggregateScores());
     const matrix = aggregateMatrix();
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
@@ -322,10 +323,11 @@ describe("dense influence row aggregation", () => {
 
     expect(Array.from(aggregate.indices)).toEqual([0, 2, 1]);
     expect(Array.from(aggregate.values)).toEqual([
-      expect.closeTo(0.3),
-      expect.closeTo(0.05),
-      expect.closeTo(-0.05),
+      expect.closeTo(0.15),
+      expect.closeTo(0.025),
+      expect.closeTo(-0.025),
     ]);
+    expect(aggregate.meanValue).toBeCloseTo(0.05);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(fetchRangeHeader(0)).toBe("bytes=12-35");
   });
@@ -339,9 +341,11 @@ describe("dense influence row aggregation", () => {
     const neg = await repo.loadInfluenceAggregate(matrix, "neg", [0, 2]);
 
     expect(Array.from(pos.indices)).toEqual([2, 0]);
-    expect(Array.from(pos.values)).toEqual([expect.closeTo(0.2), expect.closeTo(0.1)]);
+    expect(Array.from(pos.values)).toEqual([expect.closeTo(0.1), expect.closeTo(0.05)]);
+    expect(pos.meanValue).toBeCloseTo(0.1);
     expect(Array.from(neg.indices)).toEqual([1, 2]);
-    expect(Array.from(neg.values)).toEqual([expect.closeTo(-0.2), expect.closeTo(-0.1)]);
+    expect(Array.from(neg.values)).toEqual([expect.closeTo(-0.1), expect.closeTo(-0.05)]);
+    expect(neg.meanValue).toBeCloseTo(-0.15);
   });
 });
 

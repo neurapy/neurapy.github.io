@@ -149,23 +149,37 @@ export class DataRepository {
     }
 
     await this.loadScoreRowsByIndexList(matrix, validRows, priority);
-    const sums = new Map<number, number>();
+    const totals = new Map<number, number>();
+    let meanTotal = 0;
+    let meanCount = 0;
     for (const row of validRows) {
       const scoreRow = this.cachedScoreRow(matrix, row);
+      for (const value of scoreRow) {
+        if (!Number.isFinite(value)) continue;
+        if (sign === "pos" && value <= 0) continue;
+        if (sign === "neg" && value >= 0) continue;
+        meanTotal += value;
+        meanCount += 1;
+      }
       const { indices, values } = topKDenseRow(scoreRow, sign, matrix.k);
       for (let index = 0; index < indices.length; index += 1) {
         const trainIndex = indices[index];
         const contribution = aggregateContribution(values[index], sign);
         if (!contribution) continue;
-        sums.set(trainIndex, (sums.get(trainIndex) ?? 0) + contribution);
+        totals.set(trainIndex, (totals.get(trainIndex) ?? 0) + contribution);
       }
     }
 
-    const entries = Array.from(sums.entries()).sort((a, b) => compareAggregateEntries(a, b, sign));
+    const selectedRowCount = validRows.length || 1;
+    const entries = Array.from(totals.entries(), ([index, total]) => [
+      index,
+      total / selectedRowCount,
+    ] as [number, number]).sort((a, b) => compareAggregateEntries(a, b, sign));
     return {
       rowIndices: validRows,
       indices: Uint32Array.from(entries, ([index]) => index),
       values: Float32Array.from(entries, ([, value]) => value),
+      meanValue: meanCount > 0 ? meanTotal / meanCount : Number.NaN,
     };
   }
 

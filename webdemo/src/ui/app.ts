@@ -81,6 +81,9 @@ const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
 const DRAG_THRESHOLD_PX = 8;
 const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_DISTANCE_PX = 36;
+const MODEL_INTERACTION_HINT_VISIBLE_MS = 2500;
+const MODEL_INTERACTION_HINT_HIDE_MS = 440;
+const MODEL_INTERACTION_HINT_REDUCED_HIDE_MS = 1;
 
 type PanelName = "main" | "train";
 type ControlLayout = "inline" | "bar" | "menu";
@@ -131,6 +134,10 @@ export class AppController {
   private lastControlLayoutSignature = "";
   private selectionPulseStartedAt = 0;
   private selectionPulseAnimation = 0;
+  private modelInteractionHintShown = false;
+  private modelInteractionHintAutoTimer = 0;
+  private modelInteractionHintHideTimer = 0;
+  private modelInteractionHintShowFrame = 0;
 
   async start(): Promise<void> {
     this.bindEvents();
@@ -310,6 +317,61 @@ export class AppController {
     this.selectionPulseAnimation = requestAnimationFrame(tick);
   }
 
+  private maybeShowModelInteractionHint(): void {
+    if (this.modelInteractionHintShown || !this.mainViewport || !this.rasterResult) return;
+    this.modelInteractionHintShown = true;
+    this.showModelInteractionHint();
+  }
+
+  private showModelInteractionHint(): void {
+    const hint = this.dom.modelInteractionHint;
+    this.clearModelInteractionHintTimers();
+    hint.hidden = false;
+    hint.setAttribute("aria-hidden", "false");
+    hint.dataset.state = "hidden";
+
+    this.modelInteractionHintShowFrame = requestAnimationFrame(() => {
+      this.modelInteractionHintShowFrame = 0;
+      hint.dataset.state = "visible";
+      this.modelInteractionHintAutoTimer = window.setTimeout(
+        () => this.dismissModelInteractionHint(),
+        MODEL_INTERACTION_HINT_VISIBLE_MS,
+      );
+    });
+  }
+
+  private dismissModelInteractionHint(): void {
+    const hint = this.dom.modelInteractionHint;
+    if (hint.hidden && !this.modelInteractionHintShowFrame) return;
+    this.clearModelInteractionHintTimers();
+    hint.dataset.state = "hidden";
+    hint.setAttribute("aria-hidden", "true");
+    this.modelInteractionHintHideTimer = window.setTimeout(
+      () => {
+        this.modelInteractionHintHideTimer = 0;
+        hint.hidden = true;
+      },
+      this.prefersReducedMotion()
+        ? MODEL_INTERACTION_HINT_REDUCED_HIDE_MS
+        : MODEL_INTERACTION_HINT_HIDE_MS,
+    );
+  }
+
+  private clearModelInteractionHintTimers(): void {
+    if (this.modelInteractionHintAutoTimer) {
+      window.clearTimeout(this.modelInteractionHintAutoTimer);
+      this.modelInteractionHintAutoTimer = 0;
+    }
+    if (this.modelInteractionHintHideTimer) {
+      window.clearTimeout(this.modelInteractionHintHideTimer);
+      this.modelInteractionHintHideTimer = 0;
+    }
+    if (this.modelInteractionHintShowFrame) {
+      window.cancelAnimationFrame(this.modelInteractionHintShowFrame);
+      this.modelInteractionHintShowFrame = 0;
+    }
+  }
+
   private closeMenus(): void {
     this.setMenuOpen("model", false);
     this.setMenuOpen("train", false);
@@ -485,6 +547,7 @@ export class AppController {
     if (!variant.manifest) return;
     this.setPanelLoading(this.dom.modelPanel, true);
     this.setPanelLoading(this.dom.trainPanel, true);
+    this.dismissModelInteractionHint();
     const snapshot = this.captureVariantStateSnapshot();
     this.prefetcher?.stop();
     this.prefetcher = null;
@@ -884,6 +947,7 @@ export class AppController {
         showTrainPoints: false,
         selectionPulse,
       });
+      this.maybeShowModelInteractionHint();
       return;
     }
     this.updateTrainControlVisibility();
@@ -908,8 +972,9 @@ export class AppController {
         backgroundMode,
       });
       this.trainViewport = stats.viewport;
+      const meanValue = this.influenceAggregate?.meanValue;
       this.dom.trainRange.textContent = this.store.state.selectedRegion
-        ? `Local region · ${backgroundLabel} · sum over ${selectedCount.toLocaleString()} candidates${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
+        ? `Local region · ${backgroundLabel} · average over ${selectedCount.toLocaleString()} candidates${Number.isFinite(meanValue) ? ` · mean I ${formatNumber(meanValue)}` : ""}`
         : "";
       return;
     }
@@ -939,6 +1004,7 @@ export class AppController {
     if (!context || !this.mainViewport) return;
     const point = this.canvasPointer(event);
     if (!containsViewportPoint(point[0], point[1], this.mainViewport)) return;
+    this.dismissModelInteractionHint();
     this.closeMenus();
     event.preventDefault();
     if (event.pointerType === "touch" && this.touchRegionArmed) {
