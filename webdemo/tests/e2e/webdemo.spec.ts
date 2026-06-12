@@ -278,21 +278,12 @@ async function clickTrainPlotRatio(page: Page, xRatio: number, yRatio: number): 
   await page.mouse.click(point.x, point.y);
 }
 
-async function openControlsIfMenu(page: Page, panel: "model" | "train"): Promise<void> {
-  const actions = page.locator(`.${panel}-actions`);
-  const layout = await actions.getAttribute("data-control-layout");
-  const open = await actions.getAttribute("data-open");
-  if (layout === "menu" && open !== "true") {
-    await page.locator(`#${panel}MenuButton`).click();
-  }
-}
-
 async function expectVisibleControlsInsidePanels(page: Page): Promise<void> {
   const leaks = await page.locator(".plot-panel").evaluateAll((panels) =>
     panels.flatMap((panel) => {
       const panelRect = panel.getBoundingClientRect();
       const elements = panel.querySelectorAll<HTMLElement>(
-        ".plot-actions, .plot-menu, .plot-control, select, .segmented, .menu-button",
+        ".plot-actions, .plot-controls, .plot-control, select, .segmented",
       );
       return Array.from(elements)
         .filter((element) => {
@@ -308,6 +299,34 @@ async function expectVisibleControlsInsidePanels(page: Page): Promise<void> {
     }),
   );
   expect(leaks).toEqual([]);
+}
+
+async function expectPlotControlsStayInline(page: Page): Promise<void> {
+  const issues = await page.locator(".plot-controls").evaluateAll((containers) =>
+    containers.flatMap((container) => {
+      const containerElement = container as HTMLElement;
+      const visibleControls = Array.from(
+        containerElement.querySelectorAll<HTMLElement>(":scope > .plot-control"),
+      ).filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && rect.height > 0;
+      });
+      if (!visibleControls.length) return [];
+
+      const firstTop = visibleControls[0].getBoundingClientRect().top;
+      const rowIssues = visibleControls
+        .filter((element) => Math.abs(element.getBoundingClientRect().top - firstTop) > 2)
+        .map((element) => `${containerElement.className}:${element.id || element.className}:wrapped`);
+      const overflowIssues =
+        containerElement.scrollWidth > containerElement.clientWidth + 2 ||
+        containerElement.scrollHeight > containerElement.clientHeight + 2
+          ? [`${containerElement.className}:overflow`]
+          : [];
+      return [...rowIssues, ...overflowIssues];
+    }),
+  );
+  expect(issues).toEqual([]);
 }
 
 async function expectTopbarControlsFit(page: Page): Promise<void> {
@@ -516,7 +535,6 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator(".train-panel .colorbar-frame")).toHaveCount(1);
   await expectCompactOutsideDecorations(page, "#mainSvg");
   await expectCompactOutsideDecorations(page, "#trainSvg");
-  await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toHaveCount(0);
   await expect(page.locator("#methodControl")).toHaveCount(0);
   await expect(page.locator("#influenceMapToggle")).toHaveCount(0);
@@ -583,16 +601,13 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect.poll(() => requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(true);
   await expect.poll(() => requests.some((url) => url.includes("/influence/") && url.includes("/scores.f32"))).toBe(true);
 
-  await openControlsIfMenu(page, "model");
   await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#mainTitle")).toHaveText("Model");
   await expect(page.locator("#mainRange")).toHaveText("");
 
-  await openControlsIfMenu(page, "train");
   await page.locator("button[data-sign='pos']").click();
   await expectNonblankCanvas(page, "#trainCanvas");
 
-  await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toHaveCount(0);
   await expect(page.locator("button[data-train-mode='global']")).toHaveCount(0);
   await expect(page.locator("#backgroundControl")).toBeVisible();
@@ -648,12 +663,10 @@ test("switching models and problems preserves comparison state", async ({ page }
   test.skip(testInfo.project.name !== "desktop", "desktop-only state persistence assertions");
   await page.goto(FIXTURE_URL);
 
-  await openControlsIfMenu(page, "model");
   await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
   await expect(page.locator("#mainRange")).toHaveText("");
 
-  await openControlsIfMenu(page, "train");
   await page.locator("button[data-background-mode='cell']").click();
   await page.locator("button[data-sign='neg']").click();
   await page.locator("#kSlider").fill("7");
@@ -736,7 +749,6 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator("#globalPanel")).toHaveCount(0);
   await expect(page.locator(".train-panel #trainModeButtons")).toHaveCount(0);
   await expect(page.locator("#summaryControl")).toHaveCount(0);
-  await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toHaveCount(0);
   await expect(page.locator("#methodControl")).toHaveCount(0);
   await expect(page.locator("#backgroundControl")).toBeVisible();
@@ -772,7 +784,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
-test("polish states clear loading and respect reduced motion", async ({ page }, testInfo) => {
+test("polish states clear loading and update range progress", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only state coverage is enough");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 900 });
@@ -784,17 +796,9 @@ test("polish states clear loading and respect reduced motion", async ({ page }, 
   await expect(page.locator("#trainPanel")).toHaveAttribute("aria-busy", "false");
   await expect(page.locator("#modelPanel")).toHaveAttribute("data-loading", "false");
   await expect(page.locator("#trainPanel")).toHaveAttribute("data-loading", "false");
-
-  await openControlsIfMenu(page, "train");
-  await expect(page.locator(".train-actions")).toHaveAttribute("data-control-layout", "menu");
-  await expect(page.locator(".train-actions")).toHaveAttribute("data-open", "true");
-  const animationDurationMs = await page.locator("#trainMenu").evaluate((menu) => {
-    const duration = getComputedStyle(menu).animationDuration.split(",")[0]?.trim() ?? "0s";
-    if (duration.endsWith("ms")) return Number.parseFloat(duration);
-    if (duration.endsWith("s")) return Number.parseFloat(duration) * 1000;
-    return Number.parseFloat(duration);
-  });
-  expect(animationDurationMs).toBeLessThanOrEqual(1);
+  await expect(page.locator(".menu-button")).toHaveCount(0);
+  await expect(page.locator(".plot-menu")).toHaveCount(0);
+  await expectPlotControlsStayInline(page);
 
   await page.locator("#kSlider").fill("128");
   await expect(page.locator("#kOutput")).toHaveText("128");
@@ -807,21 +811,28 @@ test("polish states clear loading and respect reduced motion", async ({ page }, 
     .toBe("50%");
 });
 
-test("settings use wrapped in-panel bars when there is tile space", async ({ page }, testInfo) => {
+test("settings stay inline and label-free in plot tiles", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(FIXTURE_URL);
 
   await expectTopbarControlsFit(page);
-  await expect(page.locator(".model-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
-  await expect(page.locator(".train-actions")).toHaveAttribute("data-control-layout", /bar|inline/);
+  await expect(page.locator(".menu-button")).toHaveCount(0);
+  await expect(page.locator(".plot-menu")).toHaveCount(0);
+  await expect(page.locator(".model-actions")).not.toContainText("Field");
+  await expect(page.locator(".train-actions")).not.toContainText(/Influence|Sign|Top k|Background/);
+  await expect(page.locator("#fieldSelect")).toHaveAttribute("aria-label", "Field");
+  await expect(page.locator("#matrixSelect")).toHaveAttribute("aria-label", "Influence");
+  await expect(page.locator("#signButtons")).toHaveAttribute("aria-label", "Influence sign");
+  await expect(page.locator("#kSlider")).toHaveAttribute("aria-label", "Top k");
+  await expect(page.locator("#backgroundButtons")).toHaveAttribute("aria-label", "Influence background");
   await expectVisibleControlsInsidePanels(page);
+  await expectPlotControlsStayInline(page);
 
   await page.setViewportSize({ width: 390, height: 900 });
-  await openControlsIfMenu(page, "model");
-  await openControlsIfMenu(page, "train");
   await expectTopbarControlsFit(page);
   await expectVisibleControlsInsidePanels(page);
+  await expectPlotControlsStayInline(page);
 });
 
 test("high-DPI rendering keeps point and line overlays proportional to the plot", async ({ page }, testInfo) => {

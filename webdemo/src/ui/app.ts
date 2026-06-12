@@ -86,7 +86,6 @@ const MODEL_INTERACTION_HINT_HIDE_MS = 440;
 const MODEL_INTERACTION_HINT_REDUCED_HIDE_MS = 1;
 
 type PanelName = "main" | "train";
-type ControlLayout = "inline" | "bar" | "menu";
 type ModelGesture = {
   pointerId: number;
   pointerType: string;
@@ -131,7 +130,6 @@ export class AppController {
   private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
   private lastLayoutSignature = "";
-  private lastControlLayoutSignature = "";
   private selectionPulseStartedAt = 0;
   private selectionPulseAnimation = 0;
   private modelInteractionHintShown = false;
@@ -214,17 +212,6 @@ export class AppController {
       this.refreshResponsiveLayout();
       this.schedule("train");
     });
-    this.dom.modelMenuButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.toggleMenu("model");
-    });
-    this.dom.trainMenuButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      this.toggleMenu("train");
-    });
-    this.dom.modelMenu.addEventListener("click", (event) => event.stopPropagation());
-    this.dom.trainMenu.addEventListener("click", (event) => event.stopPropagation());
-    document.addEventListener("click", () => this.closeMenus());
     this.dom.resetButton.addEventListener("click", () => {
       this.store.dispatch({ type: "resetSelection" });
       this.draftRegion = null;
@@ -250,26 +237,11 @@ export class AppController {
     this.dom.trainCanvas.addEventListener("pointercancel", (event) => this.handleTrainPointerCancel(event));
     window.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
-      this.closeMenus();
       this.clearRegionSelection();
     });
     window.addEventListener("resize", () => this.handleViewportScaleChange());
     window.visualViewport?.addEventListener("resize", () => this.handleViewportScaleChange());
     this.observeDevicePixelRatio();
-  }
-
-  private toggleMenu(menu: "model" | "train"): void {
-    const actions = menu === "model" ? this.dom.modelActions : this.dom.trainActions;
-    const isOpen = actions?.dataset.open === "true";
-    this.closeMenus();
-    this.setMenuOpen(menu, !isOpen);
-  }
-
-  private setMenuOpen(menu: "model" | "train", open: boolean): void {
-    const button = menu === "model" ? this.dom.modelMenuButton : this.dom.trainMenuButton;
-    const actions = menu === "model" ? this.dom.modelActions : this.dom.trainActions;
-    actions.dataset.open = open ? "true" : "false";
-    button.setAttribute("aria-expanded", String(open));
   }
 
   private setPanelLoading(panel: HTMLElement, loading: boolean): void {
@@ -372,125 +344,13 @@ export class AppController {
     }
   }
 
-  private closeMenus(): void {
-    this.setMenuOpen("model", false);
-    this.setMenuOpen("train", false);
-  }
-
   private updateTrainControlVisibility(): void {
     this.dom.kControl.hidden = false;
     this.setActiveButtons(this.dom.backgroundButtons, this.store.state.backgroundMode, "backgroundMode");
   }
 
   private refreshResponsiveLayout(): boolean {
-    const controlsChanged = this.applyAdaptiveControlLayouts();
-    const layoutChanged = this.applyAdaptiveLayout();
-    const controlsChangedAfterLayout = layoutChanged ? this.applyAdaptiveControlLayouts() : false;
-    return controlsChanged || layoutChanged || controlsChangedAfterLayout;
-  }
-
-  private applyAdaptiveControlLayouts(): boolean {
-    this.updatePanelWidthVar(this.dom.modelPanel);
-    this.updatePanelWidthVar(this.dom.trainPanel);
-
-    const modelLayout = this.chooseControlLayout({
-      panel: this.dom.modelPanel,
-      actions: this.dom.modelActions,
-      menu: this.dom.modelMenu,
-      button: this.dom.modelMenuButton,
-    });
-    const trainLayout = this.chooseControlLayout({
-      panel: this.dom.trainPanel,
-      actions: this.dom.trainActions,
-      menu: this.dom.trainMenu,
-      button: this.dom.trainMenuButton,
-    });
-    const signature = `${modelLayout}|${trainLayout}`;
-    const changed = signature !== this.lastControlLayoutSignature;
-    this.lastControlLayoutSignature = signature;
-    this.setControlLayout(this.dom.modelActions, this.dom.modelMenuButton, modelLayout);
-    this.setControlLayout(this.dom.trainActions, this.dom.trainMenuButton, trainLayout);
-    return changed;
-  }
-
-  private chooseControlLayout({
-    panel,
-    actions,
-    menu,
-    button,
-  }: {
-    panel: HTMLElement;
-    actions: HTMLElement;
-    menu: HTMLElement;
-    button: HTMLButtonElement;
-  }): ControlLayout {
-    const previousLayout = this.controlLayout(actions);
-    const wasOpen = actions.dataset.open === "true";
-    const candidates: ControlLayout[] = ["inline", "bar", "menu"];
-    for (const layout of candidates) {
-      this.setControlLayout(actions, button, layout, false);
-      if (this.controlLayoutFits(panel, actions, menu, layout)) {
-        this.setControlLayout(actions, button, previousLayout, wasOpen && previousLayout === "menu");
-        return layout;
-      }
-    }
-    this.setControlLayout(actions, button, previousLayout, wasOpen && previousLayout === "menu");
-    return "menu";
-  }
-
-  private controlLayoutFits(
-    panel: HTMLElement,
-    actions: HTMLElement,
-    menu: HTMLElement,
-    layout: ControlLayout,
-  ): boolean {
-    if (layout === "menu") return true;
-    const header = actions.closest<HTMLElement>(".plot-header");
-    if (!header) return false;
-    const panelRect = panel.getBoundingClientRect();
-    const headerRect = header.getBoundingClientRect();
-    if (panelRect.width <= 1 || panelRect.height <= 1) return false;
-
-    const bodyHeight = panelRect.height - headerRect.height;
-    const minBodyHeight = panelRect.height < 360 ? 110 : 180;
-    if (bodyHeight < minBodyHeight) return false;
-    if (layout === "inline" && headerRect.height > 84) return false;
-    if (layout === "bar" && headerRect.height > Math.min(150, panelRect.height * 0.45)) return false;
-    return (
-      !this.hasHorizontalOverflow(header) &&
-      !this.hasHorizontalOverflow(actions) &&
-      !this.hasHorizontalOverflow(menu)
-    );
-  }
-
-  private hasHorizontalOverflow(element: HTMLElement): boolean {
-    return element.scrollWidth > element.clientWidth + 3;
-  }
-
-  private controlLayout(actions: HTMLElement): ControlLayout {
-    const layout = actions.dataset.controlLayout;
-    return layout === "inline" || layout === "bar" ? layout : "menu";
-  }
-
-  private setControlLayout(
-    actions: HTMLElement,
-    button: HTMLButtonElement,
-    layout: ControlLayout,
-    keepOpen = actions.dataset.open === "true",
-  ): void {
-    actions.dataset.controlLayout = layout;
-    if (layout !== "menu") {
-      actions.dataset.open = "false";
-      button.setAttribute("aria-expanded", "false");
-      return;
-    }
-    actions.dataset.open = keepOpen ? "true" : "false";
-    button.setAttribute("aria-expanded", String(keepOpen));
-  }
-
-  private updatePanelWidthVar(panel: HTMLElement): void {
-    const width = Math.max(120, panel.getBoundingClientRect().width);
-    panel.style.setProperty("--panel-width", `${Math.round(width)}px`);
+    return this.applyAdaptiveLayout();
   }
 
   private observeLayout(): void {
@@ -1005,7 +865,6 @@ export class AppController {
     const point = this.canvasPointer(event);
     if (!containsViewportPoint(point[0], point[1], this.mainViewport)) return;
     this.dismissModelInteractionHint();
-    this.closeMenus();
     event.preventDefault();
     if (event.pointerType === "touch" && this.touchRegionArmed) {
       this.touchRegionArmed = false;
@@ -1096,7 +955,6 @@ export class AppController {
     if (!this.context() || !this.trainViewport) return;
     const point = this.canvasPointer(event, this.dom.trainCanvas);
     if (!containsViewportPoint(point[0], point[1], this.trainViewport)) return;
-    this.closeMenus();
     event.preventDefault();
     this.capturePointer(this.dom.trainCanvas, event.pointerId);
     this.trainGesture = {

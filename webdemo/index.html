@@ -58,27 +58,11 @@
                 <span id="selectedValueLabel" class="readout-label">Value</span>
                 <span id="selectedValue" class="readout-value">-</span>
               </div>
-              <div class="plot-actions model-actions" data-control-layout="menu" data-open="false">
-                <button
-                  id="modelMenuButton"
-                  class="icon-button menu-button"
-                  type="button"
-                  title="Model controls"
-                  aria-label="Model controls"
-                  aria-expanded="false"
-                  aria-controls="modelMenu"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <circle cx="5" cy="12" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="19" cy="12" r="1.6" />
-                  </svg>
-                </button>
-                <div id="modelMenu" class="plot-menu model-menu" role="menu">
-                  <label class="plot-control field-control">
-                    <span>Field</span>
-                    <select id="fieldSelect"></select>
-                  </label>
+              <div class="plot-actions model-actions">
+                <div class="plot-controls model-controls">
+                  <div class="plot-control field-control">
+                    <select id="fieldSelect" aria-label="Field"></select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -105,45 +89,27 @@
                 <h2 id="trainTitle">Train</h2>
                 <span id="trainRange" class="muted"></span>
               </div>
-              <div class="plot-actions train-actions" data-control-layout="menu" data-open="false">
-                <button
-                  id="trainMenuButton"
-                  class="icon-button menu-button"
-                  type="button"
-                  title="Train controls"
-                  aria-label="Train controls"
-                  aria-expanded="false"
-                  aria-controls="trainMenu"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <circle cx="5" cy="12" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="19" cy="12" r="1.6" />
-                  </svg>
-                </button>
-                <div id="trainMenu" class="plot-menu train-menu" role="menu">
-                  <label class="plot-control matrix-control">
-                    <span>Influence</span>
-                    <select id="matrixSelect"></select>
-                  </label>
+              <div class="plot-actions train-actions">
+                <div class="plot-controls train-controls">
+                  <div class="plot-control matrix-control">
+                    <select id="matrixSelect" aria-label="Influence"></select>
+                  </div>
                   <div class="plot-control sign-control">
-                    <span>Sign</span>
                     <div class="segmented" id="signButtons" role="group" aria-label="Influence sign">
-                      <button data-sign="abs" class="active">|·|</button>
-                      <button data-sign="pos">+</button>
-                      <button data-sign="neg">-</button>
+                      <button data-sign="abs" class="active" aria-label="Absolute influence">|·|</button>
+                      <button data-sign="pos" aria-label="Positive influence">+</button>
+                      <button data-sign="neg" aria-label="Negative influence">-</button>
                     </div>
                   </div>
                   <label id="kControl" class="plot-control k-control">
-                    <span>Top k <output id="kOutput" for="kSlider">25</output></span>
-                    <input id="kSlider" type="range" min="0" max="256" value="25" />
+                    <output id="kOutput" for="kSlider" aria-hidden="true">25</output>
+                    <input id="kSlider" type="range" min="0" max="256" value="25" aria-label="Top k" />
                   </label>
                   <div id="backgroundControl" class="plot-control background-control">
-                    <span>Background</span>
                     <div class="segmented" id="backgroundButtons" role="group" aria-label="Influence background">
-                      <button data-background-mode="points" class="active">Points</button>
-                      <button data-background-mode="smooth">Smooth</button>
-                      <button data-background-mode="cell">Cells</button>
+                      <button data-background-mode="points" class="active" aria-label="Points background">Points</button>
+                      <button data-background-mode="smooth" aria-label="Smooth background">Smooth</button>
+                      <button data-background-mode="cell" aria-label="Cells background">Cells</button>
                     </div>
                   </div>
                 </div>

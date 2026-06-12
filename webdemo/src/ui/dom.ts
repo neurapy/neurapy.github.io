@@ -14,12 +14,6 @@ export interface DomRefs {
   kSlider: HTMLInputElement;
   kOutput: HTMLOutputElement;
   modelPanel: HTMLElement;
-  modelActions: HTMLElement;
-  modelMenuButton: HTMLButtonElement;
-  modelMenu: HTMLElement;
-  trainActions: HTMLElement;
-  trainMenuButton: HTMLButtonElement;
-  trainMenu: HTMLElement;
   selectedPointLabel: HTMLElement;
   selectedPoint: HTMLElement;
   selectedValueLabel: HTMLElement;
@@ -60,12 +54,6 @@ export function getDomRefs(): DomRefs {
     kSlider: required("#kSlider", HTMLInputElement),
     kOutput: required("#kOutput", HTMLOutputElement),
     modelPanel: required("#modelPanel", HTMLElement),
-    modelActions: required(".model-actions", HTMLElement),
-    modelMenuButton: required("#modelMenuButton", HTMLButtonElement),
-    modelMenu: required("#modelMenu", HTMLElement),
-    trainActions: required(".train-actions", HTMLElement),
-    trainMenuButton: required("#trainMenuButton", HTMLButtonElement),
-    trainMenu: required("#trainMenu", HTMLElement),
     selectedPointLabel: required("#selectedPointLabel", HTMLElement),
     selectedPoint: required("#selectedPoint", HTMLElement),
     selectedValueLabel: required("#selectedValueLabel", HTMLElement),
