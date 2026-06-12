@@ -441,24 +441,21 @@ input[type="range"]:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(0, auto) auto minmax(0, auto);
   align-items: baseline;
-  gap: 3px 7px;
-  padding: 5px 8px;
-  border: 1px solid rgba(191, 205, 221, 0.95);
-  border-radius: 7px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(242, 247, 251, 0.92));
-  color: var(--text);
-  font-size: 12px;
+  gap: 2px 8px;
+  padding: 1px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 4px 12px rgba(24, 34, 48, 0.05);
+  line-height: 1.15;
+  box-shadow: none;
 }
 
 .readout-label {
-  color: var(--muted);
-  font-weight: 650;
-  font-size: 11px;
+  color: var(--axis);
+  font-weight: 640;
+  font-size: 10px;
 }
 
 .readout-value {
@@ -467,7 +464,8 @@ input[type="range"]:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 720;
+  color: var(--text);
+  font-weight: 680;
 }
 
 .plot-actions {
@@ -824,26 +822,36 @@ canvas {
 
 .axis path,
 .axis line {
-  stroke: var(--axis);
+  stroke: rgba(91, 104, 120, 0.56);
   stroke-width: var(--plot-axis-stroke-width, 1px);
   shape-rendering: crispEdges;
 }
 
-.axis text {
+.axis text,
+.colorbar-ticks text {
   fill: var(--muted);
   font-size: 10px;
+  font-weight: 620;
   font-variant-numeric: tabular-nums;
+  paint-order: stroke fill;
+  stroke: rgba(247, 250, 252, 0.86);
+  stroke-linejoin: round;
+  stroke-width: 3px;
 }
 
 .axis-label {
   fill: var(--text);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 720;
+  paint-order: stroke fill;
+  stroke: rgba(247, 250, 252, 0.9);
+  stroke-linejoin: round;
+  stroke-width: 3px;
 }
 
 .axis-frame {
   fill: none;
-  stroke: rgba(91, 104, 120, 0.78);
+  stroke: rgba(91, 104, 120, 0.62);
   stroke-width: var(--plot-axis-stroke-width, 1px);
 }
 
@@ -853,20 +861,18 @@ canvas {
 
 .colorbar-frame {
   fill: none;
-  stroke: rgba(91, 104, 120, 0.78);
+  stroke: rgba(91, 104, 120, 0.62);
   stroke-width: var(--plot-axis-stroke-width, 1px);
 }
 
 .colorbar-ticks line {
-  stroke: var(--axis);
+  stroke: rgba(91, 104, 120, 0.56);
   stroke-width: var(--plot-axis-stroke-width, 1px);
   shape-rendering: crispEdges;
 }
 
 .colorbar-ticks text {
-  fill: var(--muted);
   font-size: 9px;
-  font-variant-numeric: tabular-nums;
 }
 
 .contours path {
@@ -1111,7 +1117,7 @@ input[type="range"]::-moz-range-thumb {
   .selection-readout {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 2px 6px;
-    padding: 4px 6px;
+    padding: 1px 0;
     font-size: 11px;
     flex: 0 1 142px;
   }

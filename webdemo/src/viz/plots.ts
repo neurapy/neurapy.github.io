@@ -122,11 +122,11 @@ const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
 export const MAX_VISIBLE_INFLUENCE_LINES = 64;
-export const PLOT_DECORATION_INSETS: PlotInsets = {
-  top: 18,
-  right: 76,
-  bottom: 52,
-  left: 58,
+export const PLOT_VIEWPORT_PADDING: PlotInsets = {
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
 };
 const SELECTION_PULSE_DURATION_MS = 720;
 
@@ -663,18 +663,21 @@ function colorbarColor(spec: ColorbarSpec, value: number): string {
 function renderColorbar(
   root: Selection<SVGSVGElement, unknown, null, undefined>,
   viewport: PlotViewport,
-  width: number,
   spec: ColorbarSpec,
 ): void {
   const [min, max] = finiteDomain(spec.domain);
   const visualScale = plotVisualScale(viewport);
   const barWidth = Math.max(8, Math.min(12, 9 * visualScale));
-  const gutterLeft = viewport.right;
-  const gutterWidth = Math.max(0, width - gutterLeft);
-  if (gutterWidth < 30) return;
+  if (viewport.width < 72 || viewport.height < 54) return;
 
   const barHeight = Math.max(46, Math.min(150, viewport.height * 0.56));
-  const barX = Math.min(width - 34, gutterLeft + Math.max(10, (gutterWidth - 42) / 2));
+  const inset = Math.max(10, 12 * visualScale);
+  const labelGutter = Math.max(30, 34 * visualScale);
+  const barX = clampNumber(
+    viewport.right - inset - barWidth,
+    viewport.x + labelGutter,
+    viewport.right - barWidth - 2,
+  );
   const barY = viewport.y + (viewport.height - barHeight) / 2;
   const gradientId = `${spec.id}-gradient`;
   const defs = root.append("defs");
@@ -719,17 +722,18 @@ function renderColorbar(
     .selectAll("line")
     .data(ticks)
     .join("line")
-    .attr("x1", barX + barWidth)
-    .attr("x2", barX + barWidth + 4)
+    .attr("x1", barX)
+    .attr("x2", barX - 4)
     .attr("y1", (value) => tickScale(value))
     .attr("y2", (value) => tickScale(value));
   tickGroup
     .selectAll("text")
     .data(ticks)
     .join("text")
-    .attr("x", barX + barWidth + 7)
+    .attr("x", barX - 7)
     .attr("y", (value) => tickScale(value))
     .attr("dy", "0.32em")
+    .attr("text-anchor", "end")
     .text((value) => formatAxisNumber(value));
 }
 
@@ -740,10 +744,12 @@ export function renderAxes(
   height: number,
   viewport: PlotViewport,
   projection: PlotProjection,
-  colorbar?: ColorbarSpec,
 ): void {
   resizeSvg(svg, width, height);
   const visualScale = plotVisualScale(viewport);
+  const tickLength = Math.max(3, 4 * visualScale);
+  const tickTextOffset = Math.max(7, 8 * visualScale);
+  const labelOffset = Math.max(12, 15 * visualScale);
   svg.style.setProperty("--plot-visual-scale", String(visualScale));
   svg.style.setProperty("--plot-axis-stroke-width", `${visualScale}px`);
   svg.style.setProperty("--plot-contour-stroke-width", `${0.7 * visualScale}px`);
@@ -764,13 +770,19 @@ export function renderAxes(
     .attr("height", viewport.height);
   const xAxis = axisBottom(x)
     .ticks(Math.max(3, Math.floor(viewport.width / 150)))
+    .tickSizeInner(-tickLength)
+    .tickSizeOuter(0)
     .tickFormat((value) => projection.formatXTick(Number(value)));
   if (projection.xTickValues?.length) xAxis.tickValues(projection.xTickValues);
   root
     .append("g")
     .attr("class", "axis axis-x")
     .attr("transform", `translate(0,${viewport.bottom})`)
-    .call(xAxis);
+    .call(xAxis)
+    .selectAll("text")
+    .attr("y", -tickTextOffset)
+    .attr("dy", "0")
+    .attr("text-anchor", "middle");
   root
     .append("g")
     .attr("class", "axis axis-y")
@@ -778,24 +790,28 @@ export function renderAxes(
     .call(
       axisLeft(y)
         .ticks(Math.max(3, Math.floor(viewport.height / 130)))
+        .tickSizeInner(-tickLength)
+        .tickSizeOuter(0)
         .tickFormat((value) => projection.formatYTick(Number(value))),
-    );
+    )
+    .selectAll("text")
+    .attr("x", tickTextOffset)
+    .attr("dy", "0.32em")
+    .attr("text-anchor", "start");
   root
     .append("text")
     .attr("class", "axis-label axis-label-x")
-    .attr("x", viewport.x + viewport.width / 2)
-    .attr("y", Math.min(height - 9, viewport.bottom + 36))
-    .attr("text-anchor", "middle")
+    .attr("x", viewport.right - labelOffset)
+    .attr("y", viewport.bottom - labelOffset)
+    .attr("text-anchor", "end")
     .text(projection.labels.x);
   root
     .append("text")
     .attr("class", "axis-label axis-label-y")
-    .attr("x", Math.max(12, viewport.x - 42))
-    .attr("y", viewport.y + viewport.height / 2)
-    .attr("text-anchor", "middle")
-    .attr("transform", `rotate(-90 ${Math.max(12, viewport.x - 42)} ${viewport.y + viewport.height / 2})`)
+    .attr("x", viewport.x + labelOffset)
+    .attr("y", viewport.y + labelOffset)
+    .attr("text-anchor", "start")
     .text(projection.labels.y);
-  if (colorbar) renderColorbar(root, viewport, width, colorbar);
 }
 
 function boundsSpan(min: number, max: number): number {
@@ -959,7 +975,7 @@ export function renderMainPlot(args: {
   clearCanvas(ctx, width, height);
   const rasterBounds = rasterPlotBounds(args.context);
   const projection = plotProjectionForManifest(args.context.manifest, rasterBounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
   drawPlotStage(ctx, viewport);
 
   if (args.raster && args.rasterResult) {
@@ -1012,17 +1028,7 @@ export function renderMainPlot(args: {
     drawRegionOverlay(ctx, args.draftRegion, rasterBounds, viewport, projection, true);
   }
 
-  renderAxes(
-    args.svg,
-    rasterBounds,
-    width,
-    height,
-    viewport,
-    projection,
-    args.raster
-      ? { id: "model-colorbar", kind: "sequential", domain: args.raster.displayDomain }
-      : undefined,
-  );
+  renderAxes(args.svg, rasterBounds, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1032,6 +1038,13 @@ export function renderMainPlot(args: {
     viewport,
     projection,
   });
+  if (args.raster) {
+    renderColorbar(select(args.svg), viewport, {
+      id: "model-colorbar",
+      kind: "sequential",
+      domain: args.raster.displayDomain,
+    });
+  }
   return viewport;
 }
 
@@ -1385,7 +1398,7 @@ export function renderLocalInfluencePlot(args: {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
   drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
@@ -1475,7 +1488,7 @@ export function renderLocalInfluencePlot(args: {
   });
 
   drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-  renderColorbar(select(args.svg), viewport, width, {
+  renderColorbar(select(args.svg), viewport, {
     id: "train-colorbar",
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
@@ -1496,7 +1509,7 @@ export function renderRegionalInfluencePlot(args: {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
   drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
@@ -1549,7 +1562,7 @@ export function renderRegionalInfluencePlot(args: {
     values: topKValues,
     scaleMax,
   });
-  renderColorbar(select(args.svg), viewport, width, {
+  renderColorbar(select(args.svg), viewport, {
     id: "train-colorbar",
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
