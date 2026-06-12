@@ -806,7 +806,7 @@ canvas {
 }
 
 .axis-frame {
-  fill: rgba(255, 255, 255, 0.16);
+  fill: none;
   stroke: rgba(91, 104, 120, 0.78);
   stroke-width: var(--plot-axis-stroke-width, 1px);
 }

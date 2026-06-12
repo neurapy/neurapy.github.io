@@ -1137,8 +1137,8 @@ function drawTopKInfluenceLinks(args: {
     args.ctx.beginPath();
     args.ctx.moveTo(args.rowSx, args.rowSy);
     args.ctx.lineTo(sx, sy);
-    args.ctx.strokeStyle = influenceRgba(value, args.scaleMax, 0.18 + strength * 0.36);
-    args.ctx.lineWidth = scaledPlotPx(1 + strength * 1.6, args.viewport);
+    args.ctx.strokeStyle = `rgba(82, 96, 112, ${0.14 + strength * 0.2})`;
+    args.ctx.lineWidth = scaledPlotPx(1 + strength * 0.8, args.viewport);
     args.ctx.stroke();
   }
   args.ctx.restore();
