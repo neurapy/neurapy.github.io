@@ -9,6 +9,7 @@ import type {
   InfluenceRow,
   ModelQuality,
   PointArrays,
+  PlotViewport,
   RasterData,
   RunManifest,
   TypedArray,
@@ -90,6 +91,11 @@ type ModelGesture = {
   current: [number, number];
   mode: "pending" | "region";
 };
+type PlotTarget = "main" | "train";
+type PlotClickGesture = {
+  pointerId: number;
+  start: [number, number];
+};
 
 export class AppController {
   private readonly dom: DomRefs = getDomRefs();
@@ -111,9 +117,11 @@ export class AppController {
   private rasterResult: RasterRenderResult | null = null;
   private influenceRow: InfluenceRow | null = null;
   private influenceAggregate: InfluenceAggregate | null = null;
-  private mainViewport = null as ReturnType<typeof renderMainPlot> | null;
+  private mainViewport: PlotViewport | null = null;
+  private trainViewport: PlotViewport | null = null;
   private draftRegion: Bounds | null = null;
   private modelGesture: ModelGesture | null = null;
+  private trainGesture: PlotClickGesture | null = null;
   private touchRegionArmed = false;
   private lastTouchTap: { time: number; point: [number, number] } | null = null;
   private latestRasterRequest = 0;
@@ -214,6 +222,7 @@ export class AppController {
       this.store.dispatch({ type: "resetSelection" });
       this.draftRegion = null;
       this.modelGesture = null;
+      this.trainGesture = null;
       this.touchRegionArmed = false;
       this.lastTouchTap = null;
       this.influenceAggregate = null;
@@ -229,6 +238,9 @@ export class AppController {
     this.dom.mainCanvas.addEventListener("pointermove", (event) => this.handleMainPointerMove(event));
     this.dom.mainCanvas.addEventListener("pointerup", (event) => this.handleMainPointerUp(event));
     this.dom.mainCanvas.addEventListener("pointercancel", (event) => this.handleMainPointerCancel(event));
+    this.dom.trainCanvas.addEventListener("pointerdown", (event) => this.handleTrainPointerDown(event));
+    this.dom.trainCanvas.addEventListener("pointerup", (event) => this.handleTrainPointerUp(event));
+    this.dom.trainCanvas.addEventListener("pointercancel", (event) => this.handleTrainPointerCancel(event));
     window.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
       this.closeMenus();
@@ -481,8 +493,11 @@ export class AppController {
     this.rasterResult = null;
     this.influenceRow = null;
     this.influenceAggregate = null;
+    this.mainViewport = null;
+    this.trainViewport = null;
     this.draftRegion = null;
     this.modelGesture = null;
+    this.trainGesture = null;
     this.touchRegionArmed = false;
     this.lastTouchTap = null;
     this.latestAggregateRequest += 1;
@@ -866,14 +881,17 @@ export class AppController {
           this.store.state.selectionMode === "region" ? this.store.state.selectedRegion : null,
         draftRegion: this.draftRegion,
         showCandidatePoints: true,
-        showTrainPoints: true,
+        showTrainPoints: false,
         selectionPulse,
       });
       return;
     }
     this.updateTrainControlVisibility();
     const matrix = this.selectedMatrix();
-    if (!matrix) return;
+    if (!matrix) {
+      this.trainViewport = null;
+      return;
+    }
     const backgroundMode = this.store.state.backgroundMode;
     const backgroundLabel = BACKGROUND_MODE_LABELS[backgroundMode];
     this.dom.trainTitle.textContent = "Train";
@@ -889,6 +907,7 @@ export class AppController {
         k: this.store.state.k,
         backgroundMode,
       });
+      this.trainViewport = stats.viewport;
       this.dom.trainRange.textContent = this.store.state.selectedRegion
         ? `Local region · ${backgroundLabel} · sum over ${selectedCount.toLocaleString()} candidates${stats.maxAbs ? ` · max |sum I| ${formatNumber(stats.maxAbs)}` : ""}`
         : "";
@@ -909,6 +928,7 @@ export class AppController {
       backgroundMode,
       selectionPulse,
     });
+    this.trainViewport = stats.viewport;
     this.dom.trainRange.textContent = stats.maxAbs
       ? `Local · ${backgroundLabel} · max |I| ${formatNumber(stats.maxAbs)}`
       : `Local · ${backgroundLabel}`;
@@ -1006,6 +1026,37 @@ export class AppController {
     this.schedule("main");
   }
 
+  private handleTrainPointerDown(event: PointerEvent): void {
+    if (!this.context() || !this.trainViewport) return;
+    const point = this.canvasPointer(event, this.dom.trainCanvas);
+    if (!containsViewportPoint(point[0], point[1], this.trainViewport)) return;
+    this.closeMenus();
+    event.preventDefault();
+    this.capturePointer(this.dom.trainCanvas, event.pointerId);
+    this.trainGesture = {
+      pointerId: event.pointerId,
+      start: point,
+    };
+  }
+
+  private handleTrainPointerUp(event: PointerEvent): void {
+    if (!this.trainGesture || event.pointerId !== this.trainGesture.pointerId) return;
+    const gesture = this.trainGesture;
+    const end = this.canvasPointer(event, this.dom.trainCanvas);
+    this.trainGesture = null;
+    this.releasePointer(this.dom.trainCanvas, event.pointerId);
+    if (Math.hypot(end[0] - gesture.start[0], end[1] - gesture.start[1]) >= DRAG_THRESHOLD_PX) {
+      return;
+    }
+    this.selectPointFromPointer(event, "train");
+  }
+
+  private handleTrainPointerCancel(event: PointerEvent): void {
+    if (!this.trainGesture || event.pointerId !== this.trainGesture.pointerId) return;
+    this.trainGesture = null;
+    this.releasePointer(this.dom.trainCanvas, event.pointerId);
+  }
+
   private startRegionGesture(event: PointerEvent, point: [number, number]): void {
     const context = this.context();
     if (!context || !this.mainViewport) return;
@@ -1049,28 +1100,38 @@ export class AppController {
   }
 
   private captureMainPointer(pointerId: number): void {
+    this.capturePointer(this.dom.mainCanvas, pointerId);
+  }
+
+  private releaseMainPointer(pointerId: number): void {
+    this.releasePointer(this.dom.mainCanvas, pointerId);
+  }
+
+  private capturePointer(canvas: HTMLCanvasElement, pointerId: number): void {
     try {
-      this.dom.mainCanvas.setPointerCapture(pointerId);
+      canvas.setPointerCapture(pointerId);
     } catch {
       // Synthetic pointer events in tests do not always create an active pointer capture target.
     }
   }
 
-  private releaseMainPointer(pointerId: number): void {
+  private releasePointer(canvas: HTMLCanvasElement, pointerId: number): void {
     try {
-      if (this.dom.mainCanvas.hasPointerCapture(pointerId)) {
-        this.dom.mainCanvas.releasePointerCapture(pointerId);
+      if (canvas.hasPointerCapture(pointerId)) {
+        canvas.releasePointerCapture(pointerId);
       }
     } catch {
       // Ignore capture state mismatches from synthetic events.
     }
   }
 
-  private selectPointFromPointer(event: PointerEvent): void {
+  private selectPointFromPointer(event: PointerEvent, target: PlotTarget = "main"): void {
     const context = this.context();
-    if (!context || !this.mainViewport) return;
-    const projection = this.mainProjection(context);
-    const domain = pointerInDomain(event, this.dom.mainCanvas, projection, this.mainViewport);
+    const viewport = target === "train" ? this.trainViewport : this.mainViewport;
+    if (!context || !viewport) return;
+    const canvas = target === "train" ? this.dom.trainCanvas : this.dom.mainCanvas;
+    const projection = target === "train" ? this.trainProjection(context) : this.mainProjection(context);
+    const domain = pointerInDomain(event, canvas, projection, viewport);
     if (!domain) return;
     const displayDomain = projectPointToDisplay(domain, projection);
     const matrix = this.selectedMatrix();
@@ -1158,8 +1219,8 @@ export class AppController {
       : context.bounds;
   }
 
-  private canvasPointer(event: PointerEvent): [number, number] {
-    const rect = this.dom.mainCanvas.getBoundingClientRect();
+  private canvasPointer(event: PointerEvent, canvas: HTMLCanvasElement = this.dom.mainCanvas): [number, number] {
+    const rect = canvas.getBoundingClientRect();
     return [event.clientX - rect.left, event.clientY - rect.top];
   }
 

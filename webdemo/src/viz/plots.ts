@@ -63,6 +63,10 @@ export interface InfluenceRenderStats {
   scaleMax: number;
 }
 
+export interface InfluenceRenderResult extends InfluenceRenderStats {
+  viewport: PlotViewport;
+}
+
 export interface InfluenceField {
   kind: "raster";
   width: number;
@@ -1377,7 +1381,7 @@ export function renderLocalInfluencePlot(args: {
   sign: InfluenceSign;
   backgroundMode: BackgroundMode;
   selectionPulse?: number;
-}): InfluenceRenderStats {
+}): InfluenceRenderResult {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
@@ -1424,7 +1428,7 @@ export function renderLocalInfluencePlot(args: {
   );
   if (!args.row) {
     drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-    return emptyInfluenceStats(args.backgroundMode);
+    return { ...emptyInfluenceStats(args.backgroundMode), viewport };
   }
   const backgroundEntries = influenceEntriesForBackground(args.row.indices, args.row.values, args.sign);
   const backgroundStats = renderInfluenceBackground({
@@ -1476,7 +1480,7 @@ export function renderLocalInfluencePlot(args: {
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
   });
-  return { ...backgroundStats, scaleMax };
+  return { ...backgroundStats, scaleMax, viewport };
 }
 
 export function renderRegionalInfluencePlot(args: {
@@ -1488,7 +1492,7 @@ export function renderRegionalInfluencePlot(args: {
   aggregate: InfluenceAggregate | null;
   k: number;
   backgroundMode: BackgroundMode;
-}): InfluenceRenderStats {
+}): InfluenceRenderResult {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
@@ -1519,7 +1523,7 @@ export function renderRegionalInfluencePlot(args: {
     },
   );
 
-  if (!args.aggregate) return emptyInfluenceStats(args.backgroundMode);
+  if (!args.aggregate) return { ...emptyInfluenceStats(args.backgroundMode), viewport };
   const backgroundStats = renderInfluenceBackground({
     ctx,
     context: args.context,
@@ -1550,7 +1554,7 @@ export function renderRegionalInfluencePlot(args: {
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
   });
-  return { ...backgroundStats, scaleMax };
+  return { ...backgroundStats, scaleMax, viewport };
 }
 
 export function buildDelaunay(

@@ -51,6 +51,54 @@ async function canvasSignature(page: Page, selector: string): Promise<number> {
   });
 }
 
+async function modelPointDarkeningAtRatio(page: Page, xRatio: number, yRatio: number): Promise<number> {
+  return page.locator("#mainCanvas").evaluate(
+    (canvas, ratios) => {
+      const element = canvas as HTMLCanvasElement;
+      const ctx = element.getContext("2d");
+      const axisFrame = document.querySelector<SVGRectElement>("#mainSvg .axis-frame");
+      if (!ctx || !axisFrame || element.width === 0 || element.height === 0) return Number.POSITIVE_INFINITY;
+
+      const box = element.getBoundingClientRect();
+      const frame = {
+        x: Number(axisFrame.getAttribute("x")),
+        y: Number(axisFrame.getAttribute("y")),
+        width: Number(axisFrame.getAttribute("width")),
+        height: Number(axisFrame.getAttribute("height")),
+      };
+      const dprX = element.width / box.width;
+      const dprY = element.height / box.height;
+      const centerX = Math.round((frame.x + frame.width * ratios.xRatio) * dprX);
+      const centerY = Math.round((frame.y + frame.height * (1 - ratios.yRatio)) * dprY);
+      const patchRadius = 8;
+      const patchSize = patchRadius * 2 + 1;
+      const left = Math.max(0, Math.min(element.width - patchSize, centerX - patchRadius));
+      const top = Math.max(0, Math.min(element.height - patchSize, centerY - patchRadius));
+      const data = ctx.getImageData(left, top, patchSize, patchSize).data;
+      let centerLuma = 0;
+      let centerCount = 0;
+      let ringLuma = 0;
+      let ringCount = 0;
+      for (let y = 0; y < patchSize; y += 1) {
+        for (let x = 0; x < patchSize; x += 1) {
+          const distance = Math.hypot(x - patchRadius, y - patchRadius);
+          const offset = (y * patchSize + x) * 4;
+          const luma = 0.2126 * data[offset] + 0.7152 * data[offset + 1] + 0.0722 * data[offset + 2];
+          if (distance <= 2) {
+            centerLuma += luma;
+            centerCount += 1;
+          } else if (distance >= 5 && distance <= 8) {
+            ringLuma += luma;
+            ringCount += 1;
+          }
+        }
+      }
+      return ringLuma / ringCount - centerLuma / centerCount;
+    },
+    { xRatio, yRatio },
+  );
+}
+
 async function selectedMarkerMetrics(page: Page): Promise<{
   width: number;
   height: number;
@@ -137,6 +185,30 @@ async function clickMainPlotRatio(page: Page, xRatio: number, yRatio: number): P
       const element = canvas as HTMLCanvasElement;
       const box = element.getBoundingClientRect();
       const axisFrame = document.querySelector<SVGRectElement>("#mainSvg .axis-frame");
+      const frame = axisFrame
+        ? {
+            x: Number(axisFrame.getAttribute("x")),
+            y: Number(axisFrame.getAttribute("y")),
+            width: Number(axisFrame.getAttribute("width")),
+            height: Number(axisFrame.getAttribute("height")),
+          }
+        : { x: 0, y: 0, width: box.width, height: box.height };
+      return {
+        x: box.left + frame.x + frame.width * ratios.xRatio,
+        y: box.top + frame.y + frame.height * (1 - ratios.yRatio),
+      };
+    },
+    { xRatio, yRatio },
+  );
+  await page.mouse.click(point.x, point.y);
+}
+
+async function clickTrainPlotRatio(page: Page, xRatio: number, yRatio: number): Promise<void> {
+  const point = await page.locator("#trainCanvas").evaluate(
+    (canvas, ratios) => {
+      const element = canvas as HTMLCanvasElement;
+      const box = element.getBoundingClientRect();
+      const axisFrame = document.querySelector<SVGRectElement>("#trainSvg .axis-frame");
       const frame = axisFrame
         ? {
             x: Number(axisFrame.getAttribute("x")),
@@ -345,6 +417,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  await expect.poll(() => modelPointDarkeningAtRatio(page, 0.58, 0.5)).toBeLessThan(8);
   const goodMainSignature = await canvasSignature(page, "#mainCanvas");
   await page.locator("button[data-model-quality='bad']").click();
   await expect(page.locator("button[data-model-quality='bad']")).toHaveClass(/active/);
@@ -456,6 +529,11 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await clickMainPoint(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/\(.+, .+\)/);
+  await expect(page.locator("#trainRange")).toHaveText(/Local/);
+  await expectNonblankCanvas(page, "#trainCanvas");
+
+  await clickTrainPlotRatio(page, 0.82, 0.75);
+  await expect(page.locator("#selectedPoint")).toHaveText(/\(0.875, 0.625\)/);
   await expect(page.locator("#trainRange")).toHaveText(/Local/);
   await expectNonblankCanvas(page, "#trainCanvas");
 });
