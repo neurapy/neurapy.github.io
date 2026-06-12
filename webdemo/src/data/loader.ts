@@ -1,4 +1,11 @@
 import type { Priority } from "../types";
+import { LruCache } from "./cache";
+
+const DEFAULT_FULL_RESPONSE_CACHE_BYTES = 64 * 1024 * 1024;
+
+export type PriorityLoaderOptions = Partial<Record<Priority, number>> & {
+  fullResponseCacheBytes?: number;
+};
 
 interface Subscriber {
   id: number;
@@ -36,15 +43,20 @@ export class PriorityLoader {
     background: [],
   };
   private readonly requestsByKey = new Map<string, QueuedRequest>();
-  private readonly fullResponsesByUrl = new Map<string, ArrayBuffer>();
+  private readonly fullResponsesByUrl: LruCache<ArrayBuffer>;
+  private readonly fullResponsePromisesByUrl = new Map<string, Promise<ArrayBuffer>>();
+  private readonly brokenRangeUrls = new Set<string>();
   private requestId = 0;
   private subscriberId = 0;
 
-  constructor(limits: Partial<Record<Priority, number>> = {}) {
+  constructor(options: PriorityLoaderOptions = {}) {
     this.limits = {
-      foreground: limits.foreground ?? 2,
-      background: limits.background ?? 1,
+      foreground: options.foreground ?? 2,
+      background: options.background ?? 1,
     };
+    this.fullResponsesByUrl = new LruCache<ArrayBuffer>(
+      options.fullResponseCacheBytes ?? DEFAULT_FULL_RESPONSE_CACHE_BYTES,
+    );
   }
 
   load(url: URL, priority: Priority = "foreground", externalSignal?: AbortSignal): Promise<ArrayBuffer> {
@@ -166,43 +178,46 @@ export class PriorityLoader {
       });
       const init: RequestInit = { signal: controller.signal, headers };
       if (request.range) {
-        headers.set("Range", `bytes=${request.range.start}-${request.range.endExclusive - 1}`);
-      }
-      const response = await fetch(request.url, init);
-      if (request.range && response.status !== 206 && response.status !== 200) {
-        throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
-      }
-      if (!request.range && !response.ok) {
-        throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
-      }
-      if (request.range) {
-        if (response.status === 200) {
-          const responseBuffer = await response.arrayBuffer();
-          assertBinaryFullResponse(request.url, response, responseBuffer, request.range);
-          this.fullResponsesByUrl.set(request.url.toString(), responseBuffer);
-          buffer = sliceFullResponse(
+        const urlKey = request.url.toString();
+        if (this.brokenRangeUrls.has(urlKey)) {
+          buffer = await this.loadFullResponseSliceForRange(
             request.url,
-            responseBuffer,
-            request.range.start,
-            request.range.endExclusive,
+            request.range,
+            controller.signal,
+            activePriority,
           );
         } else {
-          const expectedBytes = request.range.endExclusive - request.range.start;
-          let responseBuffer: ArrayBuffer | null = null;
-          try {
-            responseBuffer = await response.arrayBuffer();
-          } catch (caught) {
-            if (isAbortError(caught)) throw caught;
+          headers.set("Range", `bytes=${request.range.start}-${request.range.endExclusive - 1}`);
+          const response = await fetch(request.url, init);
+          if (response.status !== 206 && response.status !== 200) {
+            throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
           }
-          if (responseBuffer?.byteLength === expectedBytes) {
-            buffer = responseBuffer;
+          if (response.status === 200) {
+            const responseBuffer = await response.arrayBuffer();
+            assertBinaryFullResponse(request.url, response, responseBuffer, request.range);
+            this.fullResponsesByUrl.set(request.url.toString(), responseBuffer, responseBuffer.byteLength);
+            buffer = sliceFullResponse(
+              request.url,
+              responseBuffer,
+              request.range.start,
+              request.range.endExclusive,
+            );
           } else {
-            buffer = await this.loadFullResponseSlice(request.url, request.range, controller.signal);
+            buffer = await this.readPartialResponseOrFallback(
+              request.url,
+              request.range,
+              response,
+              controller.signal,
+              activePriority,
+            );
           }
         }
       } else {
-        const responseBuffer = await response.arrayBuffer();
-        buffer = responseBuffer;
+        const response = await fetch(request.url, init);
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
+        }
+        buffer = await response.arrayBuffer();
       }
     } catch (caught) {
       error = caught;
@@ -285,6 +300,42 @@ export class PriorityLoader {
     if (index >= 0) queue.splice(index, 1);
   }
 
+  private async readPartialResponseOrFallback(
+    url: URL,
+    range: ByteRange,
+    response: Response,
+    signal: AbortSignal,
+    priority: Priority,
+  ): Promise<ArrayBuffer> {
+    const expectedBytes = range.endExclusive - range.start;
+    try {
+      const responseBuffer = await response.arrayBuffer();
+      if (responseBuffer.byteLength === expectedBytes) return responseBuffer;
+    } catch (caught) {
+      if (isAbortError(caught)) throw caught;
+      if (!isDecodingFailedError(caught)) throw caught;
+    }
+    return this.loadFullResponseSliceForRange(url, range, signal, priority);
+  }
+
+  private async loadFullResponseSliceForRange(
+    url: URL,
+    range: ByteRange,
+    signal: AbortSignal,
+    priority: Priority,
+  ): Promise<ArrayBuffer> {
+    const key = url.toString();
+    this.brokenRangeUrls.add(key);
+    if (
+      priority === "background" &&
+      !this.fullResponsesByUrl.has(key) &&
+      !this.fullResponsePromisesByUrl.has(key)
+    ) {
+      throw new Error(`${url.toString()}: skipping background full response fallback for broken range response`);
+    }
+    return this.loadFullResponseSlice(url, range, signal);
+  }
+
   private async loadFullResponseSlice(
     url: URL,
     range: ByteRange,
@@ -293,6 +344,28 @@ export class PriorityLoader {
     const cached = this.fullResponsesByUrl.get(url.toString());
     if (cached) return sliceFullResponse(url, cached, range.start, range.endExclusive);
 
+    const buffer = await this.loadFullResponse(url, signal);
+    return sliceFullResponse(url, buffer, range.start, range.endExclusive);
+  }
+
+  private async loadFullResponse(url: URL, signal: AbortSignal): Promise<ArrayBuffer> {
+    const key = url.toString();
+    const cached = this.fullResponsesByUrl.get(key);
+    if (cached) return cached;
+
+    let pending = this.fullResponsePromisesByUrl.get(key);
+    if (!pending) {
+      pending = this.fetchFullResponse(url, signal);
+      this.fullResponsePromisesByUrl.set(key, pending);
+      pending.then(
+        () => this.fullResponsePromisesByUrl.delete(key),
+        () => this.fullResponsePromisesByUrl.delete(key),
+      );
+    }
+    return pending;
+  }
+
+  private async fetchFullResponse(url: URL, signal: AbortSignal): Promise<ArrayBuffer> {
     const response = await fetch(url, {
       signal,
       headers: new Headers({ Accept: "application/octet-stream" }),
@@ -304,9 +377,9 @@ export class PriorityLoader {
       throw new Error(`${url.toString()}: expected full binary response, got HTTP ${response.status}`);
     }
     const buffer = await response.arrayBuffer();
-    assertBinaryFullResponse(url, response, buffer, range);
-    this.fullResponsesByUrl.set(url.toString(), buffer);
-    return sliceFullResponse(url, buffer, range.start, range.endExclusive);
+    assertBinaryResponse(url, response);
+    this.fullResponsesByUrl.set(url.toString(), buffer, buffer.byteLength);
+    return buffer;
   }
 }
 
@@ -314,6 +387,10 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException
     ? error.name === "AbortError"
     : error instanceof Error && error.name === "AbortError";
+}
+
+function isDecodingFailedError(error: unknown): boolean {
+  return error instanceof TypeError && /decoding failed/i.test(error.message);
 }
 
 function requestKey(url: URL, range?: ByteRange): string {
@@ -341,13 +418,17 @@ function assertBinaryFullResponse(
   buffer: ArrayBuffer,
   range: ByteRange,
 ): void {
-  const contentType = response.headers.get("Content-Type")?.toLowerCase() ?? "";
-  if (contentType.includes("text/html")) {
-    throw new Error(`${url.toString()}: expected binary range response, got HTML fallback`);
-  }
+  assertBinaryResponse(url, response);
   if (range.endExclusive > buffer.byteLength) {
     throw new Error(
       `${url.toString()}: server ignored Range but full response is only ${buffer.byteLength} bytes; expected at least ${range.endExclusive}`,
     );
+  }
+}
+
+function assertBinaryResponse(url: URL, response: Response): void {
+  const contentType = response.headers.get("Content-Type")?.toLowerCase() ?? "";
+  if (contentType.includes("text/html")) {
+    throw new Error(`${url.toString()}: expected binary response, got HTML fallback`);
   }
 }

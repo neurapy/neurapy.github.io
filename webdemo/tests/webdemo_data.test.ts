@@ -425,6 +425,102 @@ describe("priority loader", () => {
     expect(fetchRangeHeader(1)).toBe(null);
   });
 
+  it("shares one full fallback fetch across concurrent broken range requests", async () => {
+    const full = bufferFrom(new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]));
+    const fullResolvers: Array<() => void> = [];
+    globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get("Range");
+      if (range) {
+        return new Response(bufferFrom(new Uint8Array([1, 2, 3, 4])), { status: 206 });
+      }
+      return new Promise<Response>((resolve) => {
+        fullResolvers.push(() => resolve(new Response(full.slice(0))));
+      });
+    });
+    const loader = new PriorityLoader({ foreground: 2 });
+    const url = new URL("http://example.test/shared-full.bin");
+
+    const first = loader.loadRange(url, 1, 4);
+    const second = loader.loadRange(url, 4, 7);
+
+    await waitFor(() => expect(fetchRangeHeader(2)).toBe(null));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fullResolvers).toHaveLength(1);
+    fullResolvers[0]();
+
+    await expect(first).resolves.toEqual(expect.any(ArrayBuffer));
+    await expect(second).resolves.toEqual(expect.any(ArrayBuffer));
+    expect(Array.from(new Uint8Array(await first))).toEqual([1, 2, 3]);
+    expect(Array.from(new Uint8Array(await second))).toEqual([4, 5, 6]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not start a full fallback fetch for a broken background range", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response(bufferFrom(new Uint8Array([1, 2, 3, 4])), { status: 206 }),
+    );
+    const loader = new PriorityLoader();
+
+    await expect(
+      loader.loadRange(new URL("http://example.test/background-broken.bin"), 1, 4, "background"),
+    ).rejects.toThrow(/skipping background full response fallback/);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(fetchRangeHeader(0)).toBe("bytes=1-3");
+  });
+
+  it("skips repeated range attempts after a background request detects a broken range URL", async () => {
+    const full = bufferFrom(new Uint8Array([0, 1, 2, 3, 4, 5]));
+    globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get("Range");
+      if (range) {
+        return new Response(bufferFrom(new Uint8Array([1, 2, 3, 4])), { status: 206 });
+      }
+      return new Response(full.slice(0));
+    });
+    const loader = new PriorityLoader();
+    const url = new URL("http://example.test/known-broken.bin");
+
+    await expect(loader.loadRange(url, 1, 4, "background")).rejects.toThrow(
+      /skipping background full response fallback/,
+    );
+    const foreground = await loader.loadRange(url, 2, 5, "foreground");
+
+    expect(Array.from(new Uint8Array(foreground))).toEqual([2, 3, 4]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(fetchRangeHeader(0)).toBe("bytes=1-3");
+    expect(fetchRangeHeader(1)).toBe(null);
+  });
+
+  it("evicts cached full responses when the full-response cache exceeds its byte budget", async () => {
+    const fullByUrl = new Map([
+      ["http://example.test/a.bin", bufferFrom(new Uint8Array([0, 1, 2, 3]))],
+      ["http://example.test/b.bin", bufferFrom(new Uint8Array([4, 5, 6, 7]))],
+    ]);
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get("Range");
+      if (range) {
+        return new Response(bufferFrom(new Uint8Array([1, 2, 3, 4])), { status: 206 });
+      }
+      const full = fullByUrl.get(input.toString());
+      return new Response(full?.slice(0) ?? null, { status: full ? 200 : 404 });
+    });
+    const loader = new PriorityLoader({ fullResponseCacheBytes: 6 });
+    const a = new URL("http://example.test/a.bin");
+    const b = new URL("http://example.test/b.bin");
+
+    await loader.loadRange(a, 1, 4);
+    await loader.loadRange(b, 0, 3);
+    await loader.loadRange(a, 0, 3);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(5);
+    expect(fetchRangeHeader(0)).toBe("bytes=1-3");
+    expect(fetchRangeHeader(1)).toBe(null);
+    expect(fetchRangeHeader(2)).toBe("bytes=0-2");
+    expect(fetchRangeHeader(3)).toBe(null);
+    expect(fetchRangeHeader(4)).toBe(null);
+  });
+
   it("rejects HTML fallbacks for missing ranged binary assets", async () => {
     globalThis.fetch = vi.fn(async () =>
       new Response("<!doctype html>", {
