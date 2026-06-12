@@ -35,8 +35,8 @@ async function axisFrameRatio(page: Page, selector: string): Promise<number> {
   });
 }
 
-async function expectAxisFrameUsesOnlyAspectFit(page: Page, selector: string): Promise<void> {
-  const margins = await page.locator(selector).evaluate((svg) => {
+async function expectCompactOutsideDecorations(page: Page, selector: string): Promise<void> {
+  const metrics = await page.locator(selector).evaluate((svg) => {
     const root = svg as SVGSVGElement;
     const box = root.getBoundingClientRect();
     const frame = root.querySelector<SVGRectElement>(".axis-frame");
@@ -45,53 +45,45 @@ async function expectAxisFrameUsesOnlyAspectFit(page: Page, selector: string): P
     const y = Number(frame.getAttribute("y"));
     const width = Number(frame.getAttribute("width"));
     const height = Number(frame.getAttribute("height"));
+    const frameBox = { x, y, right: x + width, bottom: y + height };
+    const rect = (element: Element | null) => {
+      if (!element) return null;
+      const elementBox = element.getBoundingClientRect();
+      return {
+        x: elementBox.left - box.left,
+        y: elementBox.top - box.top,
+        right: elementBox.right - box.left,
+        bottom: elementBox.bottom - box.top,
+      };
+    };
     return {
-      left: x,
-      right: box.width - x - width,
-      top: y,
-      bottom: box.height - y - height,
+      box: { width: box.width, height: box.height },
+      frame: frameBox,
+      margins: {
+        left: x,
+        right: box.width - x - width,
+        top: y,
+        bottom: box.height - y - height,
+      },
+      colorbar: rect(root.querySelector(".colorbar-frame")),
+      xLabel: rect(root.querySelector(".axis-label-x")),
+      yLabel: rect(root.querySelector(".axis-label-y")),
     };
   });
 
-  expect(Math.min(margins.left, margins.top)).toBeLessThanOrEqual(1.5);
-  expect(Math.min(margins.right, margins.bottom)).toBeLessThanOrEqual(1.5);
-  if (margins.left > margins.top) {
-    expect(Math.abs(margins.left - margins.right)).toBeLessThanOrEqual(1.5);
-    expect(margins.top).toBeLessThanOrEqual(1.5);
-    expect(margins.bottom).toBeLessThanOrEqual(1.5);
-  } else {
-    expect(Math.abs(margins.top - margins.bottom)).toBeLessThanOrEqual(1.5);
-    expect(margins.left).toBeLessThanOrEqual(1.5);
-    expect(margins.right).toBeLessThanOrEqual(1.5);
-  }
-}
-
-async function expectColorbarInsideAxisFrame(page: Page, selector: string): Promise<void> {
-  const result = await page.locator(selector).evaluate((svg) => {
-    const root = svg as SVGSVGElement;
-    const axisFrame = root.querySelector<SVGRectElement>(".axis-frame");
-    const colorbarFrame = root.querySelector<SVGRectElement>(".colorbar-frame");
-    if (!axisFrame || !colorbarFrame) return false;
-    const axis = {
-      x: Number(axisFrame.getAttribute("x")),
-      y: Number(axisFrame.getAttribute("y")),
-      width: Number(axisFrame.getAttribute("width")),
-      height: Number(axisFrame.getAttribute("height")),
-    };
-    const colorbar = {
-      x: Number(colorbarFrame.getAttribute("x")),
-      y: Number(colorbarFrame.getAttribute("y")),
-      width: Number(colorbarFrame.getAttribute("width")),
-      height: Number(colorbarFrame.getAttribute("height")),
-    };
-    return (
-      colorbar.x >= axis.x - 1 &&
-      colorbar.y >= axis.y - 1 &&
-      colorbar.x + colorbar.width <= axis.x + axis.width + 1 &&
-      colorbar.y + colorbar.height <= axis.y + axis.height + 1
-    );
-  });
-  expect(result).toBe(true);
+  expect(metrics.margins.left).toBeGreaterThan(12);
+  expect(metrics.margins.right).toBeGreaterThan(20);
+  expect(metrics.margins.bottom).toBeGreaterThan(20);
+  expect(metrics.margins.right - metrics.margins.left).toBeCloseTo(8, 0);
+  expect(metrics.margins.bottom - metrics.margins.top).toBeCloseTo(28, 0);
+  expect(metrics.colorbar).not.toBeNull();
+  expect(metrics.colorbar!.x).toBeGreaterThanOrEqual(metrics.frame.right + 1);
+  expect(metrics.colorbar!.right).toBeLessThanOrEqual(metrics.box.width + 1);
+  expect(metrics.xLabel).not.toBeNull();
+  expect(metrics.xLabel!.y).toBeGreaterThanOrEqual(metrics.frame.bottom - 1);
+  expect(metrics.xLabel!.bottom).toBeLessThanOrEqual(metrics.box.height + 1);
+  expect(metrics.yLabel).not.toBeNull();
+  expect(metrics.yLabel!.right).toBeLessThanOrEqual(metrics.frame.x + 1);
 }
 
 async function canvasSignature(page: Page, selector: string): Promise<number> {
@@ -522,10 +514,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator(".train-panel .axis-label-y")).toHaveText("y");
   await expect(page.locator(".model-panel .colorbar-frame")).toHaveCount(1);
   await expect(page.locator(".train-panel .colorbar-frame")).toHaveCount(1);
-  await expectAxisFrameUsesOnlyAspectFit(page, "#mainSvg");
-  await expectAxisFrameUsesOnlyAspectFit(page, "#trainSvg");
-  await expectColorbarInsideAxisFrame(page, "#mainSvg");
-  await expectColorbarInsideAxisFrame(page, "#trainSvg");
+  await expectCompactOutsideDecorations(page, "#mainSvg");
+  await expectCompactOutsideDecorations(page, "#trainSvg");
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#mapControl")).toHaveCount(0);
   await expect(page.locator("#methodControl")).toHaveCount(0);
@@ -715,10 +705,8 @@ test("drift diffusion uses a compressed physical pi axis", async ({ page }, test
   await expect(page.locator(".train-panel .axis-label-y")).toHaveText("t");
   await expect(page.locator(".model-panel .colorbar-frame")).toHaveCount(1);
   await expect(page.locator(".train-panel .colorbar-frame")).toHaveCount(1);
-  await expectAxisFrameUsesOnlyAspectFit(page, "#mainSvg");
-  await expectAxisFrameUsesOnlyAspectFit(page, "#trainSvg");
-  await expectColorbarInsideAxisFrame(page, "#mainSvg");
-  await expectColorbarInsideAxisFrame(page, "#trainSvg");
+  await expectCompactOutsideDecorations(page, "#mainSvg");
+  await expectCompactOutsideDecorations(page, "#trainSvg");
 
   const xTickLabels = await page.locator("#mainSvg .axis-x .tick text").allTextContents();
   expect(xTickLabels).toContain("0");

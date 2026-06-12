@@ -123,10 +123,10 @@ const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
 export const MAX_VISIBLE_INFLUENCE_LINES = 64;
 export const PLOT_VIEWPORT_PADDING: PlotInsets = {
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
+  top: 8,
+  right: 54,
+  bottom: 36,
+  left: 46,
 };
 const SELECTION_PULSE_DURATION_MS = 720;
 
@@ -663,21 +663,18 @@ function colorbarColor(spec: ColorbarSpec, value: number): string {
 function renderColorbar(
   root: Selection<SVGSVGElement, unknown, null, undefined>,
   viewport: PlotViewport,
+  width: number,
   spec: ColorbarSpec,
 ): void {
   const [min, max] = finiteDomain(spec.domain);
   const visualScale = plotVisualScale(viewport);
   const barWidth = Math.max(8, Math.min(12, 9 * visualScale));
-  if (viewport.width < 72 || viewport.height < 54) return;
+  const rightGutter = width - viewport.right;
+  if (rightGutter < 32 || viewport.height < 54) return;
 
   const barHeight = Math.max(46, Math.min(150, viewport.height * 0.56));
-  const inset = Math.max(10, 12 * visualScale);
-  const labelGutter = Math.max(30, 34 * visualScale);
-  const barX = clampNumber(
-    viewport.right - inset - barWidth,
-    viewport.x + labelGutter,
-    viewport.right - barWidth - 2,
-  );
+  const outerInset = Math.max(5, 6 * visualScale);
+  const barX = Math.max(viewport.right + 18, width - outerInset - barWidth);
   const barY = viewport.y + (viewport.height - barHeight) / 2;
   const gradientId = `${spec.id}-gradient`;
   const defs = root.append("defs");
@@ -723,14 +720,14 @@ function renderColorbar(
     .data(ticks)
     .join("line")
     .attr("x1", barX)
-    .attr("x2", barX - 4)
+    .attr("x2", barX - Math.max(3, 4 * visualScale))
     .attr("y1", (value) => tickScale(value))
     .attr("y2", (value) => tickScale(value));
   tickGroup
     .selectAll("text")
     .data(ticks)
     .join("text")
-    .attr("x", barX - 7)
+    .attr("x", barX - Math.max(6, 7 * visualScale))
     .attr("y", (value) => tickScale(value))
     .attr("dy", "0.32em")
     .attr("text-anchor", "end")
@@ -749,7 +746,8 @@ export function renderAxes(
   const visualScale = plotVisualScale(viewport);
   const tickLength = Math.max(3, 4 * visualScale);
   const tickTextOffset = Math.max(7, 8 * visualScale);
-  const labelOffset = Math.max(12, 15 * visualScale);
+  const xLabelOffset = Math.max(26, 28 * visualScale);
+  const yLabelOffset = Math.max(31, 32 * visualScale);
   svg.style.setProperty("--plot-visual-scale", String(visualScale));
   svg.style.setProperty("--plot-axis-stroke-width", `${visualScale}px`);
   svg.style.setProperty("--plot-contour-stroke-width", `${0.7 * visualScale}px`);
@@ -770,7 +768,7 @@ export function renderAxes(
     .attr("height", viewport.height);
   const xAxis = axisBottom(x)
     .ticks(Math.max(3, Math.floor(viewport.width / 150)))
-    .tickSizeInner(-tickLength)
+    .tickSizeInner(tickLength)
     .tickSizeOuter(0)
     .tickFormat((value) => projection.formatXTick(Number(value)));
   if (projection.xTickValues?.length) xAxis.tickValues(projection.xTickValues);
@@ -780,8 +778,8 @@ export function renderAxes(
     .attr("transform", `translate(0,${viewport.bottom})`)
     .call(xAxis)
     .selectAll("text")
-    .attr("y", -tickTextOffset)
-    .attr("dy", "0")
+    .attr("y", tickTextOffset)
+    .attr("dy", "0.71em")
     .attr("text-anchor", "middle");
   root
     .append("g")
@@ -790,27 +788,30 @@ export function renderAxes(
     .call(
       axisLeft(y)
         .ticks(Math.max(3, Math.floor(viewport.height / 130)))
-        .tickSizeInner(-tickLength)
+        .tickSizeInner(tickLength)
         .tickSizeOuter(0)
         .tickFormat((value) => projection.formatYTick(Number(value))),
     )
     .selectAll("text")
-    .attr("x", tickTextOffset)
+    .attr("x", -tickTextOffset)
     .attr("dy", "0.32em")
-    .attr("text-anchor", "start");
+    .attr("text-anchor", "end");
   root
     .append("text")
     .attr("class", "axis-label axis-label-x")
-    .attr("x", viewport.right - labelOffset)
-    .attr("y", viewport.bottom - labelOffset)
+    .attr("x", viewport.right)
+    .attr("y", Math.min(height - 6, viewport.bottom + xLabelOffset))
     .attr("text-anchor", "end")
     .text(projection.labels.x);
+  const yLabelX = Math.max(8, viewport.x - yLabelOffset);
+  const yLabelY = viewport.y + viewport.height / 2;
   root
     .append("text")
     .attr("class", "axis-label axis-label-y")
-    .attr("x", viewport.x + labelOffset)
-    .attr("y", viewport.y + labelOffset)
-    .attr("text-anchor", "start")
+    .attr("x", yLabelX)
+    .attr("y", yLabelY)
+    .attr("text-anchor", "middle")
+    .attr("transform", `rotate(-90 ${yLabelX} ${yLabelY})`)
     .text(projection.labels.y);
 }
 
@@ -1039,7 +1040,7 @@ export function renderMainPlot(args: {
     projection,
   });
   if (args.raster) {
-    renderColorbar(select(args.svg), viewport, {
+    renderColorbar(select(args.svg), viewport, width, {
       id: "model-colorbar",
       kind: "sequential",
       domain: args.raster.displayDomain,
@@ -1488,7 +1489,7 @@ export function renderLocalInfluencePlot(args: {
   });
 
   drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-  renderColorbar(select(args.svg), viewport, {
+  renderColorbar(select(args.svg), viewport, width, {
     id: "train-colorbar",
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
@@ -1562,7 +1563,7 @@ export function renderRegionalInfluencePlot(args: {
     values: topKValues,
     scaleMax,
   });
-  renderColorbar(select(args.svg), viewport, {
+  renderColorbar(select(args.svg), viewport, width, {
     id: "train-colorbar",
     kind: "diverging",
     domain: [-scaleMax, scaleMax],
