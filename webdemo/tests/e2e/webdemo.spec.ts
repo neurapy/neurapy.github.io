@@ -610,6 +610,41 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
+test("polish states clear loading and respect reduced motion", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only state coverage is enough");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(FIXTURE_URL);
+
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expect(page.locator("#modelPanel")).toHaveAttribute("aria-busy", "false");
+  await expect(page.locator("#trainPanel")).toHaveAttribute("aria-busy", "false");
+  await expect(page.locator("#modelPanel")).toHaveAttribute("data-loading", "false");
+  await expect(page.locator("#trainPanel")).toHaveAttribute("data-loading", "false");
+
+  await openControlsIfMenu(page, "train");
+  await expect(page.locator(".train-actions")).toHaveAttribute("data-control-layout", "menu");
+  await expect(page.locator(".train-actions")).toHaveAttribute("data-open", "true");
+  const animationDurationMs = await page.locator("#trainMenu").evaluate((menu) => {
+    const duration = getComputedStyle(menu).animationDuration.split(",")[0]?.trim() ?? "0s";
+    if (duration.endsWith("ms")) return Number.parseFloat(duration);
+    if (duration.endsWith("s")) return Number.parseFloat(duration) * 1000;
+    return Number.parseFloat(duration);
+  });
+  expect(animationDurationMs).toBeLessThanOrEqual(1);
+
+  await page.locator("#kSlider").fill("128");
+  await expect(page.locator("#kOutput")).toHaveText("128");
+  await expect
+    .poll(() =>
+      page.locator("#kSlider").evaluate((slider) =>
+        (slider as HTMLElement).style.getPropertyValue("--range-progress"),
+      ),
+    )
+    .toBe("50%");
+});
+
 test("settings use wrapped in-panel bars when there is tile space", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   await page.setViewportSize({ width: 1280, height: 900 });

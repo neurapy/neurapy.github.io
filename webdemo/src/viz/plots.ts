@@ -124,6 +124,7 @@ export const PLOT_DECORATION_INSETS: PlotInsets = {
   bottom: 52,
   left: 58,
 };
+const SELECTION_PULSE_DURATION_MS = 720;
 
 type ColorbarKind = "sequential" | "diverging";
 
@@ -623,6 +624,14 @@ export function resizeSvg(svg: SVGSVGElement, width: number, height: number): vo
   svg.setAttribute("height", `${height}`);
 }
 
+export function selectionPulseProgress(startedAt: number, now = performance.now()): number {
+  if (!startedAt) return 0;
+  const elapsed = now - startedAt;
+  if (elapsed <= 0) return 0;
+  if (elapsed >= SELECTION_PULSE_DURATION_MS) return 0;
+  return elapsed / SELECTION_PULSE_DURATION_MS;
+}
+
 function finiteDomain(domain: [number, number]): [number, number] {
   const min = Number.isFinite(domain[0]) ? domain[0] : 0;
   const max = Number.isFinite(domain[1]) ? domain[1] : min + 1;
@@ -833,21 +842,59 @@ function renderContourOverlay(args: {
     .attr("d", (pathValue) => pathValue);
 }
 
+function drawPlotStage(
+  ctx: CanvasRenderingContext2D,
+  viewport: PlotViewport,
+): void {
+  const visualScale = plotVisualScale(viewport);
+  ctx.save();
+  ctx.shadowColor = "rgba(24, 34, 48, 0.16)";
+  ctx.shadowBlur = 16 * visualScale;
+  ctx.shadowOffsetY = 5 * visualScale;
+  ctx.fillStyle = "#fbfdff";
+  ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.lineWidth = Math.max(1, 1.2 * visualScale);
+  ctx.strokeRect(viewport.x + 0.5, viewport.y + 0.5, viewport.width - 1, viewport.height - 1);
+  ctx.restore();
+}
+
 export function drawPointMarker(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
   radius: number,
   visualScale = 1,
+  pulse = 0,
 ): void {
   const scaledRadius = Math.max(0, radius * visualScale);
+  const safePulse = clampNumber(pulse, 0, 1);
+  if (safePulse > 0) {
+    const haloRadius = scaledRadius + (5 + safePulse * 11) * visualScale;
+    const haloAlpha = Math.max(0, 0.24 * (1 - safePulse));
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, haloRadius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(233, 168, 47, ${haloAlpha})`;
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.shadowColor = "rgba(24, 34, 48, 0.22)";
+  ctx.shadowBlur = 5 * visualScale;
+  ctx.shadowOffsetY = 1.5 * visualScale;
   ctx.beginPath();
   ctx.arc(sx, sy, scaledRadius, 0, Math.PI * 2);
   ctx.fillStyle = "#e9a82f";
   ctx.fill();
+  ctx.shadowColor = "transparent";
   ctx.lineWidth = 2 * visualScale;
   ctx.strokeStyle = "#182230";
   ctx.stroke();
+  ctx.restore();
 }
 
 export function drawPointCloudLayer(
@@ -902,12 +949,14 @@ export function renderMainPlot(args: {
   draftRegion: Bounds | null;
   showCandidatePoints: boolean;
   showTrainPoints: boolean;
+  selectionPulse?: number;
 }): PlotViewport {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const rasterBounds = rasterPlotBounds(args.context);
   const projection = plotProjectionForManifest(args.context.manifest, rasterBounds);
   const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  drawPlotStage(ctx, viewport);
 
   if (args.raster && args.rasterResult) {
     ctx.imageSmoothingEnabled = true;
@@ -950,7 +999,7 @@ export function renderMainPlot(args: {
       projection,
       viewport,
     );
-    drawPointMarker(ctx, sx, sy, 7, plotVisualScale(viewport));
+    drawPointMarker(ctx, sx, sy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
   }
   if (args.selectedRegion) {
     drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, projection, false);
@@ -998,12 +1047,19 @@ function drawRegionOverlay(
   const height = Math.abs(y1 - y0);
   const visualScale = plotVisualScale(viewport);
   ctx.save();
-  ctx.fillStyle = draft ? "rgba(233, 168, 47, 0.16)" : "rgba(8, 127, 124, 0.14)";
+  ctx.fillStyle = draft ? "rgba(233, 168, 47, 0.18)" : "rgba(8, 127, 124, 0.16)";
   ctx.strokeStyle = draft ? "#e9a82f" : "#087f7c";
   ctx.lineWidth = (draft ? 1.4 : 2) * visualScale;
   ctx.setLineDash(draft ? [6 * visualScale, 4 * visualScale] : []);
+  ctx.shadowColor = draft ? "rgba(233, 168, 47, 0.24)" : "rgba(8, 127, 124, 0.22)";
+  ctx.shadowBlur = 10 * visualScale;
   ctx.fillRect(x, y, width, height);
+  ctx.shadowColor = "transparent";
   ctx.strokeRect(x, y, width, height);
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.lineWidth = 1 * visualScale;
+  ctx.strokeRect(x + visualScale, y + visualScale, Math.max(0, width - 2 * visualScale), Math.max(0, height - 2 * visualScale));
   ctx.restore();
 }
 
@@ -1066,8 +1122,6 @@ function drawTopKInfluenceLinks(args: {
   const count = Math.min(args.indices.length, args.values.length);
   const trainCount = Math.floor(args.context.points.train_points.length / args.context.trainDim);
   args.ctx.save();
-  args.ctx.globalAlpha = 0.42;
-  args.ctx.strokeStyle = "#526070";
   for (let index = count - 1; index >= 0; index -= 1) {
     const trainIndex = Math.trunc(args.indices[index]);
     const value = args.values[index];
@@ -1083,6 +1137,7 @@ function drawTopKInfluenceLinks(args: {
     args.ctx.beginPath();
     args.ctx.moveTo(args.rowSx, args.rowSy);
     args.ctx.lineTo(sx, sy);
+    args.ctx.strokeStyle = influenceRgba(value, args.scaleMax, 0.18 + strength * 0.36);
     args.ctx.lineWidth = scaledPlotPx(1 + strength * 1.6, args.viewport);
     args.ctx.stroke();
   }
@@ -1117,6 +1172,10 @@ function drawTopKInfluencePoints(args: {
       MIN_TOP_K_POINT_SIZE + strength * (MAX_TOP_K_POINT_SIZE - MIN_TOP_K_POINT_SIZE),
       args.viewport,
     );
+    args.ctx.beginPath();
+    args.ctx.arc(sx, sy, size * 0.64, 0, Math.PI * 2);
+    args.ctx.fillStyle = influenceRgba(value, args.scaleMax, 0.18 + strength * 0.18);
+    args.ctx.fill();
     args.ctx.beginPath();
     args.ctx.arc(sx, sy, size / 2, 0, Math.PI * 2);
     args.ctx.fillStyle = influenceRgba(value, args.scaleMax, 0.94);
@@ -1317,11 +1376,13 @@ export function renderLocalInfluencePlot(args: {
   k: number;
   sign: InfluenceSign;
   backgroundMode: BackgroundMode;
+  selectionPulse?: number;
 }): InfluenceRenderStats {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
   const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
@@ -1362,7 +1423,7 @@ export function renderLocalInfluencePlot(args: {
     viewport,
   );
   if (!args.row) {
-    drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
+    drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
     return emptyInfluenceStats(args.backgroundMode);
   }
   const backgroundEntries = influenceEntriesForBackground(args.row.indices, args.row.values, args.sign);
@@ -1409,7 +1470,7 @@ export function renderLocalInfluencePlot(args: {
     scaleMax,
   });
 
-  drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport));
+  drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
   renderColorbar(select(args.svg), viewport, width, {
     id: "train-colorbar",
     kind: "diverging",
@@ -1432,6 +1493,7 @@ export function renderRegionalInfluencePlot(args: {
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
   const viewport = plotViewport(projection.displayBounds, width, height, PLOT_DECORATION_INSETS);
+  drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,

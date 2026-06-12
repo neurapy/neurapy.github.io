@@ -53,6 +53,7 @@ import {
   renderLocalInfluencePlot,
   renderMainPlot,
   renderRegionalInfluencePlot,
+  selectionPulseProgress,
   type PlotContext,
   type RasterRenderResult,
 } from "../viz/plots";
@@ -120,6 +121,8 @@ export class AppController {
   private scheduled = new Set<PanelName>();
   private lastLayoutSignature = "";
   private lastControlLayoutSignature = "";
+  private selectionPulseStartedAt = 0;
+  private selectionPulseAnimation = 0;
 
   async start(): Promise<void> {
     this.bindEvents();
@@ -182,6 +185,7 @@ export class AppController {
     this.dom.kSlider.addEventListener("input", () => {
       this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
       this.dom.kOutput.value = String(this.store.state.k);
+      this.updateRangeProgress();
       this.schedule("train");
     });
     this.dom.backgroundButtons.addEventListener("click", (event) => {
@@ -214,6 +218,7 @@ export class AppController {
       this.lastTouchTap = null;
       this.influenceAggregate = null;
       this.pickDefaultSelection();
+      this.triggerSelectionPulse();
       void this.loadInfluenceForSelection().then(() => {
         this.schedule("main");
         this.schedule("train");
@@ -246,6 +251,51 @@ export class AppController {
     const actions = menu === "model" ? this.dom.modelActions : this.dom.trainActions;
     actions.dataset.open = open ? "true" : "false";
     button.setAttribute("aria-expanded", String(open));
+  }
+
+  private setPanelLoading(panel: HTMLElement, loading: boolean): void {
+    panel.dataset.loading = loading ? "true" : "false";
+    panel.setAttribute("aria-busy", String(loading));
+  }
+
+  private updateRangeProgress(): void {
+    const min = Number(this.dom.kSlider.min);
+    const max = Number(this.dom.kSlider.max);
+    const value = Number(this.dom.kSlider.value);
+    const span = Number.isFinite(max - min) && max > min ? max - min : 1;
+    const progress = Math.max(0, Math.min(100, ((value - min) / span) * 100));
+    this.dom.kSlider.style.setProperty("--range-progress", `${progress}%`);
+  }
+
+  private prefersReducedMotion(): boolean {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  }
+
+  private currentSelectionPulse(): number {
+    return this.prefersReducedMotion()
+      ? 0
+      : selectionPulseProgress(this.selectionPulseStartedAt);
+  }
+
+  private triggerSelectionPulse(): void {
+    if (this.prefersReducedMotion()) return;
+    this.selectionPulseStartedAt = performance.now();
+    if (this.selectionPulseAnimation) return;
+
+    const tick = () => {
+      const pulse = this.currentSelectionPulse();
+      this.schedule("main");
+      this.schedule("train");
+      if (pulse > 0) {
+        this.selectionPulseAnimation = requestAnimationFrame(tick);
+        return;
+      }
+      this.selectionPulseAnimation = 0;
+      this.selectionPulseStartedAt = 0;
+      this.schedule("main");
+      this.schedule("train");
+    };
+    this.selectionPulseAnimation = requestAnimationFrame(tick);
   }
 
   private closeMenus(): void {
@@ -421,6 +471,8 @@ export class AppController {
 
   private async loadVariant(variant: IndexVariantEntry): Promise<void> {
     if (!variant.manifest) return;
+    this.setPanelLoading(this.dom.modelPanel, true);
+    this.setPanelLoading(this.dom.trainPanel, true);
     const snapshot = this.captureVariantStateSnapshot();
     this.prefetcher?.stop();
     this.prefetcher = null;
@@ -438,35 +490,41 @@ export class AppController {
     this.dom.runMeta.textContent = `Loading ${variant.display_name} · ${qualityLabel(variant.model_quality)}`;
     this.dom.problemSelect.value = variant.problem;
     this.setActiveButtons(this.dom.qualityButtons, variant.model_quality, "modelQuality");
-    this.manifestUrl = new URL(variant.manifest, this.indexUrl);
-    this.manifest = await loadRunManifest(this.indexUrl, variant.manifest);
-    this.repo = new DataRepository(this.manifestUrl, this.manifest, this.arrayCache);
-    this.points = await this.repo.loadPointArrays();
-    const context = this.context();
-    const projection = context ? this.mainProjection(context) : undefined;
-    this.candidateDelaunay = buildDelaunay(
-      this.points.candidate_points,
-      this.manifest.arrays.candidate_points.shape[1] ?? 2,
-      projection,
-    );
-    this.trainDelaunay = buildDelaunay(
-      this.points.train_points,
-      this.manifest.arrays.train_points.shape[1] ?? 2,
-      projection,
-    );
-    this.populateControls(snapshot);
-    this.restoreSelection(snapshot);
-    await Promise.all([
-      this.loadRaster(this.store.state.fieldId),
-      this.loadInfluenceForSelection(),
-    ]);
-    this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
-    this.refreshResponsiveLayout();
-    this.schedule("main");
-    this.schedule("train");
-    this.updateStats();
-    this.prefetcher = new RunPrefetcher(this.repo, this.manifest);
-    this.startBackgroundPrefetch();
+    try {
+      this.manifestUrl = new URL(variant.manifest, this.indexUrl);
+      this.manifest = await loadRunManifest(this.indexUrl, variant.manifest);
+      this.repo = new DataRepository(this.manifestUrl, this.manifest, this.arrayCache);
+      this.points = await this.repo.loadPointArrays();
+      const context = this.context();
+      const projection = context ? this.mainProjection(context) : undefined;
+      this.candidateDelaunay = buildDelaunay(
+        this.points.candidate_points,
+        this.manifest.arrays.candidate_points.shape[1] ?? 2,
+        projection,
+      );
+      this.trainDelaunay = buildDelaunay(
+        this.points.train_points,
+        this.manifest.arrays.train_points.shape[1] ?? 2,
+        projection,
+      );
+      this.populateControls(snapshot);
+      this.restoreSelection(snapshot);
+      await Promise.all([
+        this.loadRaster(this.store.state.fieldId),
+        this.loadInfluenceForSelection(),
+      ]);
+      this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+      this.refreshResponsiveLayout();
+      if (this.store.state.selectionMode === "point") this.triggerSelectionPulse();
+      this.schedule("main");
+      this.schedule("train");
+      this.updateStats();
+      this.prefetcher = new RunPrefetcher(this.repo, this.manifest);
+      this.startBackgroundPrefetch();
+    } finally {
+      this.setPanelLoading(this.dom.modelPanel, false);
+      this.setPanelLoading(this.dom.trainPanel, false);
+    }
   }
 
   private captureVariantStateSnapshot(): VariantStateSnapshot | null {
@@ -497,6 +555,7 @@ export class AppController {
     this.dom.kSlider.value = String(Math.min(this.store.state.k, MAX_TOP_K));
     this.store.dispatch({ type: "k", k: Number(this.dom.kSlider.value) });
     this.dom.kOutput.value = String(this.store.state.k);
+    this.updateRangeProgress();
     this.setActiveButtons(this.dom.signButtons, this.store.state.sign, "sign");
     this.setActiveButtons(this.dom.backgroundButtons, this.store.state.backgroundMode, "backgroundMode");
     this.updateTrainControlVisibility();
@@ -574,14 +633,19 @@ export class AppController {
 
   private async loadRaster(fieldId: string | null): Promise<void> {
     if (!this.repo || !this.manifest || !fieldId) return;
-    this.raster = await this.repo.loadRaster(fieldId, "foreground");
-    await this.renderRasterWithWorker();
-    this.dom.mainTitle.textContent = "Model";
-    this.dom.mainRange.textContent = "";
-    if (this.refreshResponsiveLayout()) this.schedule("train");
-    this.schedule("main");
-    this.updateStats();
-    this.updatePrefetchPlan();
+    this.setPanelLoading(this.dom.modelPanel, true);
+    try {
+      this.raster = await this.repo.loadRaster(fieldId, "foreground");
+      await this.renderRasterWithWorker();
+      this.dom.mainTitle.textContent = "Model";
+      this.dom.mainRange.textContent = "";
+      if (this.refreshResponsiveLayout()) this.schedule("train");
+      this.schedule("main");
+      this.updateStats();
+      this.updatePrefetchPlan();
+    } finally {
+      this.setPanelLoading(this.dom.modelPanel, false);
+    }
   }
 
   private renderRasterWithWorker(): Promise<void> {
@@ -632,13 +696,18 @@ export class AppController {
   private async loadInfluenceRow(): Promise<void> {
     const matrix = this.selectedMatrix();
     if (!this.repo || !matrix) return;
-    this.influenceRow = await this.repo.loadInfluenceRow(
-      matrix,
-      this.store.state.sign,
-      this.selectedRowIndex(matrix),
-      "foreground",
-    );
-    this.updatePrefetchPlan();
+    this.setPanelLoading(this.dom.trainPanel, true);
+    try {
+      this.influenceRow = await this.repo.loadInfluenceRow(
+        matrix,
+        this.store.state.sign,
+        this.selectedRowIndex(matrix),
+        "foreground",
+      );
+      this.updatePrefetchPlan();
+    } finally {
+      this.setPanelLoading(this.dom.trainPanel, false);
+    }
   }
 
   private async loadInfluenceForSelection(): Promise<void> {
@@ -653,24 +722,30 @@ export class AppController {
   private async loadInfluenceAggregate(): Promise<void> {
     const matrix = this.selectedMatrix();
     if (!this.repo || !matrix) return;
+    this.setPanelLoading(this.dom.trainPanel, true);
     const requestId = ++this.latestAggregateRequest;
     const rowIndices = this.refreshRegionRowSelection(matrix);
     if (!this.store.state.selectedRegion) {
       this.influenceAggregate = null;
       this.updatePrefetchPlan();
+      this.setPanelLoading(this.dom.trainPanel, false);
       return;
     }
     this.influenceAggregate = null;
     this.schedule("train");
-    const aggregate = await this.repo.loadInfluenceAggregate(
-      matrix,
-      this.store.state.sign,
-      rowIndices,
-      "foreground",
-    );
-    if (requestId !== this.latestAggregateRequest) return;
-    this.influenceAggregate = aggregate;
-    this.updatePrefetchPlan();
+    try {
+      const aggregate = await this.repo.loadInfluenceAggregate(
+        matrix,
+        this.store.state.sign,
+        rowIndices,
+        "foreground",
+      );
+      if (requestId !== this.latestAggregateRequest) return;
+      this.influenceAggregate = aggregate;
+      this.updatePrefetchPlan();
+    } finally {
+      this.setPanelLoading(this.dom.trainPanel, false);
+    }
   }
 
   private startBackgroundPrefetch(): void {
@@ -778,6 +853,7 @@ export class AppController {
   private render(panel: PanelName): void {
     const context = this.context();
     if (!context) return;
+    const selectionPulse = this.currentSelectionPulse();
     if (panel === "main") {
       this.mainViewport = renderMainPlot({
         canvas: this.dom.mainCanvas,
@@ -791,6 +867,7 @@ export class AppController {
         draftRegion: this.draftRegion,
         showCandidatePoints: true,
         showTrainPoints: true,
+        selectionPulse,
       });
       return;
     }
@@ -830,6 +907,7 @@ export class AppController {
       k: this.store.state.k,
       sign: this.store.state.sign,
       backgroundMode,
+      selectionPulse,
     });
     this.dom.trainRange.textContent = stats.maxAbs
       ? `Local · ${backgroundLabel} · max |I| ${formatNumber(stats.maxAbs)}`
@@ -1013,6 +1091,7 @@ export class AppController {
     this.draftRegion = null;
     this.influenceAggregate = null;
     this.store.dispatch({ type: "selection", candidateIndex, trainIndex, coord });
+    this.triggerSelectionPulse();
     void this.loadInfluenceForSelection().then(() => {
       this.schedule("main");
       this.schedule("train");
