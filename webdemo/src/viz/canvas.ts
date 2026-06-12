@@ -22,6 +22,6 @@ export function prepareCanvas(canvas: HTMLCanvasElement): PreparedCanvas {
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, width: number, height: number): void {
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#fbfcfd";
+  ctx.fillStyle = "#f6f9fc";
   ctx.fillRect(0, 0, width, height);
 }

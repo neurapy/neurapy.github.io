@@ -9,7 +9,7 @@ async function canvasIsNonblank(page: Page, selector: string): Promise<boolean> 
     if (!ctx || element.width === 0 || element.height === 0) return false;
     const sample = ctx.getImageData(0, 0, element.width, element.height).data;
     for (let index = 0; index < sample.length; index += 4) {
-      if (sample[index] !== 251 || sample[index + 1] !== 252 || sample[index + 2] !== 253) {
+      if (sample[index] !== 246 || sample[index + 1] !== 249 || sample[index + 2] !== 252) {
         return true;
       }
     }
@@ -80,11 +80,11 @@ async function selectedMarkerMetrics(page: Page): Promise<{
       const alpha = data[index + 3];
       const isSelectedMarker =
         red >= 232 &&
-        red <= 248 &&
-        green >= 170 &&
-        green <= 200 &&
-        blue >= 55 &&
-        blue <= 90 &&
+        red <= 235 &&
+        green >= 166 &&
+        green <= 170 &&
+        blue >= 45 &&
+        blue <= 50 &&
         alpha > 220;
       if (!isSelectedMarker) continue;
       const pixel = index / 4;
@@ -231,7 +231,7 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
 
 async function expectTopbarProjectLinks(page: Page): Promise<void> {
   const paperLink = page.locator(".topbar").getByRole("link", { name: "arXiv" });
-  const githubLink = page.locator(".topbar").getByRole("link", { name: "Github" });
+  const githubLink = page.locator(".topbar").getByRole("link", { name: "GitHub" });
   const privacyLink = page.locator(".topbar").getByRole("link", { name: "Privacy" });
   const impressumLink = page.locator(".topbar").getByRole("link", { name: "Impressum" });
 

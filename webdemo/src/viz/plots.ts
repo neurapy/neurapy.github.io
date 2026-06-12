@@ -843,7 +843,7 @@ export function drawPointMarker(
   const scaledRadius = Math.max(0, radius * visualScale);
   ctx.beginPath();
   ctx.arc(sx, sy, scaledRadius, 0, Math.PI * 2);
-  ctx.fillStyle = "#f2b84b";
+  ctx.fillStyle = "#e9a82f";
   ctx.fill();
   ctx.lineWidth = 2 * visualScale;
   ctx.strokeStyle = "#182230";
@@ -937,7 +937,7 @@ export function renderMainPlot(args: {
       viewport,
       projection,
       {
-        color: "#0c7c78",
+        color: "#087f7c",
         alpha: 0.16,
         maxPoints: 6000,
       },
@@ -998,8 +998,8 @@ function drawRegionOverlay(
   const height = Math.abs(y1 - y0);
   const visualScale = plotVisualScale(viewport);
   ctx.save();
-  ctx.fillStyle = draft ? "rgba(242, 184, 75, 0.16)" : "rgba(12, 124, 120, 0.14)";
-  ctx.strokeStyle = draft ? "#f2b84b" : "#0c7c78";
+  ctx.fillStyle = draft ? "rgba(233, 168, 47, 0.16)" : "rgba(8, 127, 124, 0.14)";
+  ctx.strokeStyle = draft ? "#e9a82f" : "#087f7c";
   ctx.lineWidth = (draft ? 1.4 : 2) * visualScale;
   ctx.setLineDash(draft ? [6 * visualScale, 4 * visualScale] : []);
   ctx.fillRect(x, y, width, height);
