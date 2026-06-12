@@ -291,7 +291,6 @@ def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_p
         row_count=3,
         row_indices=np.array([0, 2, 4], dtype=np.int64),
         max_local_influence_points=2,
-        row_chunk_size=2,
         matrix_metadata=build_static.load_matrix_metadata(matrix_path),
     )
 
@@ -301,19 +300,19 @@ def test_process_influence_matrix_subsets_candidate_rows_and_train_columns(tmp_p
     assert metadata["source_candidate_points_shape"] == [5, 2]
     assert "summary" not in metadata
     assert not list(tmp_path.rglob("summary_*.f32"))
-    assert metadata["top_chunks"]["abs"]["values_dtype"] == "float32"
-    assert metadata["top_chunks"]["abs"]["value_encoding"] == {"kind": "identity"}
-    chunk = metadata["top_chunks"]["abs"]["chunks"][0]
-    indices = np.fromfile(tmp_path / chunk["indices"]["path"], dtype=np.uint16)
-    assert int(indices.max()) < 3
-    values = np.fromfile(tmp_path / chunk["values"]["path"], dtype=np.float32)
-    assert values.dtype == np.float32
-    pos_chunk = metadata["top_chunks"]["pos"]["chunks"][0]
-    pos_values = np.fromfile(tmp_path / pos_chunk["values"]["path"], dtype=np.float32).reshape(
-        pos_chunk["row_count"], pos_chunk["k"]
+    assert "top_chunks" not in metadata
+    assert metadata["scores"]["dtype"] == "float32"
+    assert metadata["scores"]["shape"] == [3, 3]
+    assert metadata["score_layout"] == {
+        "kind": "dense_row_major",
+        "row_stride_bytes": 12,
+        "data_offset_bytes": 0,
+    }
+    dense_scores = np.fromfile(tmp_path / metadata["scores"]["path"], dtype=np.float32).reshape(
+        3, 3
     )
-    np.testing.assert_allclose(pos_values[0], np.array([18 / 6, 6 / 6], dtype=np.float32))
-    assert np.all(pos_values[0] > 0)
+    expected = scores[np.ix_([0, 2, 4], [0, 2, 5])] / 6
+    np.testing.assert_allclose(dense_scores, expected.astype(np.float32))
 
 
 def test_process_influence_matrix_subsets_self_influence_rows_and_columns(tmp_path) -> None:
@@ -334,24 +333,25 @@ def test_process_influence_matrix_subsets_self_influence_rows_and_columns(tmp_pa
         row_count=3,
         row_indices=train_indices,
         max_local_influence_points=2,
-        row_chunk_size=4,
     )
 
     assert metadata["scores_shape"] == [3, 3]
     assert metadata["source_scores_shape"] == [6, 6]
     assert metadata["candidate_points_shape"] == [3, 2]
-    chunk = metadata["top_chunks"]["pos"]["chunks"][0]
-    assert chunk["row_count"] == 3
+    dense_scores = np.fromfile(tmp_path / metadata["scores"]["path"], dtype=np.float32).reshape(
+        3, 3
+    )
+    np.testing.assert_allclose(dense_scores, scores[np.ix_(train_indices, train_indices)] / 6)
 
 
-def test_bundle_report_groups_chunk_files(tmp_path) -> None:
+def test_bundle_report_groups_influence_matrix_files(tmp_path) -> None:
     (tmp_path / "index.json").write_text("{}")
-    chunk = tmp_path / "run" / "influence" / "m0" / "abs" / "chunks" / "0_values.i16"
-    chunk.parent.mkdir(parents=True)
-    np.array([1, 2, 3], dtype=np.int16).tofile(chunk)
+    scores = tmp_path / "run" / "influence" / "m0" / "scores.f32"
+    scores.parent.mkdir(parents=True)
+    np.array([1, 2, 3], dtype=np.float32).tofile(scores)
 
     report = build_static.build_bundle_report(tmp_path, budget_bytes=10_000)
 
-    assert report["schema_version"] == 7
+    assert report["schema_version"] == 8
     assert report["within_budget"] is True
-    assert report["by_kind"]["influence_chunks"] == 6
+    assert report["by_kind"]["influence_matrices"] == 12

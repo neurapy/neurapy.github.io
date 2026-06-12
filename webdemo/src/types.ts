@@ -55,30 +55,10 @@ export interface FieldRasterManifest {
   mask: ArraySpec;
 }
 
-export interface InfluenceChunkSpec {
-  id: number;
-  row_start: number;
-  row_count: number;
-  k: number;
-  value_scale?: number;
-  indices: ArraySpec;
-  values: ArraySpec;
-}
-
-export interface InfluenceTopChunks {
-  row_chunk_size: number;
-  chunk_count: number;
-  indices_dtype: "uint16" | "uint32";
-  values_dtype: "int16" | "float32";
-  value_encoding:
-    | {
-        kind: "symmetric_linear";
-        scale_by: "chunk.value_scale";
-      }
-    | {
-        kind: "identity";
-      };
-  chunks: InfluenceChunkSpec[];
+export interface DenseScoreLayout {
+  kind: "dense_row_major";
+  row_stride_bytes: number;
+  data_offset_bytes: number;
 }
 
 export interface InfluenceMatrixManifest {
@@ -96,14 +76,14 @@ export interface InfluenceMatrixManifest {
   row_count: number;
   k: number;
   max_local_influence_points: number;
-  row_chunk_size: number;
   label: string;
   display_label: string;
-  top_chunks: Record<InfluenceSign, InfluenceTopChunks>;
+  scores: ArraySpec;
+  score_layout: DenseScoreLayout;
 }
 
 export interface RunManifest {
-  schema_version: 7;
+  schema_version: 8;
   problem: string;
   display_name: string;
   model_quality: ModelQuality;
@@ -114,7 +94,6 @@ export interface RunManifest {
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points: number;
-  row_chunk_size: number;
   axes: string[];
   bounds: AxisBounds;
   n_candidate: number;
@@ -167,14 +146,13 @@ export interface IndexProblemEntry {
 }
 
 export interface DataIndex {
-  schema_version: 7;
+  schema_version: 8;
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points?: number;
   n_candidate?: number | null;
   n_train?: number | null;
   point_selection?: "deterministic_spread";
-  row_chunk_size?: number;
   bundle_report?: string;
   problems: IndexProblemEntry[];
 }

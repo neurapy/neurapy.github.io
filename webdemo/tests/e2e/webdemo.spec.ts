@@ -420,15 +420,13 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   const predIndex = requests.findIndex((url) => url.includes("pred_output_0_raster.u16"));
   const lossIndex = requests.findIndex((url) => url.includes("loss_total_raster.u16"));
-  const absChunk0Index = requests.findIndex((url) => url.includes("abs/chunks/0_indices.u16"));
-  const absChunk1Index = requests.findIndex((url) => url.includes("abs/chunks/1_indices.u16"));
+  const scoreIndex = requests.findIndex((url) => url.includes("/influence/") && url.includes("/scores.f32"));
   expect(predIndex).toBeGreaterThanOrEqual(0);
-  expect(absChunk0Index).toBeGreaterThanOrEqual(0);
+  expect(scoreIndex).toBeGreaterThanOrEqual(0);
   if (lossIndex >= 0) expect(predIndex).toBeLessThan(lossIndex);
-  if (absChunk1Index >= 0) expect(absChunk0Index).toBeLessThan(absChunk1Index);
 
   await expect.poll(() => requests.some((url) => url.includes("loss_total_raster.u16"))).toBe(true);
-  await expect.poll(() => requests.some((url) => url.includes("abs/chunks/1_indices.u16"))).toBe(true);
+  await expect.poll(() => requests.some((url) => url.includes("/influence/") && url.includes("/scores.f32"))).toBe(true);
 
   await openControlsIfMenu(page, "model");
   await page.locator("#fieldSelect").selectOption("loss_total");
@@ -437,8 +435,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await openControlsIfMenu(page, "train");
   await page.locator("button[data-sign='pos']").click();
-  await expect.poll(() => requests.some((url) => url.includes("pos/chunks/0_indices.u16"))).toBe(true);
-  await expect.poll(() => requests.some((url) => url.includes("pos/chunks/1_indices.u16"))).toBe(true);
+  await expectNonblankCanvas(page, "#trainCanvas");
 
   await openControlsIfMenu(page, "train");
   await expect(page.locator("#summaryControl")).toHaveCount(0);

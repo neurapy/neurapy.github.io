@@ -7,7 +7,7 @@ import type {
 } from "../types";
 import type { DataRepository } from "./arrays";
 
-const INFLUENCE_SIGNS: InfluenceSign[] = ["abs", "pos", "neg"];
+const INFLUENCE_PREFETCH_BLOCK_BYTES = 256 * 1024;
 
 export interface PrefetchContext {
   fieldId: string | null;
@@ -19,9 +19,23 @@ export interface PrefetchContext {
   selectedRegionCandidateIndices?: number[];
 }
 
-export interface PrefetchTask {
+export type PrefetchTask = ArrayPrefetchTask | InfluenceRowsPrefetchTask;
+
+export interface ArrayPrefetchTask {
+  kind: "array";
   key: string;
   spec: ArraySpec;
+  label: string;
+  rank: number;
+  sequence: number;
+}
+
+export interface InfluenceRowsPrefetchTask {
+  kind: "influence_rows";
+  key: string;
+  matrix: InfluenceMatrixManifest;
+  rowStart: number;
+  rowCount: number;
   label: string;
   rank: number;
   sequence: number;
@@ -50,7 +64,7 @@ export class RunPrefetcher {
 
   update(context: PrefetchContext): void {
     this.queue = planRunPrefetchTasks(this.manifest, context).filter(
-      (task) => !this.attempted.has(task.key) && !this.repo.hasArray(task.spec),
+      (task) => !this.attempted.has(task.key) && !this.hasTask(task),
     );
     this.pump();
   }
@@ -81,9 +95,13 @@ export class RunPrefetcher {
         if (!task) break;
         if (this.attempted.has(task.key)) continue;
         this.attempted.add(task.key);
-        if (this.repo.hasArray(task.spec)) continue;
+        if (this.hasTask(task)) continue;
         try {
-          await this.repo.prefetchArray(task.spec);
+          if (task.kind === "array") {
+            await this.repo.prefetchArray(task.spec);
+          } else {
+            await this.repo.prefetchInfluenceRows(task.matrix, task.rowStart, task.rowCount);
+          }
         } catch {
           if (generation !== this.generation) return;
           this.failed.add(task.key);
@@ -103,6 +121,11 @@ export class RunPrefetcher {
     const resolvers = this.idleResolvers.splice(0);
     for (const resolve of resolvers) resolve();
   }
+
+  private hasTask(task: PrefetchTask): boolean {
+    if (task.kind === "array") return this.repo.hasArray(task.spec);
+    return this.repo.hasInfluenceRows(task.matrix, task.rowStart, task.rowCount);
+  }
 }
 
 export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchContext): PrefetchTask[] {
@@ -112,31 +135,60 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
   const seen = new Set<string>();
   let sequence = 0;
 
-  const add = (spec: ArraySpec | undefined, rank: number, label: string) => {
+  const addArray = (spec: ArraySpec | undefined, rank: number, label: string) => {
     if (!spec) return;
     const key = arraySpecKey(spec);
     if (seen.has(key)) return;
     seen.add(key);
-    tasks.push({ key, spec, label, rank, sequence: sequence++ });
+    tasks.push({ kind: "array", key, spec, label, rank, sequence: sequence++ });
   };
 
-  add(manifest.field_raster?.mask, 0, "field-raster-mask");
+  const addInfluenceRows = (
+    matrix: InfluenceMatrixManifest,
+    rowStart: number,
+    rowCount: number,
+    rank: number,
+    label: string,
+  ) => {
+    if (rowCount <= 0) return;
+    const key = `influence:${matrix.id}:${matrix.scores.path}:${rowStart}:${rowCount}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    tasks.push({
+      kind: "influence_rows",
+      key,
+      matrix,
+      rowStart,
+      rowCount,
+      label,
+      rank,
+      sequence: sequence++,
+    });
+  };
+
+  addArray(manifest.field_raster?.mask, 0, "field-raster-mask");
 
   for (const [fieldId, field] of Object.entries(manifest.fields)) {
     const rank = fieldId === context.fieldId ? 1 : 10;
-    add(field.raster, rank, `field:${fieldId}`);
+    addArray(field.raster, rank, `field:${fieldId}`);
   }
 
   for (const matrix of manifest.influence_matrices) {
     const selectedMatrix = matrix.id === selectedMatrixId;
-    addMatrixChunkTasks(add, matrix, context, selectedMatrix);
+    addMatrixRowTasks(addInfluenceRows, matrix, context, selectedMatrix);
   }
 
   return tasks.sort((a, b) => a.rank - b.rank || a.sequence - b.sequence);
 }
 
-function addMatrixChunkTasks(
-  add: (spec: ArraySpec | undefined, rank: number, label: string) => void,
+function addMatrixRowTasks(
+  add: (
+    matrix: InfluenceMatrixManifest,
+    rowStart: number,
+    rowCount: number,
+    rank: number,
+    label: string,
+  ) => void,
   matrix: InfluenceMatrixManifest,
   context: PrefetchContext,
   selectedMatrix: boolean,
@@ -146,16 +198,13 @@ function addMatrixChunkTasks(
     context.selectionMode === "region" && context.selectedRegionCandidateIndices?.length
       ? context.selectedRegionCandidateIndices
       : [selectedRow];
-  for (const sign of INFLUENCE_SIGNS) {
-    const group = matrix.top_chunks[sign];
-    if (!group) continue;
-    const signOffset = sign === context.sign ? 0 : 10;
-    for (const chunk of group.chunks) {
-      const distance = chunkDistanceToRows(chunk.row_start, chunk.row_count, selectedRows);
-      const rank = selectedMatrix ? 30 + signOffset + Math.min(distance, 10_000) : 100 + signOffset + chunk.id;
-      add(chunk.indices, rank, `chunk:${matrix.id}:${sign}:${chunk.id}:indices`);
-      add(chunk.values, rank, `chunk:${matrix.id}:${sign}:${chunk.id}:values`);
-    }
+  const rowStrideBytes = Math.max(1, matrix.score_layout.row_stride_bytes);
+  const rowsPerBlock = Math.max(1, Math.floor(INFLUENCE_PREFETCH_BLOCK_BYTES / rowStrideBytes));
+  for (let rowStart = 0, blockId = 0; rowStart < matrix.row_count; rowStart += rowsPerBlock, blockId += 1) {
+    const rowCount = Math.min(rowsPerBlock, matrix.row_count - rowStart);
+    const distance = chunkDistanceToRows(rowStart, rowCount, selectedRows);
+    const rank = selectedMatrix ? 30 + Math.min(distance, 10_000) : 100 + blockId;
+    add(matrix, rowStart, rowCount, rank, `influence:${matrix.id}:${rowStart}:${rowCount}`);
   }
 }
 

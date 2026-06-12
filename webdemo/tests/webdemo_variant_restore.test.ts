@@ -10,8 +10,6 @@ import {
 import { initialState, reduceState } from "../src/state/store";
 import type { InfluenceMatrixManifest, RunManifest } from "../src/types";
 
-const emptyTopChunks = {} as InfluenceMatrixManifest["top_chunks"];
-
 function matrix(
   id: string,
   leftTerm: string,
@@ -32,16 +30,20 @@ function matrix(
     row_count: 4,
     k: 4,
     max_local_influence_points: 4,
-    row_chunk_size: 2,
     label: id,
     display_label: id,
-    top_chunks: emptyTopChunks,
+    scores: { path: `${id}/scores.f32`, dtype: "float32", shape: [4, 5], bytes: 80 },
+    score_layout: {
+      kind: "dense_row_major",
+      row_stride_bytes: 20,
+      data_offset_bytes: 0,
+    },
   };
 }
 
 function manifest(overrides: Partial<RunManifest> = {}): RunManifest {
   return {
-    schema_version: 7,
+    schema_version: 8,
     problem: "fixture",
     display_name: "Fixture",
     model_quality: "good",
@@ -51,7 +53,6 @@ function manifest(overrides: Partial<RunManifest> = {}): RunManifest {
     errors: [],
     generated_at: "2026-06-09T00:00:00+0000",
     max_local_influence_points: 4,
-    row_chunk_size: 2,
     axes: ["x", "y"],
     bounds: { x: [0, 1], y: [0, 1] },
     n_candidate: 4,

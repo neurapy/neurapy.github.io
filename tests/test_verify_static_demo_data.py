@@ -51,7 +51,7 @@ def lean_manifest(base: Path) -> dict[str, Any]:
         "uint16",
     )
     return {
-        "schema_version": 7,
+        "schema_version": 8,
         "problem": "fixture",
         "display_name": "Fixture",
         "model_quality": "good",
@@ -217,13 +217,12 @@ def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) ->
         row_count=3,
         row_indices=candidate_indices,
         max_local_influence_points=2,
-        row_chunk_size=2,
     )
 
     candidate_points = source_candidates[candidate_indices].astype(np.float32)
     train_points = np.column_stack([np.arange(6), np.arange(6) + 1.0])[train_indices]
     manifest = {
-        "schema_version": 7,
+        "schema_version": 8,
         "problem": "fixture",
         "display_name": "Fixture",
         "model_quality": "good",

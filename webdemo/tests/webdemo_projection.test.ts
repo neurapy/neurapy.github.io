@@ -10,7 +10,7 @@ import {
 } from "../src/viz/projection";
 
 const baseManifest = {
-  schema_version: 7,
+  schema_version: 8,
   problem: "fixture",
   display_name: "Fixture",
   model_quality: "good",
@@ -20,7 +20,6 @@ const baseManifest = {
   errors: [],
   generated_at: "2026-06-09T00:00:00+0000",
   max_local_influence_points: 4,
-  row_chunk_size: 2,
   axes: ["x", "y"],
   bounds: { x: [0, 1], y: [0, 1] },
   n_candidate: 4,

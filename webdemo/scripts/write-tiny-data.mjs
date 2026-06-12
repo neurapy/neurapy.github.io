@@ -127,74 +127,22 @@ async function buildVariant(quality, config) {
     [4, 4],
   );
 
-  const rowIndices = [
-    [1, 2, 3, 0],
-    [4, 2, 1, 3],
-    [3, 0, 2, 1],
-    [4, 1, 3, 2],
-  ];
   const signMultiplier = quality === "good" ? 1 : -1;
-  const rowValues = {
-    abs: [
-      [300, 180, -220, 100],
-      [260, 180, -90, 70],
-      [-310, 120, 80, -65],
-      [280, -150, 75, 55],
-    ].map((row) => row.map((value) => value * signMultiplier)),
-    pos: [
-      [300, 180, 100, 60],
-      [260, 180, 70, 40],
-      [120, 80, 45, 30],
-      [280, 75, 55, 50],
-    ].map((row) => row.map((value) => value * signMultiplier)),
-    neg: [
-      [-220, -120, -80, -40],
-      [-90, -60, -35, -20],
-      [-310, -140, -95, -70],
-      [-150, -110, -65, -30],
-    ].map((row) => row.map((value) => value * signMultiplier)),
-  };
-
-  const topChunks = {};
-  for (const sign of ["abs", "pos", "neg"]) {
-    const chunks = [];
-    for (const chunkId of [0, 1]) {
-      const rows = rowIndices.slice(chunkId * 2, chunkId * 2 + 2);
-      const vals = rowValues[sign].slice(chunkId * 2, chunkId * 2 + 2);
-      chunks.push({
-        id: chunkId,
-        row_start: chunkId * 2,
-        row_count: 2,
-        k: 4,
-        value_scale: 0.001,
-        indices: await writeArray(
-          runRoot,
-          join(runRoot, "influence", matrixId, sign, "chunks", `${chunkId}_indices.u16`),
-          new Uint16Array(rows.flat()),
-          "uint16",
-          [2, 4],
-        ),
-        values: await writeArray(
-          runRoot,
-          join(runRoot, "influence", matrixId, sign, "chunks", `${chunkId}_values.i16`),
-          new Int16Array(vals.flat()),
-          "int16",
-          [2, 4],
-        ),
-      });
-    }
-    topChunks[sign] = {
-      row_chunk_size: 2,
-      chunk_count: 2,
-      indices_dtype: "uint16",
-      values_dtype: "int16",
-      value_encoding: { kind: "symmetric_linear", scale_by: "chunk.value_scale" },
-      chunks,
-    };
-  }
+  const denseScores = await writeArray(
+    runRoot,
+    join(runRoot, "influence", matrixId, "scores.f32"),
+    new Float32Array([
+      0.1, 0.3, 0.18, -0.22, 0.06,
+      0.04, -0.09, 0.18, 0.07, 0.26,
+      0.12, -0.14, 0.08, -0.31, 0.045,
+      0.05, -0.15, 0.055, 0.075, 0.28,
+    ].map((value) => value * signMultiplier)),
+    "float32",
+    [4, 5],
+  );
 
   const manifest = {
-    schema_version: 7,
+    schema_version: 8,
     problem: config.problem,
     display_name: config.displayName,
     model_quality: quality,
@@ -205,7 +153,6 @@ async function buildVariant(quality, config) {
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
     max_local_influence_points: 4,
-    row_chunk_size: 2,
     axes: ["x", "y"],
     bounds,
     n_candidate: 4,
@@ -269,10 +216,14 @@ async function buildVariant(quality, config) {
         row_count: 4,
         k: 4,
         max_local_influence_points: 4,
-        row_chunk_size: 2,
         label: "PINNfluence: total_loss -> total_loss",
         display_label: `PINNfluence / total loss -> total loss (${matrixId})`,
-        top_chunks: topChunks,
+        scores: denseScores,
+        score_layout: {
+          kind: "dense_row_major",
+          row_stride_bytes: 20,
+          data_offset_bytes: 0,
+        },
       },
     ],
     validation: { available: false, counts: {} },
@@ -330,11 +281,10 @@ async function build() {
   const driftBad = await buildVariant("bad", driftConfig);
 
   const index = {
-    schema_version: 7,
+    schema_version: 8,
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
     max_local_influence_points: 4,
-    row_chunk_size: 2,
     bundle_report: "bundle_report.json",
     problems: [
       {
@@ -370,7 +320,7 @@ async function build() {
     await Promise.all(files.map(async (file) => (await stat(file)).size))
   ).reduce((sum, size) => sum + size, 0);
   await writeJson(join(root, "bundle_report.json"), {
-    schema_version: 7,
+    schema_version: 8,
     root: ".",
     total_bytes: total,
     budget_bytes: 750 * 1024 * 1024,

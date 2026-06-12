@@ -49,7 +49,7 @@ DTYPE_EXTENSIONS = {
     "int16": "i16",
 }
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 DEFAULT_RASTER_MAX_RESOLUTION = 512
 DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
 DEFAULT_ROW_CHUNK_SIZE = 256
@@ -113,7 +113,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Number of train points to export. Default: all available; capped at available count.",
     )
-    parser.add_argument("--row-chunk-size", default=256, type=int)  # NOTE:
     parser.add_argument("--bundle-size-budget-mb", default=750, type=int)  # NOTE:
     parser.add_argument(
         "--raster-max-resolution",
@@ -256,8 +255,8 @@ def bundle_file_kind(path: Path) -> str:
         return "json"
     if suffix in {".f32", ".u32", ".u16", ".u8", ".i16"}:
         parts = set(path.parts)
-        if "chunks" in parts:
-            return "influence_chunks"
+        if "influence" in parts:
+            return "influence_matrices"
         if "raster" in path.stem:
             return "field_rasters"
         return "arrays"
@@ -885,7 +884,6 @@ def process_influence_matrix(
     row_count: int,
     row_indices: np.ndarray,
     max_local_influence_points: int,
-    row_chunk_size: int,
     matrix_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_metadata = matrix_metadata or load_matrix_metadata(path)
@@ -930,53 +928,15 @@ def process_influence_matrix(
 
     k = min(max_local_influence_points, n_train)
     matrix_dir = f"{rel_prefix}/{path.stem}"
-    index_dtype = "uint16" if n_train <= 65535 else "uint32"
-
-    chunk_entries_by_mode: dict[str, list[dict[str, Any]]] = {
-        "abs": [],
-        "pos": [],
-        "neg": [],
-    }
-    for chunk_id, start in enumerate(range(0, row_count, row_chunk_size)):
-        stop = min(row_count, start + row_chunk_size)
-        chunk_row_indices = row_indices[start:stop]
-        display_scores = (
-            source_scores[np.ix_(chunk_row_indices, train_indices)] / float(source_n_train)
-        ).astype(np.float32, copy=False)
-        for mode in ("abs", "pos", "neg"):
-            chunk_indices, chunk_values = topk_sorted(display_scores, k, mode)
-            chunk_entries_by_mode[mode].append(
-                {
-                    "id": chunk_id,
-                    "row_start": start,
-                    "row_count": stop - start,
-                    "k": k,
-                    "indices": write_array(
-                        out_dir,
-                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_indices.{dtype_extension(index_dtype)}",
-                        chunk_indices,
-                        index_dtype,
-                    ),
-                    "values": write_array(
-                        out_dir,
-                        f"{matrix_dir}/{mode}/chunks/{chunk_id}_values.f32",
-                        float32_chunks(chunk_values),
-                        "float32",
-                    ),
-                }
-            )
-
-    top_chunks: dict[str, Any] = {}
-    for mode in ("abs", "pos", "neg"):
-        chunk_entries = chunk_entries_by_mode[mode]
-        top_chunks[mode] = {
-            "row_chunk_size": row_chunk_size,
-            "chunk_count": len(chunk_entries),
-            "indices_dtype": index_dtype,
-            "values_dtype": "float32",
-            "value_encoding": {"kind": "identity"},
-            "chunks": chunk_entries,
-        }
+    display_scores = (
+        source_scores[np.ix_(row_indices, train_indices)] / float(source_n_train)
+    ).astype(np.float32, copy=False)
+    scores_entry = write_array(
+        out_dir,
+        f"{matrix_dir}/scores.f32",
+        display_scores,
+        "float32",
+    )
 
     metadata.update(
         {
@@ -988,7 +948,6 @@ def process_influence_matrix(
             "row_count": row_count,
             "k": k,
             "max_local_influence_points": max_local_influence_points,
-            "row_chunk_size": row_chunk_size,
             "label": (f"{metadata['method']}: {metadata['right_term']} -> {metadata['left_term']}"),
             "display_label": (
                 f"{metadata['method']} / "
@@ -996,7 +955,12 @@ def process_influence_matrix(
                 f"{metadata['left_term'].replace('_', ' ')}"
                 f"{' (self)' if metadata['self_influence'] else ''}"
             ),
-            "top_chunks": top_chunks,
+            "scores": scores_entry,
+            "score_layout": {
+                "kind": "dense_row_major",
+                "row_stride_bytes": n_train * np.dtype(np.float32).itemsize,
+                "data_offset_bytes": 0,
+            },
         }
     )
     return metadata
@@ -1010,7 +974,6 @@ def process_influence_matrix_jobs(
     source_n_train: int,
     train_indices: np.ndarray,
     max_local_influence_points: int,
-    row_chunk_size: int,
     workers: int,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     results: list[dict[str, Any] | None] = [None] * len(jobs)
@@ -1031,7 +994,6 @@ def process_influence_matrix_jobs(
                     row_count=row_count,
                     row_indices=row_indices,
                     max_local_influence_points=max_local_influence_points,
-                    row_chunk_size=row_chunk_size,
                     matrix_metadata=matrix_metadata,
                 )
                 print(f"  built {matrix_path.name}")
@@ -1053,7 +1015,6 @@ def process_influence_matrix_jobs(
                     row_count,
                     row_indices,
                     max_local_influence_points,
-                    row_chunk_size,
                     matrix_metadata,
                 ): (idx, matrix_path)
                 for idx, matrix_path, row_source, row_count, row_indices, matrix_metadata in jobs
@@ -1295,7 +1256,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         source_n_train=source_n_train,
         train_indices=train_indices,
         max_local_influence_points=max_local_influence_points,
-        row_chunk_size=args.row_chunk_size,
         workers=int(getattr(args, "workers", 1)),
     )
     errors.extend(processing_errors)
@@ -1326,7 +1286,6 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "matrix_mode": args.matrix_mode,
         "max_local_influence_points": max_local_influence_points,
-        "row_chunk_size": args.row_chunk_size,
         "axes": ["x", "y"][: candidate_points.shape[1]],
         "bounds": (
             raster_grid.bounds
@@ -1394,8 +1353,6 @@ def main() -> None:
     torch.set_default_device("cpu")
     if args.max_local_influence_points < 1:
         raise SystemExit("--max_local_influence_points must be >= 1")
-    if args.row_chunk_size < 1:
-        raise SystemExit("--row-chunk-size must be >= 1")
     if args.workers < 1:
         raise SystemExit("--workers must be >= 1")
     if args.raster_max_resolution < 1:
@@ -1456,7 +1413,6 @@ def main() -> None:
         "n_candidate": args.n_candidate,
         "n_train": args.n_train,
         "point_selection": "deterministic_spread",
-        "row_chunk_size": args.row_chunk_size,
         "raster_max_resolution": args.raster_max_resolution,
         "bundle_report": "bundle_report.json",
         "problems": problem_entries,

@@ -7,10 +7,16 @@ interface Subscriber {
   abortHandler?: () => void;
 }
 
+interface ByteRange {
+  start: number;
+  endExclusive: number;
+}
+
 interface QueuedRequest {
   id: number;
   url: URL;
   key: string;
+  range?: ByteRange;
   priority: Priority;
   state: "queued" | "active";
   activePriority?: Priority;
@@ -30,6 +36,7 @@ export class PriorityLoader {
     background: [],
   };
   private readonly requestsByKey = new Map<string, QueuedRequest>();
+  private readonly fullResponsesByUrl = new Map<string, ArrayBuffer>();
   private requestId = 0;
   private subscriberId = 0;
 
@@ -41,14 +48,41 @@ export class PriorityLoader {
   }
 
   load(url: URL, priority: Priority = "foreground", externalSignal?: AbortSignal): Promise<ArrayBuffer> {
+    return this.enqueue(url, undefined, priority, externalSignal);
+  }
+
+  loadRange(
+    url: URL,
+    start: number,
+    endExclusive: number,
+    priority: Priority = "foreground",
+    externalSignal?: AbortSignal,
+  ): Promise<ArrayBuffer> {
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(endExclusive) || start < 0 || endExclusive <= start) {
+      return Promise.reject(new Error(`Invalid byte range ${start}-${endExclusive}`));
+    }
+    const full = this.fullResponsesByUrl.get(url.toString());
+    if (full) {
+      return Promise.resolve(sliceFullResponse(url, full, start, endExclusive));
+    }
+    return this.enqueue(url, { start, endExclusive }, priority, externalSignal);
+  }
+
+  private enqueue(
+    url: URL,
+    range: ByteRange | undefined,
+    priority: Priority,
+    externalSignal?: AbortSignal,
+  ): Promise<ArrayBuffer> {
     return new Promise((resolve, reject) => {
-      const key = url.toString();
+      const key = requestKey(url, range);
       let request = this.requestsByKey.get(key);
       if (!request) {
         request = {
           id: ++this.requestId,
           url,
           key,
+          range,
           priority,
           state: "queued",
           requeueOnAbort: false,
@@ -126,11 +160,41 @@ export class PriorityLoader {
     let buffer: ArrayBuffer | null = null;
     let error: unknown = null;
     try {
-      const response = await fetch(request.url, { signal: request.controller.signal });
-      if (!response.ok) {
+      const init: RequestInit = { signal: request.controller.signal };
+      if (request.range) {
+        init.headers = {
+          Range: `bytes=${request.range.start}-${request.range.endExclusive - 1}`,
+        };
+      }
+      const response = await fetch(request.url, init);
+      if (request.range && response.status !== 206 && response.status !== 200) {
         throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
       }
-      buffer = await response.arrayBuffer();
+      if (!request.range && !response.ok) {
+        throw new Error(`${response.status} ${response.statusText}: ${request.url.toString()}`);
+      }
+      const responseBuffer = await response.arrayBuffer();
+      if (request.range) {
+        if (response.status === 200) {
+          this.fullResponsesByUrl.set(request.url.toString(), responseBuffer);
+          buffer = sliceFullResponse(
+            request.url,
+            responseBuffer,
+            request.range.start,
+            request.range.endExclusive,
+          );
+        } else {
+          const expectedBytes = request.range.endExclusive - request.range.start;
+          if (responseBuffer.byteLength !== expectedBytes) {
+            throw new Error(
+              `${request.url.toString()}: expected ${expectedBytes} range bytes, got ${responseBuffer.byteLength}`,
+            );
+          }
+          buffer = responseBuffer;
+        }
+      } else {
+        buffer = responseBuffer;
+      }
     } catch (caught) {
       error = caught;
     } finally {
@@ -217,4 +281,23 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException
     ? error.name === "AbortError"
     : error instanceof Error && error.name === "AbortError";
+}
+
+function requestKey(url: URL, range?: ByteRange): string {
+  if (!range) return url.toString();
+  return `${url.toString()}#bytes=${range.start}-${range.endExclusive}`;
+}
+
+function sliceFullResponse(
+  url: URL,
+  buffer: ArrayBuffer,
+  start: number,
+  endExclusive: number,
+): ArrayBuffer {
+  if (endExclusive > buffer.byteLength) {
+    throw new Error(
+      `${url.toString()}: range ${start}-${endExclusive} exceeds ${buffer.byteLength} response bytes`,
+    );
+  }
+  return buffer.slice(start, endExclusive);
 }

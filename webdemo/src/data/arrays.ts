@@ -1,7 +1,6 @@
 import type {
   ArraySpec,
   InfluenceAggregate,
-  InfluenceChunkSpec,
   InfluenceMatrixManifest,
   InfluenceRow,
   InfluenceSign,
@@ -41,6 +40,24 @@ export class DataRepository {
 
   async prefetchArray(spec: ArraySpec): Promise<void> {
     await this.loadArray(spec, "background");
+  }
+
+  hasInfluenceRows(matrix: InfluenceMatrixManifest, rowStart: number, rowCount: number): boolean {
+    if (rowCount <= 0) return true;
+    const end = rowStart + rowCount;
+    if (rowStart < 0 || end > matrix.row_count) return false;
+    for (let rowIndex = rowStart; rowIndex < end; rowIndex += 1) {
+      if (!this.cache.has(this.scoreRowCacheKey(matrix, rowIndex))) return false;
+    }
+    return true;
+  }
+
+  async prefetchInfluenceRows(
+    matrix: InfluenceMatrixManifest,
+    rowStart: number,
+    rowCount: number,
+  ): Promise<void> {
+    await this.loadScoreRows(matrix, rowStart, rowCount, "background");
   }
 
   async loadArray<T extends TypedArray>(
@@ -107,33 +124,13 @@ export class DataRepository {
     rowIndex: number,
     priority: Priority = "foreground",
   ): Promise<InfluenceRow> {
-    const group = matrix.top_chunks[sign];
-    if (!group) throw new Error(`${matrix.id}: ${sign} chunks are unavailable`);
-    const chunk = group.chunks.find(
-      (candidate) =>
-        rowIndex >= candidate.row_start && rowIndex < candidate.row_start + candidate.row_count,
-    );
-    if (!chunk) {
-      throw new Error(`${matrix.id}: row ${rowIndex} is outside exported chunks`);
-    }
-    const localRow = rowIndex - chunk.row_start;
-    const [indicesArray, rawArray] = await Promise.all([
-      this.loadArray<Uint16Array | Uint32Array>(chunk.indices, priority),
-      this.loadArray<Int16Array | Float32Array>(chunk.values, priority),
-    ]);
-    const offset = localRow * chunk.k;
-    const indices = indicesArray.subarray(offset, offset + chunk.k) as Uint16Array | Uint32Array;
-    const rawValues = rawArray.subarray(offset, offset + chunk.k);
-    const values =
-      rawValues instanceof Float32Array
-        ? new Float32Array(rawValues)
-        : dequantizeInt16Values(rawValues, chunk.value_scale ?? 1);
+    const scoreRow = await this.loadScoreRow(matrix, rowIndex, priority);
+    const { indices, values } = topKDenseRow(scoreRow, sign, matrix.k);
     return {
       rowIndex,
       indices,
       values,
-      rawValues,
-      valueScale: chunk.value_scale,
+      rawValues: values,
     };
   }
 
@@ -143,49 +140,26 @@ export class DataRepository {
     rowIndices: number[],
     priority: Priority = "foreground",
   ): Promise<InfluenceAggregate> {
-    const group = matrix.top_chunks[sign];
-    if (!group) throw new Error(`${matrix.id}: ${sign} chunks are unavailable`);
-    const rowsByChunk = new Map<InfluenceChunkSpec, number[]>();
     const validRows: number[] = [];
     for (const rowIndex of rowIndices) {
       if (!Number.isFinite(rowIndex)) continue;
       const row = Math.trunc(rowIndex);
       if (row < 0 || row >= matrix.row_count) continue;
-      const chunk = group.chunks.find(
-        (candidate) => row >= candidate.row_start && row < candidate.row_start + candidate.row_count,
-      );
-      if (!chunk) continue;
       validRows.push(row);
-      const rows = rowsByChunk.get(chunk);
-      if (rows) {
-        rows.push(row);
-      } else {
-        rowsByChunk.set(chunk, [row]);
-      }
     }
 
+    await this.loadScoreRowsByIndexList(matrix, validRows, priority);
     const sums = new Map<number, number>();
-    await Promise.all(
-      Array.from(rowsByChunk.entries()).map(async ([chunk, rows]) => {
-        const [indicesArray, rawArray] = await Promise.all([
-          this.loadArray<Uint16Array | Uint32Array>(chunk.indices, priority),
-          this.loadArray<Int16Array | Float32Array>(chunk.values, priority),
-        ]);
-        for (const row of rows) {
-          const offset = (row - chunk.row_start) * chunk.k;
-          for (let index = 0; index < chunk.k; index += 1) {
-            const trainIndex = indicesArray[offset + index];
-            const value =
-              rawArray instanceof Float32Array
-                ? rawArray[offset + index]
-                : rawArray[offset + index] * (chunk.value_scale ?? 1);
-            const contribution = aggregateContribution(value, sign);
-            if (!contribution) continue;
-            sums.set(trainIndex, (sums.get(trainIndex) ?? 0) + contribution);
-          }
-        }
-      }),
-    );
+    for (const row of validRows) {
+      const scoreRow = this.cachedScoreRow(matrix, row);
+      const { indices, values } = topKDenseRow(scoreRow, sign, matrix.k);
+      for (let index = 0; index < indices.length; index += 1) {
+        const trainIndex = indices[index];
+        const contribution = aggregateContribution(values[index], sign);
+        if (!contribution) continue;
+        sums.set(trainIndex, (sums.get(trainIndex) ?? 0) + contribution);
+      }
+    }
 
     const entries = Array.from(sums.entries()).sort((a, b) => compareAggregateEntries(a, b, sign));
     return {
@@ -195,12 +169,131 @@ export class DataRepository {
     };
   }
 
+  private async loadScoreRow(
+    matrix: InfluenceMatrixManifest,
+    rowIndex: number,
+    priority: Priority,
+  ): Promise<Float32Array> {
+    await this.loadScoreRows(matrix, rowIndex, 1, priority);
+    return this.cachedScoreRow(matrix, rowIndex);
+  }
+
+  private cachedScoreRow(matrix: InfluenceMatrixManifest, rowIndex: number): Float32Array {
+    const cached = this.cache.get(this.scoreRowCacheKey(matrix, rowIndex));
+    if (!cached || !(cached instanceof Float32Array)) {
+      throw new Error(`${matrix.id}: row ${rowIndex} is not cached`);
+    }
+    return cached;
+  }
+
+  private async loadScoreRowsByIndexList(
+    matrix: InfluenceMatrixManifest,
+    rowIndices: number[],
+    priority: Priority,
+  ): Promise<void> {
+    const uniqueRows = Array.from(new Set(rowIndices)).sort((a, b) => a - b);
+    const groups = contiguousRowGroups(uniqueRows);
+    await Promise.all(
+      groups.map((group) => this.loadScoreRows(matrix, group.rowStart, group.rowCount, priority)),
+    );
+  }
+
+  private async loadScoreRows(
+    matrix: InfluenceMatrixManifest,
+    rowStart: number,
+    rowCount: number,
+    priority: Priority,
+  ): Promise<void> {
+    this.assertDenseScores(matrix);
+    if (!Number.isFinite(rowStart) || !Number.isFinite(rowCount)) {
+      throw new Error(`${matrix.id}: invalid dense row range`);
+    }
+    const firstRow = Math.trunc(rowStart);
+    const count = Math.trunc(rowCount);
+    if (count < 1) return;
+    const endRow = firstRow + count;
+    if (firstRow < 0 || endRow > matrix.row_count) {
+      throw new Error(`${matrix.id}: row range ${firstRow}-${endRow} is outside dense scores`);
+    }
+
+    const missingGroups: Array<{ rowStart: number; rowCount: number }> = [];
+    let missingStart: number | null = null;
+    for (let rowIndex = firstRow; rowIndex < endRow; rowIndex += 1) {
+      const missing = !this.cache.has(this.scoreRowCacheKey(matrix, rowIndex));
+      if (missing && missingStart === null) {
+        missingStart = rowIndex;
+      } else if (!missing && missingStart !== null) {
+        missingGroups.push({ rowStart: missingStart, rowCount: rowIndex - missingStart });
+        missingStart = null;
+      }
+    }
+    if (missingStart !== null) {
+      missingGroups.push({ rowStart: missingStart, rowCount: endRow - missingStart });
+    }
+
+    await Promise.all(
+      missingGroups.map(async (group) => {
+        const range = this.scoreByteRange(matrix, group.rowStart, group.rowCount);
+        const buffer = await this.loader.loadRange(
+          this.arrayUrl(matrix.scores),
+          range.start,
+          range.endExclusive,
+          priority,
+        );
+        const rowStrideBytes = matrix.score_layout.row_stride_bytes;
+        const nTrain = matrix.scores.shape[1] ?? 0;
+        for (let offset = 0; offset < group.rowCount; offset += 1) {
+          const rowOffset = offset * rowStrideBytes;
+          const row = new Float32Array(buffer, rowOffset, nTrain);
+          const rowIndex = group.rowStart + offset;
+          const copy = new Float32Array(row);
+          this.cache.set(this.scoreRowCacheKey(matrix, rowIndex), copy, copy.byteLength);
+        }
+      }),
+    );
+  }
+
+  private assertDenseScores(matrix: InfluenceMatrixManifest): void {
+    assertDType(matrix.scores, "float32");
+    if (matrix.score_layout.kind !== "dense_row_major") {
+      throw new Error(`${matrix.id}: unsupported score layout ${matrix.score_layout.kind}`);
+    }
+    const expectedShape = [matrix.row_count, this.manifest.n_train];
+    if (matrix.scores.shape.length !== 2 || matrix.scores.shape[0] !== expectedShape[0] || matrix.scores.shape[1] !== expectedShape[1]) {
+      throw new Error(`${matrix.id}: dense scores shape ${matrix.scores.shape.join("x")} != ${expectedShape.join("x")}`);
+    }
+    const expectedRowStride = this.manifest.n_train * Float32Array.BYTES_PER_ELEMENT;
+    if (matrix.score_layout.row_stride_bytes !== expectedRowStride) {
+      throw new Error(`${matrix.id}: invalid dense score row stride`);
+    }
+    if (matrix.score_layout.data_offset_bytes !== 0) {
+      throw new Error(`${matrix.id}: unsupported dense score data offset`);
+    }
+  }
+
+  private scoreByteRange(
+    matrix: InfluenceMatrixManifest,
+    rowStart: number,
+    rowCount: number,
+  ): { start: number; endExclusive: number } {
+    const start =
+      matrix.score_layout.data_offset_bytes + rowStart * matrix.score_layout.row_stride_bytes;
+    return {
+      start,
+      endExclusive: start + rowCount * matrix.score_layout.row_stride_bytes,
+    };
+  }
+
   private arrayUrl(spec: ArraySpec): URL {
     return new URL(spec.path, this.manifestUrl);
   }
 
   private cacheKey(spec: ArraySpec): string {
     return `${spec.dtype}:${this.arrayUrl(spec).toString()}`;
+  }
+
+  private scoreRowCacheKey(matrix: InfluenceMatrixManifest, rowIndex: number): string {
+    return `score-row:${this.arrayUrl(matrix.scores).toString()}:${rowIndex}`;
   }
 }
 
@@ -226,6 +319,55 @@ function compareAggregateEntries(
   if (sign === "neg") return a[1] - b[1] || a[0] - b[0];
   if (sign === "pos") return b[1] - a[1] || a[0] - b[0];
   return Math.abs(b[1]) - Math.abs(a[1]) || a[0] - b[0];
+}
+
+function contiguousRowGroups(rowIndices: number[]): Array<{ rowStart: number; rowCount: number }> {
+  const groups: Array<{ rowStart: number; rowCount: number }> = [];
+  let groupStart: number | null = null;
+  let previous: number | null = null;
+  for (const row of rowIndices) {
+    if (groupStart === null || previous === null) {
+      groupStart = row;
+      previous = row;
+      continue;
+    }
+    if (row === previous + 1) {
+      previous = row;
+      continue;
+    }
+    groups.push({ rowStart: groupStart, rowCount: previous - groupStart + 1 });
+    groupStart = row;
+    previous = row;
+  }
+  if (groupStart !== null && previous !== null) {
+    groups.push({ rowStart: groupStart, rowCount: previous - groupStart + 1 });
+  }
+  return groups;
+}
+
+function topKDenseRow(
+  row: Float32Array,
+  sign: InfluenceSign,
+  k: number,
+): { indices: Uint32Array; values: Float32Array } {
+  const entries = Array.from(row, (value, index) => ({ index, value }));
+  entries.sort((a, b) => compareDenseEntries(a, b, sign));
+  const count = Math.min(Math.max(0, Math.trunc(k)), entries.length);
+  const topEntries = entries.slice(0, count);
+  return {
+    indices: Uint32Array.from(topEntries, (entry) => entry.index),
+    values: Float32Array.from(topEntries, (entry) => entry.value),
+  };
+}
+
+function compareDenseEntries(
+  a: { index: number; value: number },
+  b: { index: number; value: number },
+  sign: InfluenceSign,
+): number {
+  if (sign === "neg") return a.value - b.value || a.index - b.index;
+  if (sign === "pos") return b.value - a.value || a.index - b.index;
+  return Math.abs(b.value) - Math.abs(a.value) || a.index - b.index;
 }
 
 export function dequantizeUint16Raster(values: Uint16Array, field: RasterFieldManifest): Float32Array {

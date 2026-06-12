@@ -84,11 +84,12 @@ uv run python src/build_static_demo_data.py \
 # matrix-mode all generates more plots
 # matrix-mode core exports only the two PINNfluence matrices:
 # influences_total_loss_output_0 and influences_total_loss_total_loss
-# max_local_influence_points is  max number of influence point per candidate_point
+# each influence matrix is exported as one dense scores.f32 file for HTTP byte-range loading
+# max_local_influence_points is max number of influence points shown per candidate point
 # n-candidate / n-train control how many existing raw points are exported
 # raster-max-resolution is resolution of precomputed prediction / loss graphs on the longest axis
 # field-batch-size controls prediction / loss raster inference batches; lower it if CPU RAM is tight
-# static demo data uses schema v7: every problem must have exactly one *_good
+# static demo data uses schema v8: every problem must have exactly one *_good
 # and one *_bad raw-data folder, for example burgers_float64_good and
 # burgers_float64_bad. Legacy unsuffixed folders are ignored.
 

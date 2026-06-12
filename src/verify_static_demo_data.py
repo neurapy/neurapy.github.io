@@ -1,4 +1,4 @@
-"""Verify schema-v7 static PINNfluence demo artifacts against source influence files."""
+"""Verify schema-v8 static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 MODEL_QUALITIES = ("good", "bad")
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 
@@ -67,17 +67,9 @@ def deterministic_spread_indices(total: int, count: int, label: str) -> np.ndarr
     return np.linspace(0, total - 1, count, dtype=np.int64)
 
 
-def assert_schema_v7(payload: dict[str, Any], path: Path) -> None:
+def assert_schema(payload: dict[str, Any], path: Path) -> None:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise AssertionError(f"{path}: schema_version must be {SCHEMA_VERSION}")
-
-
-def decode_values(values: np.ndarray, chunk: dict[str, Any]) -> np.ndarray:
-    if values.dtype == np.float32:
-        return values
-    if values.dtype == np.int16:
-        return values.astype(np.float32) * float(chunk.get("value_scale", 1.0))
-    raise AssertionError(f"Chunk values must be float32 or int16, got {values.dtype}")
 
 
 def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
@@ -85,7 +77,7 @@ def verify_bundle_report(data_root: Path, budget_bytes: int) -> None:
     if not report_path.exists():
         raise AssertionError(f"Missing bundle report: {report_path}")
     report = read_json(report_path)
-    assert_schema_v7(report, report_path)
+    assert_schema(report, report_path)
     total = int(report.get("total_bytes", -1))
     if total < 0:
         raise AssertionError("bundle_report.json is missing total_bytes")
@@ -139,90 +131,68 @@ def verify_rasters(base: Path, manifest: dict[str, Any]) -> None:
             raise AssertionError(f"{field_id}: raster shape {list(raster.shape)} != {shape}")
 
 
-def verify_chunk_group(
+def verify_dense_scores(
     base: Path,
     matrix: dict[str, Any],
-    mode: str,
     expected_rows: int,
     n_train: int,
     raw_scores: np.ndarray | None,
     rows: np.ndarray,
 ) -> None:
-    group = matrix["top_chunks"][mode]
-    row_chunk_size = int(group["row_chunk_size"])
-    chunks = group["chunks"]
-    if group["chunk_count"] != len(chunks):
-        raise AssertionError(f"{matrix['id']} {mode}: chunk_count mismatch")
-    if group["values_dtype"] not in {"int16", "float32"}:
-        raise AssertionError(
-            f"{matrix['id']} {mode}: unsupported values_dtype {group['values_dtype']!r}"
-        )
-    expected_index_dtype = "uint16" if n_train <= 65535 else "uint32"
-    if group["indices_dtype"] != expected_index_dtype:
-        raise AssertionError(
-            f"{matrix['id']} {mode}: expected {expected_index_dtype} indices, "
-            f"got {group['indices_dtype']}"
-        )
+    if "top_chunks" in matrix:
+        raise AssertionError(f"{matrix['id']}: deprecated top_chunks metadata is still present")
     if "top" in matrix:
         raise AssertionError(f"{matrix['id']}: deprecated full top arrays are still present")
+    if "row_chunk_size" in matrix:
+        raise AssertionError(f"{matrix['id']}: deprecated row_chunk_size metadata is still present")
+    if int(matrix.get("row_count", -1)) != expected_rows:
+        raise AssertionError(
+            f"{matrix['id']}: row_count {matrix.get('row_count')} != {expected_rows}"
+        )
+    if int(matrix.get("k", 0)) < 1 or int(matrix.get("k", 0)) > n_train:
+        raise AssertionError(f"{matrix['id']}: k must be in [1, n_train]")
 
-    covered = 0
-    for chunk in chunks:
-        if chunk["row_start"] != covered:
-            raise AssertionError(f"{matrix['id']} {mode}: non-contiguous chunk rows")
-        if int(chunk["row_count"]) > row_chunk_size:
-            raise AssertionError(f"{matrix['id']} {mode}: chunk exceeds row_chunk_size")
-        indices = read_array(base, chunk["indices"])
-        values_q = read_array(base, chunk["values"])
-        expected_shape = [int(chunk["row_count"]), int(chunk["k"])]
-        if list(indices.shape) != expected_shape:
-            raise AssertionError(f"{matrix['id']} {mode}: index shape mismatch")
-        if list(values_q.shape) != expected_shape:
-            raise AssertionError(f"{matrix['id']} {mode}: value shape mismatch")
-        expected_dtype = np.float32 if group["values_dtype"] == "float32" else np.int16
-        if values_q.dtype != expected_dtype:
-            raise AssertionError(f"{matrix['id']} {mode}: values are not {expected_dtype}")
-        if indices.size and int(indices.max()) >= n_train:
-            raise AssertionError(f"{matrix['id']} {mode}: top index exceeds n_train")
-        covered += int(chunk["row_count"])
-    if covered != expected_rows:
-        raise AssertionError(f"{matrix['id']} {mode}: covered rows {covered} != {expected_rows}")
+    expected_shape = [expected_rows, n_train]
+    if matrix.get("scores_shape") != expected_shape:
+        raise AssertionError(
+            f"{matrix['id']}: scores_shape {matrix.get('scores_shape')} != {expected_shape}"
+        )
+    layout = matrix.get("score_layout")
+    if not isinstance(layout, dict) or layout.get("kind") != "dense_row_major":
+        raise AssertionError(f"{matrix['id']}: score_layout must be dense_row_major")
+    expected_row_stride = n_train * np.dtype(np.float32).itemsize
+    if int(layout.get("row_stride_bytes", -1)) != expected_row_stride:
+        raise AssertionError(f"{matrix['id']}: invalid row_stride_bytes")
+    if int(layout.get("data_offset_bytes", -1)) != 0:
+        raise AssertionError(f"{matrix['id']}: data_offset_bytes must be 0")
+
+    scores_spec = matrix.get("scores")
+    if not isinstance(scores_spec, dict):
+        raise AssertionError(f"{matrix['id']}: scores array metadata is missing")
+    if scores_spec.get("dtype") != "float32":
+        raise AssertionError(f"{matrix['id']}: dense scores must be float32")
+    if scores_spec.get("shape") != expected_shape:
+        raise AssertionError(f"{matrix['id']}: scores array shape mismatch")
+    expected_bytes = expected_rows * expected_row_stride
+    if int(scores_spec.get("bytes", -1)) != expected_bytes:
+        raise AssertionError(f"{matrix['id']}: scores bytes metadata mismatch")
+
+    scores_path = base / scores_spec["path"]
+    if not scores_path.exists():
+        raise AssertionError(f"Missing scores file: {scores_path}")
+    if scores_path.stat().st_size != expected_bytes:
+        raise AssertionError(f"{matrix['id']}: scores file size mismatch")
+    scores = read_array(base, scores_spec)
+    if scores.dtype != np.float32:
+        raise AssertionError(f"{matrix['id']}: scores dtype must be float32, got {scores.dtype}")
 
     if raw_scores is None:
         return
 
-    chunks_by_row = {
-        row: chunk
-        for chunk in chunks
-        for row in range(int(chunk["row_start"]), int(chunk["row_start"]) + int(chunk["row_count"]))
-    }
     for row in rows:
-        chunk = chunks_by_row[int(row)]
-        local = int(row) - int(chunk["row_start"])
-        indices = read_array(base, chunk["indices"])[local]
-        values_q = read_array(base, chunk["values"])[local]
-        values = decode_values(values_q, chunk)
-        row_scores = raw_scores[int(row)]
-        if mode == "abs":
-            rank_scores = np.abs(row_scores)
-        elif mode == "pos":
-            rank_scores = row_scores
-        else:
-            rank_scores = -row_scores
-
-        if len(np.unique(indices)) != len(indices):
-            raise AssertionError(f"{matrix['id']} {mode} row {row}: duplicate top-k index")
-        k = len(indices)
-        threshold = np.sort(rank_scores)[::-1][k - 1]
-        if np.any(rank_scores[indices] < threshold - 1e-8):
-            raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k mismatch")
-        if np.any(np.diff(rank_scores[indices]) > 1e-8):
-            raise AssertionError(f"{matrix['id']} {mode} row {row}: top-k order mismatch")
-
-        expected_values = row_scores[indices]
-        tolerance = abs(float(chunk.get("value_scale", 0.0))) * 0.55 + 1e-8
-        if not np.allclose(values, expected_values, rtol=1e-5, atol=tolerance):
-            raise AssertionError(f"{matrix['id']} {mode} row {row}: quantized value mismatch")
+        row_int = int(row)
+        if not np.allclose(scores[row_int], raw_scores[row_int], rtol=1e-5, atol=1e-8):
+            raise AssertionError(f"{matrix['id']} row {row_int}: dense scores mismatch")
 
 
 def source_file_for_matrix(
@@ -257,7 +227,7 @@ def verify_topk(
         raw_data_root = Path(__file__).resolve().parent.parent / "raw_data"
     base = manifest_path.parent
     manifest = read_json(manifest_path)
-    assert_schema_v7(manifest, manifest_path)
+    assert_schema(manifest, manifest_path)
     for key in ("problem", "display_name", "model_quality", "folder", "run_id"):
         if not manifest.get(key):
             raise AssertionError(f"{manifest_path}: manifest is missing {key}")
@@ -286,6 +256,8 @@ def verify_topk(
         raise AssertionError(f"Deprecated display arrays are still present: {found_deprecated}")
     if "n_display" in manifest:
         raise AssertionError("Deprecated n_display metadata is still present")
+    if "row_chunk_size" in manifest:
+        raise AssertionError("Deprecated row_chunk_size metadata is still present")
 
     verify_rasters(base, manifest)
 
@@ -331,8 +303,7 @@ def verify_topk(
                 )
 
         rows = np.linspace(0, expected_rows - 1, min(samples, expected_rows)).astype(int)
-        for mode in ("abs", "pos", "neg"):
-            verify_chunk_group(base, matrix, mode, expected_rows, n_train, raw_scores, rows)
+        verify_dense_scores(base, matrix, expected_rows, n_train, raw_scores, rows)
 
 
 def main() -> None:
@@ -341,11 +312,13 @@ def main() -> None:
     budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
     index_path = data_root / "index.json"
     index = read_json(index_path)
-    assert_schema_v7(index, index_path)
+    assert_schema(index, index_path)
     if not isinstance(index.get("problems"), list):
         raise AssertionError(f"{index_path}: index.json is missing problems[]")
     if "runs" in index:
         raise AssertionError(f"{index_path}: deprecated runs[] index is still present")
+    if "row_chunk_size" in index:
+        raise AssertionError(f"{index_path}: deprecated row_chunk_size metadata is still present")
     verify_bundle_report(data_root, budget_bytes)
     checked = 0
     for problem in index["problems"]:

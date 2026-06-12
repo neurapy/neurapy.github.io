@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DataRepository, dequantizeInt16Values, dequantizeUint16Raster } from "../src/data/arrays";
+import { DataRepository, dequantizeUint16Raster } from "../src/data/arrays";
 import { LruCache } from "../src/data/cache";
 import {
-  assertV7Index,
-  assertV7RunManifest,
+  assertV8Index,
+  assertV8RunManifest,
   formatProblemLabel,
   resolveProblemVariant,
 } from "../src/data/manifest";
@@ -28,6 +28,7 @@ function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
 interface DeferredFetchCall {
   url: string;
   signal: AbortSignal | null;
+  headers: Headers;
   resolve: (buffer?: ArrayBuffer) => void;
 }
 
@@ -49,10 +50,12 @@ function installDeferredFetch(): DeferredFetchCall[] {
   const calls: DeferredFetchCall[] = [];
   globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const signal = init?.signal instanceof AbortSignal ? init.signal : null;
+    const headers = new Headers(init?.headers);
     return new Promise<Response>((resolve, reject) => {
       const call: DeferredFetchCall = {
         url: input.toString(),
         signal,
+        headers,
         resolve: (buffer = new ArrayBuffer(1)) => resolve(new Response(buffer.slice(0))),
       };
       signal?.addEventListener(
@@ -67,7 +70,7 @@ function installDeferredFetch(): DeferredFetchCall[] {
 }
 
 const manifest = {
-  schema_version: 7,
+  schema_version: 8,
   problem: "fixture",
   display_name: "Fixture",
   model_quality: "good",
@@ -77,7 +80,6 @@ const manifest = {
   errors: [],
   generated_at: "2026-06-09T00:00:00+0000",
   max_local_influence_points: 2,
-  row_chunk_size: 2,
   axes: ["x", "y"],
   bounds: { x: [0, 1], y: [0, 1] },
   n_candidate: 2,
@@ -127,43 +129,13 @@ const manifest = {
       row_count: 2,
       k: 2,
       max_local_influence_points: 2,
-      row_chunk_size: 2,
       label: "m0",
       display_label: "m0",
-      top_chunks: {
-        abs: {
-          row_chunk_size: 2,
-          chunk_count: 1,
-          indices_dtype: "uint16",
-          values_dtype: "float32",
-          value_encoding: { kind: "identity" },
-          chunks: [
-            {
-              id: 0,
-              row_start: 0,
-              row_count: 2,
-              k: 2,
-              indices: { path: "m0/abs/chunks/0_indices.u16", dtype: "uint16", shape: [2, 2] },
-              values: { path: "m0/abs/chunks/0_values.f32", dtype: "float32", shape: [2, 2] },
-            },
-          ],
-        },
-        pos: {
-          row_chunk_size: 2,
-          chunk_count: 1,
-          indices_dtype: "uint16",
-          values_dtype: "float32",
-          value_encoding: { kind: "identity" },
-          chunks: [],
-        },
-        neg: {
-          row_chunk_size: 2,
-          chunk_count: 1,
-          indices_dtype: "uint16",
-          values_dtype: "float32",
-          value_encoding: { kind: "identity" },
-          chunks: [],
-        },
+      scores: { path: "m0/scores.f32", dtype: "float32", shape: [2, 3], bytes: 24 },
+      score_layout: {
+        kind: "dense_row_major",
+        row_stride_bytes: 12,
+        data_offset_bytes: 0,
       },
     },
   ],
@@ -195,11 +167,10 @@ const badVariant = {
 } satisfies DataIndex["problems"][number]["variants"]["bad"];
 
 const index = {
-  schema_version: 7,
+  schema_version: 8,
   generated_at: "2026-06-09T00:00:00+0000",
   matrix_mode: "core",
   max_local_influence_points: 2,
-  row_chunk_size: 2,
   bundle_report: "bundle_report.json",
   problems: [
     {
@@ -220,15 +191,15 @@ describe("typed array validation", () => {
     ).toThrow(/expected 12 bytes/);
   });
 
-  it("parses v7 indexes and manifests and rejects schema v6", () => {
-    expect(assertV7Index(index)).toBe(index);
-    expect(assertV7RunManifest(manifest)).toBe(manifest);
-    expect(() => assertV7RunManifest({ ...manifest, schema_version: 6 } as unknown as RunManifest)).toThrow(
-      /expected 7/,
+  it("parses v8 indexes and manifests and rejects schema v7", () => {
+    expect(assertV8Index(index)).toBe(index);
+    expect(assertV8RunManifest(manifest)).toBe(manifest);
+    expect(() => assertV8RunManifest({ ...manifest, schema_version: 7 } as unknown as RunManifest)).toThrow(
+      /expected 8/,
     );
     expect(() =>
-      assertV7Index({ ...index, schema_version: 6, runs: [] } as unknown as DataIndex),
-    ).toThrow(/expected 7/);
+      assertV8Index({ ...index, schema_version: 7, runs: [] } as unknown as DataIndex),
+    ).toThrow(/expected 8/);
   });
 
   it("formats problem labels and resolves active Good/Bad variants", () => {
@@ -240,12 +211,6 @@ describe("typed array validation", () => {
 });
 
 describe("quantized data helpers", () => {
-  it("dequantizes int16 influence chunks", () => {
-    expect(Array.from(dequantizeInt16Values(new Int16Array([-200, 0, 125]), 0.5))).toEqual([
-      -100, 0, 62.5,
-    ]);
-  });
-
   it("dequantizes uint16 raster grids and preserves missing values", () => {
     const decoded = dequantizeUint16Raster(new Uint16Array([0, 32767, 65534, 65535]), manifest.fields.pred_output_0);
 
@@ -256,37 +221,20 @@ describe("quantized data helpers", () => {
   });
 });
 
-describe("chunk row lookup", () => {
-  it("loads only the chunk containing the selected row", async () => {
-    const buffers = new Map<string, ArrayBuffer>([
-      ["http://example.test/m0/abs/chunks/0_indices.u16", bufferFrom(new Uint16Array([2, 1, 1, 0]))],
-      ["http://example.test/m0/abs/chunks/0_values.f32", bufferFrom(new Float32Array([1, -0.5, 0.2, -0.1]))],
-    ]);
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const key = input.toString();
-      const buffer = buffers.get(key);
-      if (!buffer) return new Response(null, { status: 404 });
-      return new Response(buffer.slice(0));
-    });
+describe("dense influence row lookup", () => {
+  it("loads only the selected row byte range", async () => {
+    installScoreFetch(new Float32Array([1, -0.5, 0.25, 0.2, -0.1, 0.5]));
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
     const row = await repo.loadInfluenceRow(manifest.influence_matrices[0], "abs", 1);
 
-    expect(Array.from(row.indices)).toEqual([1, 0]);
-    expect(row.values[0]).toBeCloseTo(0.2);
-    expect(row.values[1]).toBeCloseTo(-0.1);
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(Array.from(row.indices)).toEqual([2, 0]);
+    expect(Array.from(row.values)).toEqual([expect.closeTo(0.5), expect.closeTo(0.2)]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(fetchRangeHeader(0)).toBe("bytes=12-23");
   });
 
-  it("can share decoded arrays across repository instances", async () => {
-    const buffers = new Map<string, ArrayBuffer>([
-      ["http://example.test/m0/abs/chunks/0_indices.u16", bufferFrom(new Uint16Array([2, 1, 1, 0]))],
-      ["http://example.test/m0/abs/chunks/0_values.f32", bufferFrom(new Float32Array([1, -0.5, 0.2, -0.1]))],
-    ]);
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const buffer = buffers.get(input.toString());
-      if (!buffer) return new Response(null, { status: 404 });
-      return new Response(buffer.slice(0));
-    });
+  it("can share decoded score rows across repository instances", async () => {
+    installScoreFetch(new Float32Array([1, -0.5, 0.25, 0.2, -0.1, 0.5]));
     const cache = new LruCache<TypedArray>(1024);
     const url = new URL("http://example.test/manifest.json");
     const firstRepo = new DataRepository(url, manifest, cache);
@@ -295,33 +243,9 @@ describe("chunk row lookup", () => {
     await firstRepo.loadInfluenceRow(manifest.influence_matrices[0], "abs", 1);
     await secondRepo.loadInfluenceRow(manifest.influence_matrices[0], "abs", 1);
 
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });
-
-function aggregateChunk(
-  sign: "abs" | "pos" | "neg",
-  id: number,
-  rowStart: number,
-): InfluenceMatrixManifest["top_chunks"]["abs"]["chunks"][number] {
-  return {
-    id,
-    row_start: rowStart,
-    row_count: 2,
-    k: 2,
-    value_scale: 0.001,
-    indices: {
-      path: `m0/${sign}/chunks/${id}_indices.u16`,
-      dtype: "uint16",
-      shape: [2, 2],
-    },
-    values: {
-      path: `m0/${sign}/chunks/${id}_values.i16`,
-      dtype: "int16",
-      shape: [2, 2],
-    },
-  };
-}
 
 function aggregateMatrix(): InfluenceMatrixManifest {
   const matrix = manifest.influence_matrices[0];
@@ -331,60 +255,48 @@ function aggregateMatrix(): InfluenceMatrixManifest {
     row_count: 4,
     k: 2,
     max_local_influence_points: 2,
-    top_chunks: {
-      abs: {
-        ...matrix.top_chunks.abs,
-        row_chunk_size: 2,
-        chunk_count: 2,
-        chunks: [aggregateChunk("abs", 0, 0), aggregateChunk("abs", 1, 2)],
-      },
-      pos: {
-        ...matrix.top_chunks.abs,
-        row_chunk_size: 2,
-        chunk_count: 2,
-        chunks: [aggregateChunk("pos", 0, 0), aggregateChunk("pos", 1, 2)],
-      },
-      neg: {
-        ...matrix.top_chunks.abs,
-        row_chunk_size: 2,
-        chunk_count: 2,
-        chunks: [aggregateChunk("neg", 0, 0), aggregateChunk("neg", 1, 2)],
-      },
+    scores: { path: "m0/scores.f32", dtype: "float32", shape: [4, 3], bytes: 48 },
+    score_layout: {
+      kind: "dense_row_major",
+      row_stride_bytes: 12,
+      data_offset_bytes: 0,
     },
   };
 }
 
-function installAggregateFetch(): void {
-  const chunkBuffers = new Map<string, ArrayBuffer>();
-  for (const sign of ["abs", "pos", "neg"]) {
-    chunkBuffers.set(
-      `http://example.test/m0/${sign}/chunks/0_indices.u16`,
-      bufferFrom(new Uint16Array([0, 1, 1, 2])),
-    );
-    chunkBuffers.set(
-      `http://example.test/m0/${sign}/chunks/0_values.i16`,
-      bufferFrom(new Int16Array([100, -200, -50, 150])),
-    );
-    chunkBuffers.set(
-      `http://example.test/m0/${sign}/chunks/1_indices.u16`,
-      bufferFrom(new Uint16Array([0, 2, 2, 1])),
-    );
-    chunkBuffers.set(
-      `http://example.test/m0/${sign}/chunks/1_values.i16`,
-      bufferFrom(new Int16Array([300, -100, -400, 50])),
-    );
-  }
-  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-    const key = input.toString();
-    const buffer = chunkBuffers.get(key);
-    if (!buffer) return new Response(null, { status: 404 });
-    return new Response(buffer.slice(0));
+function aggregateScores(): Float32Array {
+  return new Float32Array([
+    0.1, -0.2, 0.05,
+    0, -0.05, 0.15,
+    0.3, 0, -0.1,
+    0.02, 0.05, -0.4,
+  ]);
+}
+
+function installScoreFetch(scores: Float32Array): void {
+  const full = bufferFrom(scores);
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (input.toString() !== "http://example.test/m0/scores.f32") {
+      return new Response(null, { status: 404 });
+    }
+    const range = new Headers(init?.headers).get("Range");
+    if (!range) return new Response(full.slice(0));
+    const match = /^bytes=(\d+)-(\d+)$/.exec(range);
+    if (!match) return new Response(null, { status: 400 });
+    const start = Number(match[1]);
+    const endInclusive = Number(match[2]);
+    return new Response(full.slice(start, endInclusive + 1), { status: 206 });
   });
 }
 
-describe("chunk row aggregation", () => {
-  it("aggregates rows from one chunk", async () => {
-    installAggregateFetch();
+function fetchRangeHeader(index: number): string | null {
+  const calls = vi.mocked(globalThis.fetch).mock.calls;
+  return new Headers(calls[index]?.[1]?.headers).get("Range");
+}
+
+describe("dense influence row aggregation", () => {
+  it("aggregates contiguous rows from one range", async () => {
+    installScoreFetch(aggregateScores());
     const matrix = aggregateMatrix();
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
 
@@ -397,26 +309,29 @@ describe("chunk row aggregation", () => {
       expect.closeTo(0.15),
       expect.closeTo(0.1),
     ]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(fetchRangeHeader(0)).toBe("bytes=0-23");
   });
 
-  it("aggregates rows across chunks", async () => {
-    installAggregateFetch();
+  it("aggregates rows across disjoint ranges", async () => {
+    installScoreFetch(aggregateScores());
     const matrix = aggregateMatrix();
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
 
     const aggregate = await repo.loadInfluenceAggregate(matrix, "abs", [1, 2]);
 
-    expect(Array.from(aggregate.indices)).toEqual([0, 1, 2]);
+    expect(Array.from(aggregate.indices)).toEqual([0, 2, 1]);
     expect(Array.from(aggregate.values)).toEqual([
       expect.closeTo(0.3),
-      expect.closeTo(-0.05),
       expect.closeTo(0.05),
+      expect.closeTo(-0.05),
     ]);
-    expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(fetchRangeHeader(0)).toBe("bytes=12-35");
   });
 
   it("filters and sorts aggregate values by selected sign", async () => {
-    installAggregateFetch();
+    installScoreFetch(aggregateScores());
     const matrix = aggregateMatrix();
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
 
@@ -424,27 +339,9 @@ describe("chunk row aggregation", () => {
     const neg = await repo.loadInfluenceAggregate(matrix, "neg", [0, 2]);
 
     expect(Array.from(pos.indices)).toEqual([2, 0]);
-    expect(Array.from(pos.values)).toEqual([expect.closeTo(0.15), expect.closeTo(0.1)]);
+    expect(Array.from(pos.values)).toEqual([expect.closeTo(0.2), expect.closeTo(0.1)]);
     expect(Array.from(neg.indices)).toEqual([1, 2]);
     expect(Array.from(neg.values)).toEqual([expect.closeTo(-0.2), expect.closeTo(-0.1)]);
-  });
-
-  it("fetches a shared chunk once for multiple selected rows", async () => {
-    installAggregateFetch();
-    const matrix = aggregateMatrix();
-    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
-
-    await repo.loadInfluenceAggregate(matrix, "abs", [0, 1]);
-
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      new URL("http://example.test/m0/abs/chunks/0_indices.u16"),
-      expect.any(Object),
-    );
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      new URL("http://example.test/m0/abs/chunks/0_values.i16"),
-      expect.any(Object),
-    );
   });
 });
 
@@ -457,6 +354,31 @@ describe("priority loader", () => {
     loader.abortBackground();
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("requests byte ranges with a Range header", async () => {
+    globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("Range")).toBe("bytes=2-4");
+      return new Response(bufferFrom(new Uint8Array([20, 30, 40])), { status: 206 });
+    });
+    const loader = new PriorityLoader();
+
+    const buffer = await loader.loadRange(new URL("http://example.test/ranged.bin"), 2, 5);
+
+    expect(Array.from(new Uint8Array(buffer))).toEqual([20, 30, 40]);
+  });
+
+  it("slices and reuses full responses when a server ignores Range", async () => {
+    globalThis.fetch = vi.fn(async () => new Response(bufferFrom(new Uint8Array([0, 1, 2, 3, 4]))));
+    const loader = new PriorityLoader();
+    const url = new URL("http://example.test/full.bin");
+
+    const first = await loader.loadRange(url, 1, 4);
+    const second = await loader.loadRange(url, 2, 5);
+
+    expect(Array.from(new Uint8Array(first))).toEqual([1, 2, 3]);
+    expect(Array.from(new Uint8Array(second))).toEqual([2, 3, 4]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not start background requests while foreground work is active", async () => {
@@ -528,14 +450,23 @@ describe("run prefetch planner", () => {
 
   it("enumerates run assets once in likely-use order", () => {
     const tasks = planRunPrefetchTasks(manifest, context);
-    const paths = tasks.map((task) => task.spec.path);
+    const arrayPaths = tasks
+      .filter((task) => task.kind === "array")
+      .map((task) => task.spec.path);
+    const influenceTasks = tasks.filter((task) => task.kind === "influence_rows");
 
-    expect(paths).toContain("mask.u8");
-    expect(paths).toContain("pred.u16");
-    expect(paths).toContain("m0/abs/chunks/0_indices.u16");
-    expect(paths).toContain("m0/abs/chunks/0_values.f32");
-    expect(new Set(paths).size).toBe(paths.length);
-    expect(paths.indexOf("pred.u16")).toBeLessThan(paths.indexOf("m0/abs/chunks/0_indices.u16"));
+    expect(arrayPaths).toContain("mask.u8");
+    expect(arrayPaths).toContain("pred.u16");
+    expect(influenceTasks).toHaveLength(1);
+    expect(influenceTasks[0]).toMatchObject({
+      matrix: manifest.influence_matrices[0],
+      rowStart: 0,
+      rowCount: 2,
+    });
+    expect(new Set(tasks.map((task) => task.key)).size).toBe(tasks.length);
+    expect(tasks.findIndex((task) => task.key.includes("pred.u16"))).toBeLessThan(
+      tasks.findIndex((task) => task.kind === "influence_rows"),
+    );
   });
 
   it("records failed background assets and does not retry them forever", async () => {

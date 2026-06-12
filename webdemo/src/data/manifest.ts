@@ -21,9 +21,9 @@ export async function fetchJson<T>(url: URL, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function assertV7Index(index: DataIndex): DataIndex {
-  if (index.schema_version !== 7) {
-    throw new Error(`Unsupported index schema ${String(index.schema_version)}; expected 7`);
+export function assertV8Index(index: DataIndex): DataIndex {
+  if (index.schema_version !== 8) {
+    throw new Error(`Unsupported index schema ${String(index.schema_version)}; expected 8`);
   }
   if (!Array.isArray(index.problems)) {
     throw new Error("index.json is missing problems[]");
@@ -48,9 +48,9 @@ export function assertV7Index(index: DataIndex): DataIndex {
   return index;
 }
 
-export function assertV7RunManifest(manifest: RunManifest): RunManifest {
-  if (manifest.schema_version !== 7) {
-    throw new Error(`Unsupported run schema ${String(manifest.schema_version)}; expected 7`);
+export function assertV8RunManifest(manifest: RunManifest): RunManifest {
+  if (manifest.schema_version !== 8) {
+    throw new Error(`Unsupported run schema ${String(manifest.schema_version)}; expected 8`);
   }
   if (!manifest.problem || !manifest.display_name || !manifest.folder || !manifest.run_id) {
     throw new Error("Run manifest is missing required problem/run metadata");
@@ -68,11 +68,11 @@ export function assertV7RunManifest(manifest: RunManifest): RunManifest {
 }
 
 export async function loadIndex(indexUrl = resolveIndexUrl()): Promise<DataIndex> {
-  return assertV7Index(await fetchJson<DataIndex>(indexUrl));
+  return assertV8Index(await fetchJson<DataIndex>(indexUrl));
 }
 
 export async function loadRunManifest(indexUrl: URL, manifestPath: string): Promise<RunManifest> {
-  return assertV7RunManifest(await fetchJson<RunManifest>(new URL(manifestPath, indexUrl)));
+  return assertV8RunManifest(await fetchJson<RunManifest>(new URL(manifestPath, indexUrl)));
 }
 
 export const MODEL_QUALITIES: ModelQuality[] = ["good", "bad"];
