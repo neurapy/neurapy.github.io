@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 UV ?= uv
+NODE_BIN ?= node
 NPM ?= npm
 GH ?= gh
 TAPLO ?= RUST_LOG=error $(UV) run taplo
@@ -9,7 +10,7 @@ PAGES_REF ?= main
 PAGES_WORKFLOW ?= pages.yml
 VERIFY_SAMPLES ?= 5
 
-.PHONY: help install dev build preview webdemo-test webdemo-e2e webdemo-check verify-data format lint typecheck test check deploy undeploy deploy-status deploy-watch clean
+.PHONY: help require-node24 install dev build preview webdemo-test webdemo-e2e webdemo-check verify-data format lint typecheck test check deploy undeploy deploy-status deploy-watch clean
 
 help:
 	@printf '%s\n' \
@@ -34,18 +35,21 @@ help:
 		'  clean            Remove build, test, and tool artifacts'
 
 # Installation & Deployment
-install:
+require-node24:
+	@$(NODE_BIN) -e 'const major = Number(process.versions.node.split(".")[0]); if (major !== 24) { console.error("Node 24 is required for webdemo commands. Current: " + process.version + ". Run `nvm install && nvm use` or install Node 24 and retry."); process.exit(1); }'
+
+install: require-node24
 	$(UV) sync --all-groups
 	$(NPM) --prefix webdemo install
 	$(UV) run pre-commit install
 
-dev:
+dev: require-node24
 	$(NPM) --prefix webdemo run dev
 
-build:
+build: require-node24
 	$(NPM) --prefix webdemo run build
 
-preview:
+preview: require-node24
 	$(NPM) --prefix webdemo run preview
 
 verify-data:
@@ -69,16 +73,16 @@ format:
 lint:
 	$(UV) run ruff check .
 
-typecheck:
+typecheck: require-node24
 	$(UV) run --all-groups pyright
 	$(NPM) --prefix webdemo run typecheck
 
-test:
+test: require-node24
 	$(UV) run pytest
 	$(NPM) --prefix webdemo run test
 	$(NPM) --prefix webdemo run test:e2e
 
-check:
+check: require-node24
 	$(UV) run ruff format --check .
 	$(UV) run taplo fmt --check pyproject.toml
 	$(UV) run ruff check .

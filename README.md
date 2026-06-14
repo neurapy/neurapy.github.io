@@ -2,6 +2,22 @@
 
 ## Install
 
+The webdemo requires Node.js 24. The repo includes `.nvmrc`; with `nvm`, run:
+
+```bash
+nvm install
+nvm use
+```
+
+If `nvm` is not installed, install it first:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+\. "$HOME/.nvm/nvm.sh"
+nvm install
+nvm use
+```
+
 ```bash
 make install # install dependencies
 ```
