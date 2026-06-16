@@ -6,7 +6,8 @@ set -euo pipefail
 #   raw_data/<folder>_<variant>/<prefix>_validation
 #   raw_data/<folder>_<variant>/<prefix>_full.pt
 #
-# Edit only the FOLDERS, MODEL_VARIANTS, and PREFIXES blocks below before running.
+# Edit only the FOLDERS, MODEL_VARIANTS, PREFIXES, and
+# PREDICTION_DISPLAY_DOMAINS blocks below before running.
 
 REMOTE_HOST="ai-ws-213"
 REMOTE_ROOT="/home/dolderer/pinnfluence_code_dreckig_smiley/model_zoo_cluster"
@@ -56,11 +57,68 @@ ARTIFACT_SUFFIXES=(
   "full.pt"
 )
 
+PREDICTION_DISPLAY_DOMAINS=(
+  "allen_cahn:pred_output_0:-1:1"
+  "burgers:pred_output_0:-1:1"
+  "diffusion:pred_output_0:-1:1"
+  "drift_diffusion:pred_output_0:-1:1"
+  "wave:pred_output_0:-1.25:1.25"
+  "navier_stokes_nd:pred_output_0:-0.05:2"
+  "navier_stokes_nd:pred_output_1:-1:1"
+  "navier_stokes_nd:pred_output_2:-0.2:3.2"
+  "poisson_disk:pred_output_0:0:0.6"
+)
+
+BUILD_STATIC_DEMO_DATA_ARGS=(
+  "--matrix-mode" "core"
+  "--max_local_influence_points" "3500"
+  "--n-candidate" "500"
+  "--n-train" "10000"
+  "--raster-max-resolution" "1024"
+  "--field-batch-size" "8192"
+  "--overwrite"
+  "--workers" "8"
+)
+
+usage() {
+  cat >&2 <<EOF
+Usage: $0 [--dry-run] [--build-static-demo-data] [--build-only]
+
+  --dry-run                 Preview rsync downloads only; does not build data.
+  --build-static-demo-data  Download artifacts, then regenerate webdemo/public/data.
+  --build-only              Skip rsync and regenerate webdemo/public/data from raw_data.
+EOF
+}
+
 DRY_RUN=0
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=1
-elif [[ $# -gt 0 ]]; then
-  echo "Usage: $0 [--dry-run]" >&2
+BUILD_STATIC_DEMO_DATA=0
+BUILD_ONLY=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry-run)
+    DRY_RUN=1
+    ;;
+  --build-static-demo-data)
+    BUILD_STATIC_DEMO_DATA=1
+    ;;
+  --build-only)
+    BUILD_ONLY=1
+    BUILD_STATIC_DEMO_DATA=1
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+  esac
+  shift
+done
+
+if [[ "$DRY_RUN" -eq 1 && "$BUILD_ONLY" -eq 1 ]]; then
+  echo "--dry-run and --build-only cannot be combined" >&2
   exit 2
 fi
 
@@ -81,23 +139,44 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   exit 1
 fi
 
-rsync_opts=(-av --partial --progress)
-if [[ "$DRY_RUN" -eq 1 ]]; then
-  rsync_opts+=(--dry-run)
-fi
+if [[ "$BUILD_ONLY" -eq 0 ]]; then
+  rsync_opts=(-av --partial --progress)
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    rsync_opts+=(--dry-run)
+  fi
 
-for folder in "${FOLDERS[@]}"; do
-  for variant in "${MODEL_VARIANTS[@]}"; do
-    local_dir="${LOCAL_ROOT}/${folder}_${variant}"
-    key="${variant}:${folder}"
-    prefix="${PREFIXES[$key]}"
-    echo "Downloading ${folder} (${variant}) with prefix: ${prefix}"
+  for folder in "${FOLDERS[@]}"; do
+    for variant in "${MODEL_VARIANTS[@]}"; do
+      local_dir="${LOCAL_ROOT}/${folder}_${variant}"
+      key="${variant}:${folder}"
+      prefix="${PREFIXES[$key]}"
+      echo "Downloading ${folder} (${variant}) with prefix: ${prefix}"
 
-    mkdir -p "$local_dir"
-    for suffix in "${ARTIFACT_SUFFIXES[@]}"; do
-      remote_path="${REMOTE_HOST}:${REMOTE_ROOT}/${folder}/${prefix}_${suffix}"
-      echo "  rsync ${remote_path} -> ${local_dir}/"
-      rsync "${rsync_opts[@]}" "$remote_path" "$local_dir/"
+      mkdir -p "$local_dir"
+      for suffix in "${ARTIFACT_SUFFIXES[@]}"; do
+        remote_path="${REMOTE_HOST}:${REMOTE_ROOT}/${folder}/${prefix}_${suffix}"
+        echo "  rsync ${remote_path} -> ${local_dir}/"
+        rsync "${rsync_opts[@]}" "$remote_path" "$local_dir/"
+      done
     done
   done
-done
+fi
+
+if [[ "$BUILD_STATIC_DEMO_DATA" -eq 1 ]]; then
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "Skipping static demo data build because --dry-run was passed."
+    exit 0
+  fi
+
+  build_cmd=(
+    uv run python src/build_static_demo_data.py
+    "--problems" "${FOLDERS[@]}"
+    "${BUILD_STATIC_DEMO_DATA_ARGS[@]}"
+  )
+  for domain in "${PREDICTION_DISPLAY_DOMAINS[@]}"; do
+    build_cmd+=("--prediction-display-domain" "$domain")
+  done
+
+  echo "Regenerating webdemo/public/data with configured prediction display domains"
+  "${build_cmd[@]}"
+fi

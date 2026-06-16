@@ -156,6 +156,91 @@ def test_uint16_raster_quantization_uses_missing_sentinel() -> None:
     assert display_domain[0] < display_domain[1]
 
 
+def test_parse_prediction_display_domains_accepts_repeated_overrides() -> None:
+    overrides = build_static.parse_prediction_display_domains(
+        [
+            "burgers:pred_output_0:-1:1",
+            "navier_stokes_nd:pred_output_2:-0.2:3.2",
+        ]
+    )
+
+    assert overrides == {
+        ("burgers", "pred_output_0"): [-1.0, 1.0],
+        ("navier_stokes_nd", "pred_output_2"): [-0.2, 3.2],
+    }
+
+
+@pytest.mark.parametrize(
+    ("raw_domain", "message"),
+    [
+        ("burgers:pred_output_0:-1", "PROBLEM:FIELD:MIN:MAX"),
+        ("burgers:loss_total:0:1", "pred_output_N"),
+        ("burgers:pred_output_0:high:1", "non-numeric"),
+        ("burgers:pred_output_0:1:-1", "min < max"),
+    ],
+)
+def test_parse_prediction_display_domains_rejects_invalid_overrides(
+    raw_domain: str,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        build_static.parse_prediction_display_domains([raw_domain])
+
+
+def test_parse_prediction_display_domains_rejects_duplicates() -> None:
+    with pytest.raises(ValueError, match="Duplicate"):
+        build_static.parse_prediction_display_domains(
+            [
+                "burgers:pred_output_0:-1:1",
+                "burgers:pred_output_0:-2:2",
+            ]
+        )
+
+
+def test_prediction_display_domain_override_does_not_change_encoding() -> None:
+    values = np.array([[-2.0, 0.0], [1.0, 2.0]], dtype=np.float32)
+    mask = np.ones_like(values, dtype=np.uint8)
+    overrides = {("burgers", "pred_output_0"): [-1.0, 1.0]}
+    used_overrides: set[tuple[str, str]] = set()
+
+    _quantized, encoding, fallback_domain = build_static.quantize_uint16_linear(values, mask)
+    display_domain = build_static.field_display_domain(
+        "burgers",
+        "pred_output_0",
+        fallback_domain,
+        overrides,
+        used_overrides,
+    )
+
+    assert encoding == {"kind": "linear", "min": -2.0, "max": 2.0, "missing": 65535}
+    assert display_domain == [-1.0, 1.0]
+    assert used_overrides == {("burgers", "pred_output_0")}
+
+
+def test_prediction_display_domain_falls_back_without_matching_override() -> None:
+    fallback_domain = [-0.5, 0.5]
+    overrides = {("burgers", "pred_output_0"): [-1.0, 1.0]}
+
+    assert (
+        build_static.field_display_domain(
+            "diffusion",
+            "pred_output_0",
+            fallback_domain,
+            overrides,
+        )
+        == fallback_domain
+    )
+    assert (
+        build_static.field_display_domain(
+            "burgers",
+            "loss_total",
+            fallback_domain,
+            overrides,
+        )
+        == fallback_domain
+    )
+
+
 def test_int16_symmetric_quantization_round_trips_with_scale() -> None:
     values = np.array([[-2.0, 0.0, 1.0]], dtype=np.float32)
 

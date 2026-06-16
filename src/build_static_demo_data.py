@@ -153,6 +153,17 @@ def parse_args() -> argparse.Namespace:
         help="Do not include incomplete runs in webdemo/public/data/index.json.",
     )
     parser.add_argument(
+        "--prediction-display-domain",
+        action="append",
+        default=[],
+        metavar="PROBLEM:FIELD:MIN:MAX",
+        help=(
+            "Override a prediction field display range, e.g. "
+            "burgers:pred_output_0:-1:1. Repeat for multiple fields. "
+            "Fields without overrides keep the robust percentile display range."
+        ),
+    )
+    parser.add_argument(
         "--force-run",
         default=None,
         help="Only process one run as '<folder>/<run_prefix>'.",
@@ -209,6 +220,58 @@ def robust_display_domain(values: np.ndarray, mask: np.ndarray | None = None) ->
         low = center - 1.0
         high = center + 1.0
     return [float(low), float(high)]
+
+
+PredictionDisplayDomains = dict[tuple[str, str], list[float]]
+
+
+def parse_prediction_display_domains(raw_domains: list[str]) -> PredictionDisplayDomains:
+    domains: PredictionDisplayDomains = {}
+    for raw_domain in raw_domains:
+        parts = raw_domain.split(":")
+        if len(parts) != 4:
+            raise ValueError(
+                f"--prediction-display-domain must be PROBLEM:FIELD:MIN:MAX, got {raw_domain!r}"
+            )
+        problem, field, low_text, high_text = (part.strip() for part in parts)
+        if not problem:
+            raise ValueError(f"--prediction-display-domain has empty problem: {raw_domain!r}")
+        if not field.startswith("pred_output_"):
+            raise ValueError(
+                f"--prediction-display-domain only supports pred_output_N fields, got {field!r}"
+            )
+        try:
+            low = float(low_text)
+            high = float(high_text)
+        except ValueError as exc:
+            raise ValueError(
+                f"--prediction-display-domain has non-numeric bounds: {raw_domain!r}"
+            ) from exc
+        if not np.isfinite(low) or not np.isfinite(high) or low >= high:
+            raise ValueError(
+                "--prediction-display-domain bounds must be finite and min < max, "
+                f"got {raw_domain!r}"
+            )
+        key = (problem, field)
+        if key in domains:
+            raise ValueError(f"Duplicate --prediction-display-domain for {problem}:{field}")
+        domains[key] = [float(low), float(high)]
+    return domains
+
+
+def field_display_domain(
+    problem: str,
+    field: str,
+    fallback_domain: list[float],
+    overrides: PredictionDisplayDomains,
+    used_overrides: set[tuple[str, str]] | None = None,
+) -> list[float]:
+    key = (problem, field)
+    if field.startswith("pred_output_") and key in overrides:
+        if used_overrides is not None:
+            used_overrides.add(key)
+        return list(overrides[key])
+    return fallback_domain
 
 
 def quantize_uint16_linear(
@@ -1232,6 +1295,13 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
                 raster_values.reshape(raster_grid.height, raster_grid.width),
                 raster_grid.mask,
             )
+            display_domain = field_display_domain(
+                run.problem,
+                name,
+                display_domain,
+                getattr(args, "prediction_display_domain_overrides", {}),
+                getattr(args, "used_prediction_display_domain_overrides", None),
+            )
             entry["raster"] = write_array(
                 out_dir,
                 f"arrays/{name}_raster.u16",
@@ -1372,6 +1442,13 @@ def main() -> None:
         raise SystemExit("--n-candidate must be >= 1")
     if args.n_train is not None and args.n_train < 1:
         raise SystemExit("--n-train must be >= 1")
+    try:
+        args.prediction_display_domain_overrides = parse_prediction_display_domains(
+            args.prediction_display_domain
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    args.used_prediction_display_domain_overrides = set()
     bundle_budget_bytes = int(args.bundle_size_budget_mb) * 1024 * 1024
 
     args.data_root = Path(__file__).resolve().parent.parent / "raw_data"
@@ -1426,6 +1503,12 @@ def main() -> None:
         "bundle_report": "bundle_report.json",
         "problems": problem_entries,
     }
+    unused_overrides = sorted(
+        set(args.prediction_display_domain_overrides)
+        - set(args.used_prediction_display_domain_overrides)
+    )
+    for problem, field in unused_overrides:
+        print(f"WARNING: unused prediction display-domain override: {problem}:{field}")
     write_json(args.out_root / "index.json", index)
     report = build_bundle_report(args.out_root, bundle_budget_bytes)
     write_json(args.out_root / "bundle_report.json", report)

@@ -44,46 +44,53 @@ Currently deployed at `neurapy.github.io`.
 Pushed Changes automatically update deployment.
 
 On Every push Github:
+
 1. installs the frontend dependencies from `webdemo/package-lock.json`,
 2. builds the static app with `npm --prefix webdemo run build`,
 3. uploads only `webdemo/dist/` to GitHub Pages.
 
 Manual Deployment
+
 ```bash
 make deploy
 ```
 
 Check the deployment:
+
 ```bash
 make deploy-status
 make deploy-watch
 ```
 
 Print the command to disable GitHub Pages:
+
 ```bash
 make undeploy
 ```
+
 #### Deploy in different Repo
 
 1. Have `gh` installed and authenticated.
 2. Create new Repo
 3. Add upstream
+
 ```bash
 git remote add newrepo git@github.com:OWNER/REPO.git
 git push newrepo main
 ```
-4. Enable pages
+1. Enable pages
+
 ```bash
 gh api --method POST repos/OWNER/REPO/pages -f build_type=workflow # If Pages are set up but configured differently for the repo use PUSH instead of POST
 ```
-5. Change `PAGES_REPO` in the `Makefile`
-6. `Make deploy`
+1. Change `PAGES_REPO` in the `Makefile`
+2. `Make deploy`
 
 (Or just do it manually in the Web. Didn't work for me, however.)
 
 ## Generate Data from raw_data
 
-If you have `raw_data/` but `webdemo/public/data` is missing: 
+If you have `raw_data/` but `webdemo/public/data` is missing:
 
 ```bash
 rm -rf webdemo/public/data
@@ -113,9 +120,12 @@ uv run python src/build_static_demo_data.py \
 make verify-data # Verification step
 ```
 
+Update: Do it with `download_model_zoo_data.sh --build-only` for correct ranges.
+
 ## No Raw Data?
 
 Expected in `($"PROJECT_ROOT")/raw_data/` are paired folders like `allen_cahn_float64_good` and `allen_cahn_float64_bad`, which have to contain:
+
 ```path
 ..._influence_scores/
 ..._validation/
@@ -126,16 +136,17 @@ There is also a script to automatically download those from my folder from the `
 
 Have fun on ICML
 
-
 ---
 
 # Notes
 
 ## Schreiben an Aleks
+
 - Schick mir bitte die Folder names mit GOOD and BAD model. Und falls es gibt, zu diesen Modellen auch aufgesplittet nach den IC Gesplitteten Graphs. (Falls es sie nicht gibt, generiere ich sie selbst.)
 
 ## TODOS nach ALeks quatschen
-- Aleks schickt mir Folder names für GOOD und BAD model. 
+
+- Aleks schickt mir Folder names für GOOD und BAD model.
 -> Neue Daten Generieren
 -> Good / Bad switcher in der TOP BAR
 - Kontur in Train rein
@@ -148,7 +159,5 @@ Have fun on ICML
 - Axis Labels und Colorbar
 - When you click outside the Graph, select a Boundary Point!!
 - Extra selector to not increase Influence points in size.
-
-
 
 - Manchmal clustern Influences an bestimmten regionen von boundaries. Wieso?

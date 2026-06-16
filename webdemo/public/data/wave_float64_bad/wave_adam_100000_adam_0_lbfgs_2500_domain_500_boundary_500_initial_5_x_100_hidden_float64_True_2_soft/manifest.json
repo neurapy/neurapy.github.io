@@ -1,11 +1,11 @@
 {
   "arrays": {
     "candidate_points": {
-      "bytes": 2400,
+      "bytes": 4000,
       "dtype": "float32",
       "path": "arrays/candidate_points.f32",
       "shape": [
-        300,
+        500,
         2
       ]
     },
@@ -63,7 +63,7 @@
     ]
   },
   "default_field": "pred_output_0",
-  "default_matrix": "influences_total_loss_total_loss",
+  "default_matrix": "influences_total_loss_output_0",
   "display_name": "Wave",
   "errors": [],
   "field_raster": {
@@ -129,8 +129,8 @@
     },
     "pred_output_0": {
       "display_domain": [
-        -0.9299588799476624,
-        0.9334641396999359
+        -1.25,
+        1.25
       ],
       "encoding": {
         "kind": "linear",
@@ -152,11 +152,11 @@
     }
   },
   "folder": "wave_float64_bad",
-  "generated_at": "2026-06-12T23:54:20+0200",
+  "generated_at": "2026-06-16T15:51:55+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
-        300,
+        500,
         2
       ],
       "display_label": "PINNfluence / total loss -> output 0",
@@ -170,7 +170,7 @@
       "num_bcs": 4,
       "num_pdes": 1,
       "right_term": "total_loss",
-      "row_count": 300,
+      "row_count": 500,
       "row_source": "candidate_points",
       "score_layout": {
         "data_offset_bytes": 0,
@@ -178,16 +178,16 @@
         "row_stride_bytes": 14000
       },
       "scores": {
-        "bytes": 4200000,
+        "bytes": 7000000,
         "dtype": "float32",
         "path": "influence/influences_total_loss_output_0/scores.f32",
         "shape": [
-          300,
+          500,
           3500
         ]
       },
       "scores_shape": [
-        300,
+        500,
         3500
       ],
       "self_influence": false,
@@ -202,7 +202,7 @@
     },
     {
       "candidate_points_shape": [
-        300,
+        500,
         2
       ],
       "display_label": "PINNfluence / total loss -> total loss",
@@ -216,7 +216,7 @@
       "num_bcs": 4,
       "num_pdes": 1,
       "right_term": "total_loss",
-      "row_count": 300,
+      "row_count": 500,
       "row_source": "candidate_points",
       "score_layout": {
         "data_offset_bytes": 0,
@@ -224,16 +224,16 @@
         "row_stride_bytes": 14000
       },
       "scores": {
-        "bytes": 4200000,
+        "bytes": 7000000,
         "dtype": "float32",
         "path": "influence/influences_total_loss_total_loss/scores.f32",
         "shape": [
-          300,
+          500,
           3500
         ]
       },
       "scores_shape": [
-        300,
+        500,
         3500
       ],
       "self_influence": false,
@@ -250,7 +250,7 @@
   "matrix_mode": "core",
   "max_local_influence_points": 3500,
   "model_quality": "bad",
-  "n_candidate": 300,
+  "n_candidate": 500,
   "n_outputs": 1,
   "n_train": 3500,
   "num_bcs": 4,
