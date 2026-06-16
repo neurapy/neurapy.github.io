@@ -1,32 +1,35 @@
 :root {
   color-scheme: light;
-  --bg: #e9eff5;
-  --bg-top: #f9fbfd;
-  --bg-mid: #eef5f4;
-  --bg-bottom: #e7edf3;
+  --bg: #ffffff;
+  --bg-top: #ffffff;
+  --bg-mid: #f4f4f5;
+  --bg-bottom: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f7fafc;
-  --surface-3: #edf3f8;
-  --surface-glass: rgba(255, 255, 255, 0.88);
-  --plot-bg: #f7fafc;
-  --plot-stage: #eef3f8;
-  --text: #111827;
-  --muted: #5b6878;
-  --line: #cfd9e6;
-  --line-strong: #b9c7d8;
-  --axis: #7d8b9a;
-  --accent: #087f7c;
-  --accent-strong: #066361;
-  --accent-soft: #e2f1f0;
-  --accent-glow: rgba(8, 127, 124, 0.18);
+  --surface-2: #f4f4f5;
+  --surface-3: #ebf5f5;
+  --surface-glass: #ffffff;
+  --plot-bg: #f6f9fc;
+  --plot-stage: #f4f6f8;
+  --text: #555555;
+  --text-strong: #17202a;
+  --muted: #66717a;
+  --line: #c7cacc;
+  --line-strong: #9ea5aa;
+  --axis: #6b747c;
+  --accent: #1f82c0;
+  --accent-strong: #0d5f90;
+  --accent-soft: #eaf4fa;
+  --accent-glow: rgba(31, 130, 192, 0.14);
+  --hhi-green: #009474;
+  --hhi-green-hover: #66bfac;
+  --hhi-green-soft: #ebf5f5;
+  --hhi-logo-green: #179c7d;
   --danger: #a52731;
-  --gold: #e9a82f;
-  --gold-soft: #fff5db;
-  --shadow: 0 18px 42px rgba(24, 34, 48, 0.11), 0 1px 0 rgba(255, 255, 255, 0.72) inset;
-  --shadow-soft: 0 8px 22px rgba(24, 34, 48, 0.08);
+  --shadow: none;
+  --shadow-soft: none;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    FrutigerLTW02, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 200;
 }
 
 * {
@@ -40,15 +43,14 @@
 body {
   margin: 0;
   min-height: 100svh;
-  background:
-    linear-gradient(160deg, var(--bg-top) 0%, var(--bg-mid) 48%, var(--bg-bottom) 100%);
+  background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(8, 127, 124, 0.18);
+  background: rgba(0, 148, 116, 0.18);
 }
 
 button,
@@ -63,8 +65,9 @@ button {
 }
 
 .app-shell {
-  width: 100vw;
+  width: min(100vw, 1440px);
   max-width: 100vw;
+  margin: 0 auto;
   overflow: hidden;
   height: 100svh;
   min-height: 100svh;
@@ -74,30 +77,51 @@ button {
 
 .topbar {
   grid-row: 1;
-  width: 100vw;
-  min-height: 64px;
+  width: 100%;
+  min-height: 82px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 10px 18px;
-  border-bottom: 1px solid rgba(185, 199, 216, 0.82);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 252, 0.9));
-  backdrop-filter: blur(14px) saturate(1.08);
-  box-shadow:
-    0 14px 30px rgba(24, 34, 48, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.88) inset;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: none;
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
+.brand-lockup {
+  flex: 1 1 380px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hhi-logo {
+  flex: 0 0 auto;
+  width: clamp(164px, 18vw, 214px);
+  max-width: 42vw;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.hhi-logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .topbar-copy {
-  flex: 1 1 260px;
+  flex: 1 1 180px;
   min-width: 0;
   display: grid;
   gap: 3px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
 }
 
 h1,
@@ -107,15 +131,17 @@ p {
 }
 
 h1 {
+  color: var(--accent);
   font-size: 22px;
-  font-weight: 760;
+  font-weight: 400;
   line-height: 1.1;
   letter-spacing: 0;
 }
 
 h2 {
+  color: var(--accent);
   font-size: 15px;
-  font-weight: 720;
+  font-weight: 400;
   line-height: 1.15;
   letter-spacing: 0;
 }
@@ -150,26 +176,29 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
+  padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  color: #526172;
-  font-size: 12px;
-  font-weight: 730;
+  border-radius: 0;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
   line-height: 1;
   text-decoration: none;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .topbar-link:hover,
 .topbar-link:focus-visible {
-  border-color: rgba(8, 127, 124, 0.2);
-  background: rgba(226, 241, 240, 0.84);
-  color: var(--accent-strong);
+  border-color: var(--hhi-green);
+  background: var(--hhi-green);
+  color: #ffffff;
+  text-decoration: none;
 }
 
 .topbar-link:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--hhi-green);
   outline-offset: 2px;
 }
 
@@ -186,8 +215,10 @@ h2 {
   display: grid;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
 }
 
 .problem-control {
@@ -203,8 +234,10 @@ label {
   display: grid;
   gap: 4px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
 }
 
 select,
@@ -215,34 +248,31 @@ input[type="range"] {
 select {
   min-height: 34px;
   padding: 0 32px 0 10px;
-  border: 1px solid rgba(185, 199, 216, 0.92);
-  border-radius: 7px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   appearance: none;
   background:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 13px center / 5px 5px no-repeat,
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 8px center / 5px 5px no-repeat,
-    linear-gradient(180deg, #ffffff, #f9fbfd);
-  color: var(--text);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 1px 2px rgba(24, 34, 48, 0.04);
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) right 13px center / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) right 8px center / 5px 5px no-repeat,
+    var(--surface);
+  color: var(--accent);
+  box-shadow: none;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   transition:
     border-color 140ms ease,
-    box-shadow 140ms ease,
     background-color 140ms ease;
 }
 
 select:hover {
-  border-color: var(--line-strong);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.86) inset,
-    0 4px 12px rgba(24, 34, 48, 0.06);
+  border-color: var(--hhi-green);
+  color: var(--hhi-green);
 }
 
 select:focus-visible,
 button:focus-visible,
 input[type="range"]:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--hhi-green);
   outline-offset: 2px;
 }
 
@@ -251,19 +281,14 @@ input[type="range"]:focus-visible {
   height: 34px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(185, 199, 216, 0.95);
-  border-radius: 7px;
-  background: linear-gradient(180deg, #ffffff, #f8fbfd);
-  color: var(--text);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.86) inset,
-    0 1px 3px rgba(24, 34, 48, 0.08);
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: none;
   transition:
     background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    color 120ms ease;
 }
 
 .icon-button svg {
@@ -277,27 +302,18 @@ input[type="range"]:focus-visible {
 }
 
 .icon-button:hover {
-  border-color: var(--accent);
-  background: linear-gradient(180deg, #eff8f7, #e3f2f1);
-  color: var(--accent-strong);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 8px 20px var(--accent-glow);
-  transform: translateY(-1px);
-}
-
-.icon-button:active {
-  transform: translateY(0);
+  background: var(--hhi-green);
+  color: #ffffff;
 }
 
 .message {
   grid-row: 2;
   margin: 10px 18px 0;
   padding: 10px 12px;
-  border: 1px solid rgba(241, 198, 201, 0.95);
-  background: linear-gradient(180deg, #fff7f8, #fff1f2);
+  border: 1px solid var(--danger);
+  background: #fff7f8;
   color: var(--danger);
-  border-radius: 7px;
+  border-radius: 0;
   font-size: 13px;
   box-shadow: var(--shadow-soft);
 }
@@ -312,10 +328,9 @@ input[type="range"]:focus-visible {
 }
 
 .plot-panel {
-  border: 1px solid rgba(191, 205, 221, 0.92);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(249, 251, 253, 0.98));
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 0;
   box-shadow: var(--shadow);
 }
 
@@ -324,31 +339,32 @@ input[type="range"]:focus-visible {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  padding: 3px;
-  border: 1px solid rgba(191, 205, 221, 0.95);
-  border-radius: 7px;
-  background:
-    linear-gradient(180deg, rgba(237, 243, 248, 0.88), rgba(227, 236, 244, 0.88));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 1px 2px rgba(24, 34, 48, 0.04);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .segmented button {
   min-width: 0;
-  min-height: 26px;
+  min-height: 30px;
   padding: 0 9px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 720;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
   transition:
     background-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    color 120ms ease;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--line);
 }
 
 .quality-switch {
@@ -356,21 +372,14 @@ input[type="range"]:focus-visible {
 }
 
 .segmented button.active {
-  background:
-    linear-gradient(180deg, #ffffff, #f9fbfd);
-  color: var(--accent-strong);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.86) inset,
-    0 2px 8px rgba(24, 34, 48, 0.14);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .segmented button:not(.active):hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.segmented button:active {
-  transform: translateY(1px);
+  color: #ffffff;
+  background: var(--hhi-green);
 }
 
 .plot-grid {
@@ -394,6 +403,23 @@ input[type="range"]:focus-visible {
   position: relative;
 }
 
+.model-panel::before,
+.train-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 4;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.train-panel::before {
+  background: var(--hhi-green);
+}
+
 .plot-grid[data-layout="column"] {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -405,13 +431,12 @@ input[type="range"]:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 10px;
-  border-bottom: 1px solid rgba(207, 217, 230, 0.9);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 252, 0.92));
+  padding: 12px 10px 9px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
   position: relative;
   z-index: 3;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.86) inset;
+  box-shadow: none;
 }
 
 .plot-title-group {
@@ -467,7 +492,7 @@ input[type="range"]:focus-visible {
 .readout-label {
   flex: 0 0 auto;
   color: var(--axis);
-  font-weight: 640;
+  font-weight: 400;
   font-size: 10px;
 }
 
@@ -476,8 +501,8 @@ input[type="range"]:focus-visible {
   overflow: visible;
   text-overflow: clip;
   white-space: nowrap;
-  color: var(--text);
-  font-weight: 680;
+  color: var(--text-strong);
+  font-weight: 400;
 }
 
 .readout-point .readout-value {
@@ -503,8 +528,8 @@ input[type="range"]:focus-visible {
   display: flex;
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .plot-control select {
@@ -567,9 +592,9 @@ input[type="range"]:focus-visible {
   min-height: 30px;
   padding: 0 20px 0 7px;
   background:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 9px center / 4px 4px no-repeat,
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 5px center / 4px 4px no-repeat,
-    linear-gradient(180deg, #ffffff, #f9fbfd);
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%) right 9px center / 4px 4px no-repeat,
+    linear-gradient(135deg, var(--accent) 50%, transparent 50%) right 5px center / 4px 4px no-repeat,
+    var(--surface);
   font-size: clamp(10px, 16cqw, 12px);
   line-height: 1;
 }
@@ -597,13 +622,13 @@ input[type="range"]:focus-visible {
 .sign-control .segmented button {
   padding: 0 2px;
   font-size: clamp(8.5px, 13cqw, 10px);
-  font-weight: 760;
+  font-weight: 400;
 }
 
 .k-control output {
   width: 3ch;
   justify-self: end;
-  color: var(--text);
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -625,8 +650,7 @@ input[type="range"]:focus-visible {
 .plot-body {
   min-height: 0;
   position: relative;
-  background:
-    linear-gradient(180deg, var(--plot-bg), var(--plot-stage));
+  background: var(--plot-bg);
 }
 
 .plot-body::before {
@@ -635,8 +659,8 @@ input[type="range"]:focus-visible {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(rgba(24, 34, 48, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(24, 34, 48, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(199, 202, 204, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(199, 202, 204, 0.22) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
   opacity: 0.45;
@@ -650,7 +674,7 @@ input[type="range"]:focus-visible {
   pointer-events: none;
   z-index: 2;
   background:
-    linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.34) 46%, transparent 62%);
+    linear-gradient(100deg, transparent 0%, rgba(31, 130, 192, 0.12) 46%, transparent 62%);
   animation: loading-sheen 1050ms ease-in-out infinite;
 }
 
@@ -696,15 +720,13 @@ canvas {
   min-width: 0;
   max-width: calc(100% - 16px);
   padding: 2px 6px;
-  border: 1px solid rgba(191, 205, 221, 0.88);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--text);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.76) inset,
-    0 4px 12px rgba(24, 34, 48, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-strong);
+  box-shadow: none;
   font-size: 10px;
-  font-weight: 680;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
   overflow: hidden;
@@ -720,27 +742,24 @@ canvas {
   z-index: 4;
   max-width: min(360px, calc(100% - 32px));
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.36);
-  border-radius: 7px;
-  background:
-    linear-gradient(135deg, rgba(8, 127, 124, 0.96), rgba(21, 101, 137, 0.95));
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  background: rgba(31, 130, 192, 0.96);
   color: #ffffff;
-  box-shadow:
-    0 16px 34px rgba(8, 127, 124, 0.24),
-    0 1px 0 rgba(255, 255, 255, 0.34) inset;
-  font-size: 13px;
-  font-weight: 760;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
   line-height: 1.2;
   text-align: center;
-  text-shadow: 0 1px 1px rgba(17, 24, 39, 0.2);
+  text-shadow: none;
+  text-transform: uppercase;
   pointer-events: none;
   opacity: 0;
   transform: translate(-50%, -6px) scale(0.98);
   transition:
     opacity 420ms ease,
     transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(12px) saturate(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(1.08);
 }
 
 .model-interaction-hint[data-state="visible"] {
@@ -751,7 +770,7 @@ canvas {
 
 .axis path,
 .axis line {
-  stroke: rgba(91, 104, 120, 0.56);
+  stroke: rgba(85, 85, 85, 0.52);
   stroke-width: var(--plot-axis-stroke-width, 1px);
   shape-rendering: crispEdges;
 }
@@ -760,7 +779,7 @@ canvas {
 .colorbar-ticks text {
   fill: var(--muted);
   font-size: 10px;
-  font-weight: 620;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   paint-order: stroke fill;
   stroke: rgba(247, 250, 252, 0.86);
@@ -769,9 +788,9 @@ canvas {
 }
 
 .axis-label {
-  fill: var(--text);
+  fill: var(--text-strong);
   font-size: 11px;
-  font-weight: 720;
+  font-weight: 400;
   paint-order: stroke fill;
   stroke: rgba(247, 250, 252, 0.9);
   stroke-linejoin: round;
@@ -780,7 +799,7 @@ canvas {
 
 .axis-frame {
   fill: none;
-  stroke: rgba(91, 104, 120, 0.62);
+  stroke: rgba(85, 85, 85, 0.62);
   stroke-width: var(--plot-axis-stroke-width, 1px);
 }
 
@@ -790,12 +809,12 @@ canvas {
 
 .colorbar-frame {
   fill: none;
-  stroke: rgba(91, 104, 120, 0.62);
+  stroke: rgba(85, 85, 85, 0.62);
   stroke-width: var(--plot-axis-stroke-width, 1px);
 }
 
 .colorbar-ticks line {
-  stroke: rgba(91, 104, 120, 0.56);
+  stroke: rgba(85, 85, 85, 0.52);
   stroke-width: var(--plot-axis-stroke-width, 1px);
   shape-rendering: crispEdges;
 }
@@ -813,12 +832,12 @@ canvas {
 
 output {
   justify-self: end;
-  color: var(--text);
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
 
 input[type="range"] {
-  accent-color: var(--accent);
+  accent-color: var(--hhi-green);
   appearance: none;
   height: 28px;
   background: transparent;
@@ -831,10 +850,10 @@ input[type="range"]::-webkit-slider-runnable-track {
   background:
     linear-gradient(
       90deg,
-      var(--accent) 0%,
-      var(--accent) var(--range-progress, 10%),
-      #d7e1ec var(--range-progress, 10%),
-      #d7e1ec 100%
+      var(--hhi-green) 0%,
+      var(--hhi-green) var(--range-progress, 10%),
+      var(--line) var(--range-progress, 10%),
+      var(--line) 100%
     );
 }
 
@@ -845,7 +864,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -6px;
   border: 2px solid var(--surface);
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--hhi-green);
   box-shadow: 0 1px 4px rgba(17, 24, 39, 0.22);
 }
 
@@ -855,10 +874,10 @@ input[type="range"]::-moz-range-track {
   background:
     linear-gradient(
       90deg,
-      var(--accent) 0%,
-      var(--accent) var(--range-progress, 10%),
-      #d7e1ec var(--range-progress, 10%),
-      #d7e1ec 100%
+      var(--hhi-green) 0%,
+      var(--hhi-green) var(--range-progress, 10%),
+      var(--line) var(--range-progress, 10%),
+      var(--line) 100%
     );
 }
 
@@ -867,7 +886,7 @@ input[type="range"]::-moz-range-thumb {
   height: 14px;
   border: 2px solid var(--surface);
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--hhi-green);
   box-shadow: 0 1px 4px rgba(17, 24, 39, 0.22);
 }
 
@@ -900,8 +919,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .switch-input:checked {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--hhi-green);
+  background: var(--hhi-green);
 }
 
 .switch-input:checked::before {
@@ -909,7 +928,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .switch-input:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--hhi-green);
   outline-offset: 2px;
 }
 
@@ -928,19 +947,32 @@ input[type="range"]::-moz-range-thumb {
     align-items: stretch;
     flex-direction: column;
     gap: 6px;
-    padding: 8px 10px;
+    min-height: auto;
+    padding: 10px;
+  }
+
+  .brand-lockup {
+    width: 100%;
+    flex: none;
+    gap: 10px;
+  }
+
+  .hhi-logo {
+    width: min(148px, 40vw);
+    max-width: 40vw;
   }
 
   .topbar-copy {
-    width: 100%;
-    flex: none;
-    grid-template-columns: auto minmax(0, 1fr);
+    width: auto;
+    flex: 1 1 0;
+    grid-template-columns: minmax(0, 1fr);
     align-items: baseline;
-    gap: 2px 8px;
+    gap: 2px;
+    padding-left: 10px;
   }
 
   h1 {
-    font-size: 18px;
+    font-size: 17px;
   }
 
   h2 {
@@ -974,7 +1006,7 @@ input[type="range"]::-moz-range-thumb {
   .topbar-link {
     min-height: 25px;
     padding: 0 6px;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .topbar-controls {
@@ -1010,8 +1042,8 @@ input[type="range"]::-moz-range-thumb {
     padding-right: 28px;
     padding-left: 8px;
     background:
-      linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 12px center / 5px 5px no-repeat,
-      linear-gradient(135deg, var(--muted) 50%, transparent 50%) right 7px center / 5px 5px no-repeat,
+      linear-gradient(45deg, transparent 50%, var(--accent) 50%) right 12px center / 5px 5px no-repeat,
+      linear-gradient(135deg, var(--accent) 50%, transparent 50%) right 7px center / 5px 5px no-repeat,
       var(--surface);
   }
 
@@ -1040,7 +1072,7 @@ input[type="range"]::-moz-range-thumb {
 
   .plot-header {
     gap: 6px;
-    padding: 6px 7px;
+    padding: 9px 7px 6px;
   }
 
   .selection-readout {

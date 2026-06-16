@@ -1,17 +1,19 @@
 :root {
   color-scheme: light;
-  --bg: #f4f6f8;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #edf1f5;
-  --text: #17202a;
-  --muted: #647282;
-  --line: #d7dee7;
-  --accent: #0c7c78;
-  --accent-strong: #075b58;
-  --gold: #f2b84b;
+  --surface-2: #f4f4f5;
+  --text: #555555;
+  --text-strong: #17202a;
+  --muted: #66717a;
+  --line: #c7cacc;
+  --accent: #1f82c0;
+  --accent-strong: #0d5f90;
+  --hhi-green: #009474;
+  --hhi-green-hover: #66bfac;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    FrutigerLTW02, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 200;
 }
 
 * {
@@ -31,19 +33,18 @@ body {
 }
 
 a {
-  color: var(--accent-strong);
+  color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 
 a:hover {
-  color: var(--accent);
+  color: var(--hhi-green);
 }
 
 .legal-topbar {
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(10px);
+  background: var(--surface);
 }
 
 .legal-topbar-inner {
@@ -58,11 +59,27 @@ a:hover {
 
 .legal-brand {
   min-width: 0;
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 760;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 400;
   letter-spacing: 0;
   text-decoration: none;
+}
+
+.legal-brand img {
+  width: 178px;
+  max-width: 42vw;
+  height: auto;
+  display: block;
+}
+
+.legal-brand span {
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  line-height: 1.1;
 }
 
 .legal-links {
@@ -80,24 +97,26 @@ a:hover {
   justify-content: center;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 720;
+  border-radius: 0;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.075em;
   line-height: 1;
   text-decoration: none;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .legal-link:hover,
 .legal-link:focus-visible {
-  border-color: var(--line);
-  background: var(--surface-2);
-  color: var(--accent-strong);
+  border-color: var(--hhi-green);
+  background: var(--hhi-green);
+  color: #ffffff;
 }
 
 .legal-link:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--hhi-green);
   outline-offset: 2px;
 }
 
@@ -110,9 +129,9 @@ a:hover {
 .legal-content {
   padding: 34px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--surface);
-  box-shadow: 0 10px 26px rgba(25, 38, 52, 0.08);
+  box-shadow: none;
 }
 
 h1,
@@ -124,9 +143,11 @@ p {
 
 h1 {
   margin-bottom: 8px;
+  color: var(--accent);
   font-size: 30px;
   line-height: 1.15;
   letter-spacing: 0;
+  font-weight: 400;
 }
 
 .legal-subtitle {
@@ -139,9 +160,11 @@ h2 {
   margin-top: 34px;
   padding-top: 24px;
   border-top: 1px solid var(--line);
+  color: var(--accent);
   font-size: 20px;
   line-height: 1.25;
   letter-spacing: 0;
+  font-weight: 400;
 }
 
 h1 + h2,
@@ -151,9 +174,11 @@ h1 + h2,
 
 h3 {
   margin-top: 24px;
+  color: var(--accent);
   font-size: 16px;
   line-height: 1.35;
   letter-spacing: 0;
+  font-weight: 400;
 }
 
 p,
@@ -171,15 +196,16 @@ li + li {
 }
 
 strong {
-  font-weight: 760;
+  color: var(--text-strong);
+  font-weight: 400;
 }
 
 .toc {
   margin: 26px 0 8px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fbfcfd;
+  border-radius: 0;
+  background: var(--surface-2);
 }
 
 .toc h2 {
@@ -207,9 +233,9 @@ strong {
 .notice-box {
   margin-top: 18px;
   padding: 16px;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: #f0faf8;
+  border: 1px solid var(--hhi-green);
+  border-radius: 0;
+  background: #ebf5f5;
 }
 
 .section:first-child h2 {
@@ -221,6 +247,18 @@ strong {
     align-items: flex-start;
     flex-direction: column;
     padding: 12px;
+  }
+
+  .legal-brand {
+    gap: 10px;
+  }
+
+  .legal-brand img {
+    width: min(152px, 44vw);
+  }
+
+  .legal-brand span {
+    padding-left: 10px;
   }
 
   .legal-links {
