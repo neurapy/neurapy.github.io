@@ -159,7 +159,7 @@ export class AppController {
       this.populateProblemSelect();
       const firstProblem = firstAvailableProblem(this.index);
       if (!firstProblem) {
-        throw new Error("No complete v7 problem manifest is available");
+        throw new Error("No complete schema-v8 problem manifest is available");
       }
       this.store.dispatch({ type: "problem", problem: firstProblem.problem });
       this.dom.problemSelect.value = firstProblem.problem;
@@ -634,7 +634,6 @@ export class AppController {
     const context = this.context();
     if (!context) return;
     const candidateDim = this.manifest.arrays.candidate_points.shape[1] ?? 2;
-    const trainDim = this.manifest.arrays.train_points.shape[1] ?? 2;
     const candidateIndex = clampIndex(0, this.manifest.n_candidate);
     const coord = pointAt(this.points.candidate_points, candidateIndex, candidateDim);
     const displayCoord = this.projectedMainPoint(coord, context);
@@ -820,7 +819,6 @@ export class AppController {
     return {
       fieldId: this.store.state.fieldId,
       matrixId: this.store.state.matrixId,
-      sign: this.store.state.sign,
       selectedCandidateIndex: this.store.state.selectedCandidateIndex,
       selectedTrainIndex: this.store.state.selectedTrainIndex,
       selectionMode: this.store.state.selectionMode,

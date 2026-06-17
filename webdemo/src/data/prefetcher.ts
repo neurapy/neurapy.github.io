@@ -1,7 +1,6 @@
 import type {
   ArraySpec,
   InfluenceMatrixManifest,
-  InfluenceSign,
   RunManifest,
   SelectionMode,
 } from "../types";
@@ -12,7 +11,6 @@ const INFLUENCE_PREFETCH_BLOCK_BYTES = 256 * 1024;
 export interface PrefetchContext {
   fieldId: string | null;
   matrixId: string | null;
-  sign: InfluenceSign;
   selectedCandidateIndex: number;
   selectedTrainIndex: number;
   selectionMode?: SelectionMode;
@@ -25,7 +23,6 @@ export interface ArrayPrefetchTask {
   kind: "array";
   key: string;
   spec: ArraySpec;
-  label: string;
   rank: number;
   sequence: number;
 }
@@ -36,14 +33,12 @@ export interface InfluenceRowsPrefetchTask {
   matrix: InfluenceMatrixManifest;
   rowStart: number;
   rowCount: number;
-  label: string;
   rank: number;
   sequence: number;
 }
 
 export class RunPrefetcher {
   private readonly attempted = new Set<string>();
-  private readonly failed = new Set<string>();
   private queue: PrefetchTask[] = [];
   private generation = 0;
   private pumping = false;
@@ -53,14 +48,6 @@ export class RunPrefetcher {
     private readonly repo: DataRepository,
     private readonly manifest: RunManifest,
   ) {}
-
-  get attemptedCount(): number {
-    return this.attempted.size;
-  }
-
-  get failedCount(): number {
-    return this.failed.size;
-  }
 
   update(context: PrefetchContext): void {
     this.queue = planRunPrefetchTasks(this.manifest, context).filter(
@@ -104,7 +91,6 @@ export class RunPrefetcher {
           }
         } catch {
           if (generation !== this.generation) return;
-          this.failed.add(task.key);
         }
       }
     } finally {
@@ -135,12 +121,12 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
   const seen = new Set<string>();
   let sequence = 0;
 
-  const addArray = (spec: ArraySpec | undefined, rank: number, label: string) => {
+  const addArray = (spec: ArraySpec | undefined, rank: number) => {
     if (!spec) return;
     const key = arraySpecKey(spec);
     if (seen.has(key)) return;
     seen.add(key);
-    tasks.push({ kind: "array", key, spec, label, rank, sequence: sequence++ });
+    tasks.push({ kind: "array", key, spec, rank, sequence: sequence++ });
   };
 
   const addInfluenceRows = (
@@ -148,7 +134,6 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
     rowStart: number,
     rowCount: number,
     rank: number,
-    label: string,
   ) => {
     if (rowCount <= 0) return;
     const key = `influence:${matrix.id}:${matrix.scores.path}:${rowStart}:${rowCount}`;
@@ -160,17 +145,16 @@ export function planRunPrefetchTasks(manifest: RunManifest, context: PrefetchCon
       matrix,
       rowStart,
       rowCount,
-      label,
       rank,
       sequence: sequence++,
     });
   };
 
-  addArray(manifest.field_raster?.mask, 0, "field-raster-mask");
+  addArray(manifest.field_raster?.mask, 0);
 
   for (const [fieldId, field] of Object.entries(manifest.fields)) {
     const rank = fieldId === context.fieldId ? 1 : 10;
-    addArray(field.raster, rank, `field:${fieldId}`);
+    addArray(field.raster, rank);
   }
 
   for (const matrix of manifest.influence_matrices) {
@@ -187,7 +171,6 @@ function addMatrixRowTasks(
     rowStart: number,
     rowCount: number,
     rank: number,
-    label: string,
   ) => void,
   matrix: InfluenceMatrixManifest,
   context: PrefetchContext,
@@ -204,7 +187,7 @@ function addMatrixRowTasks(
     const rowCount = Math.min(rowsPerBlock, matrix.row_count - rowStart);
     const distance = chunkDistanceToRows(rowStart, rowCount, selectedRows);
     const rank = selectedMatrix ? 30 + Math.min(distance, 10_000) : 100 + blockId;
-    add(matrix, rowStart, rowCount, rank, `influence:${matrix.id}:${rowStart}:${rowCount}`);
+    add(matrix, rowStart, rowCount, rank);
   }
 }
 

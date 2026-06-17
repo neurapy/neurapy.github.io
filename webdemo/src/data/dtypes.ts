@@ -15,10 +15,6 @@ type TypedArrayConstructor =
   | Uint8ArrayConstructor
   | Int16ArrayConstructor;
 
-export function dtypeBytes(dtype: DType): number {
-  return DTYPE_CTORS[dtype].BYTES_PER_ELEMENT;
-}
-
 export function arrayElementCount(shape: number[]): number {
   return shape.reduce((acc, value) => acc * value, 1);
 }
@@ -38,12 +34,4 @@ export function assertDType(spec: ArraySpec, dtype: DType): void {
   if (spec.dtype !== dtype) {
     throw new Error(`${spec.path}: expected ${dtype}, got ${spec.dtype}`);
   }
-}
-
-export async function fetchArrayBuffer(url: URL, signal?: AbortSignal): Promise<ArrayBuffer> {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}: ${url.toString()}`);
-  }
-  return response.arrayBuffer();
 }

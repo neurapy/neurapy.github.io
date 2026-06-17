@@ -7,7 +7,6 @@ import type {
   PointArrays,
   Priority,
   RasterData,
-  RasterFieldManifest,
   RunManifest,
   TypedArray,
 } from "../types";
@@ -311,14 +310,6 @@ export class DataRepository {
   }
 }
 
-export function dequantizeInt16Values(values: Int16Array, scale: number): Float32Array {
-  const out = new Float32Array(values.length);
-  for (let index = 0; index < values.length; index += 1) {
-    out[index] = values[index] * scale;
-  }
-  return out;
-}
-
 function aggregateContribution(value: number, sign: InfluenceSign): number {
   if (sign === "abs") return value;
   if (sign === "pos") return value > 0 ? value : 0;
@@ -364,14 +355,41 @@ function topKDenseRow(
   sign: InfluenceSign,
   k: number,
 ): { indices: Uint32Array; values: Float32Array } {
-  const entries = Array.from(row, (value, index) => ({ index, value }));
-  entries.sort((a, b) => compareDenseEntries(a, b, sign));
-  const count = Math.min(Math.max(0, Math.trunc(k)), entries.length);
-  const topEntries = entries.slice(0, count);
+  const count = Math.min(Math.max(0, Math.trunc(k)), row.length);
+  if (count === 0) {
+    return { indices: new Uint32Array(0), values: new Float32Array(0) };
+  }
+  const topEntries: Array<{ index: number; value: number }> = [];
+  for (let index = 0; index < row.length; index += 1) {
+    const entry = { index, value: row[index] };
+    if (topEntries.length < count) {
+      insertDenseEntry(topEntries, entry, sign);
+      continue;
+    }
+    if (compareDenseEntries(entry, topEntries[topEntries.length - 1], sign) < 0) {
+      insertDenseEntry(topEntries, entry, sign);
+      topEntries.pop();
+    }
+  }
   return {
     indices: Uint32Array.from(topEntries, (entry) => entry.index),
     values: Float32Array.from(topEntries, (entry) => entry.value),
   };
+}
+
+function insertDenseEntry(
+  entries: Array<{ index: number; value: number }>,
+  entry: { index: number; value: number },
+  sign: InfluenceSign,
+): void {
+  let insertAt = entries.length;
+  for (let index = 0; index < entries.length; index += 1) {
+    if (compareDenseEntries(entry, entries[index], sign) < 0) {
+      insertAt = index;
+      break;
+    }
+  }
+  entries.splice(insertAt, 0, entry);
 }
 
 function compareDenseEntries(
@@ -382,15 +400,4 @@ function compareDenseEntries(
   if (sign === "neg") return a.value - b.value || a.index - b.index;
   if (sign === "pos") return b.value - a.value || a.index - b.index;
   return Math.abs(b.value) - Math.abs(a.value) || a.index - b.index;
-}
-
-export function dequantizeUint16Raster(values: Uint16Array, field: RasterFieldManifest): Float32Array {
-  const out = new Float32Array(values.length);
-  const missing = field.encoding.missing ?? 65535;
-  const span = field.encoding.max - field.encoding.min || 1;
-  for (let index = 0; index < values.length; index += 1) {
-    const q = values[index];
-    out[index] = q === missing ? Number.NaN : field.encoding.min + (q / 65534) * span;
-  }
-  return out;
 }

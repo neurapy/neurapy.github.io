@@ -1,5 +1,6 @@
 import { contours, interpolateTurbo } from "d3";
 import type { LinearEncoding } from "../types";
+import { dequantizeUint16Linear } from "../data/dequantize";
 
 export interface RasterWorkerRequest {
   requestId: number;
@@ -23,20 +24,6 @@ export interface RasterWorkerResponse {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
-}
-
-function dequantize(request: RasterWorkerRequest): Float32Array {
-  const decoded = new Float32Array(request.values.length);
-  const missing = request.encoding.missing ?? 65535;
-  const span = request.encoding.max - request.encoding.min || 1;
-  for (let index = 0; index < request.values.length; index += 1) {
-    const q = request.values[index];
-    decoded[index] =
-      q === missing || request.mask[index] === 0
-        ? Number.NaN
-        : request.encoding.min + (q / 65534) * span;
-  }
-  return decoded;
 }
 
 function colorize(decoded: Float32Array, request: RasterWorkerRequest): Uint8ClampedArray {
@@ -93,7 +80,7 @@ function buildContourPaths(decoded: Float32Array, request: RasterWorkerRequest):
 
 self.onmessage = (event: MessageEvent<RasterWorkerRequest>) => {
   const request = event.data;
-  const decoded = dequantize(request);
+  const decoded = dequantizeUint16Linear(request.values, request.encoding, request.mask);
   const rgba = colorize(decoded, request);
   const [contourValues, contourPaths] = buildContourPaths(decoded, request);
   const response: RasterWorkerResponse = {

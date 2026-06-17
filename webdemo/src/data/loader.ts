@@ -137,11 +137,6 @@ export class PriorityLoader {
     }
   }
 
-  pendingCount(priority?: Priority): number {
-    if (priority) return this.queues[priority].length + this.active[priority].size;
-    return this.pendingCount("foreground") + this.pendingCount("background");
-  }
-
   private pump(): void {
     this.startAvailable("foreground");
     if (this.queues.foreground.length || this.active.foreground.size) return;

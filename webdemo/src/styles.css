@@ -364,6 +364,12 @@ input[type="range"]:focus-visible {
 }
 
 .plot-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  position: relative;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 0;
@@ -428,15 +434,6 @@ input[type="range"]:focus-visible {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
-}
-
-.plot-panel {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-  position: relative;
 }
 
 .model-panel::before,
@@ -783,6 +780,11 @@ canvas {
 }
 
 .results-panel {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 0;
@@ -799,14 +801,6 @@ canvas {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-}
-
-.results-panel {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
 }
 
 .results-panel-wide {
@@ -1113,48 +1107,6 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   background: var(--hhi-green);
   box-shadow: 0 1px 4px rgba(17, 24, 39, 0.22);
-}
-
-.switch-input {
-  appearance: none;
-  width: 38px;
-  height: 22px;
-  margin: 0;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface-2);
-  cursor: pointer;
-  position: relative;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
-}
-
-.switch-input::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 1px 3px rgba(25, 38, 52, 0.22);
-  transition: transform 120ms ease;
-}
-
-.switch-input:checked {
-  border-color: var(--hhi-green);
-  background: var(--hhi-green);
-}
-
-.switch-input:checked::before {
-  transform: translateX(16px);
-}
-
-.switch-input:focus-visible {
-  outline: 2px solid var(--hhi-green);
-  outline-offset: 2px;
 }
 
 @media (max-width: 1280px) {

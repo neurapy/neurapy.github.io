@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DataRepository, dequantizeUint16Raster } from "../src/data/arrays";
+import { DataRepository } from "../src/data/arrays";
 import { LruCache } from "../src/data/cache";
+import { dequantizeUint16Linear } from "../src/data/dequantize";
 import {
   assertV8Index,
   assertV8RunManifest,
@@ -230,13 +231,18 @@ describe("typed array validation", () => {
 });
 
 describe("quantized data helpers", () => {
-  it("dequantizes uint16 raster grids and preserves missing values", () => {
-    const decoded = dequantizeUint16Raster(new Uint16Array([0, 32767, 65534, 65535]), manifest.fields.pred_output_0);
+  it("dequantizes uint16 raster grids and preserves missing and masked values", () => {
+    const decoded = dequantizeUint16Linear(
+      new Uint16Array([0, 32767, 65534, 42, 65535]),
+      manifest.fields.pred_output_0.encoding,
+      new Uint8Array([1, 1, 1, 0, 1]),
+    );
 
     expect(decoded[0]).toBeCloseTo(-1);
     expect(decoded[1]).toBeCloseTo(0, 4);
     expect(decoded[2]).toBeCloseTo(1);
     expect(Number.isNaN(decoded[3])).toBe(true);
+    expect(Number.isNaN(decoded[4])).toBe(true);
   });
 });
 
@@ -250,6 +256,48 @@ describe("dense influence row lookup", () => {
     expect(Array.from(row.values)).toEqual([expect.closeTo(0.5), expect.closeTo(0.2)]);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(fetchRangeHeader(0)).toBe("bytes=12-23");
+  });
+
+  it("orders dense row top-k entries by selected sign and clamps to the row length", async () => {
+    installScoreFetch(new Float32Array([0.3, -0.5, 0.5, 2, -1, 0]));
+    const matrix = { ...manifest.influence_matrices[0], k: 10 };
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const abs = await repo.loadInfluenceRow(matrix, "abs", 0);
+    const pos = await repo.loadInfluenceRow(matrix, "pos", 0);
+    const neg = await repo.loadInfluenceRow(matrix, "neg", 0);
+
+    expect(Array.from(abs.indices)).toEqual([1, 2, 0]);
+    expect(Array.from(abs.values)).toEqual([
+      expect.closeTo(-0.5),
+      expect.closeTo(0.5),
+      expect.closeTo(0.3),
+    ]);
+    expect(Array.from(pos.indices)).toEqual([2, 0, 1]);
+    expect(Array.from(pos.values)).toEqual([
+      expect.closeTo(0.5),
+      expect.closeTo(0.3),
+      expect.closeTo(-0.5),
+    ]);
+    expect(Array.from(neg.indices)).toEqual([1, 0, 2]);
+    expect(Array.from(neg.values)).toEqual([
+      expect.closeTo(-0.5),
+      expect.closeTo(0.3),
+      expect.closeTo(0.5),
+    ]);
+    expect(abs.indices).toHaveLength(3);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("orders dense row top-k ties by train index", async () => {
+    installScoreFetch(new Float32Array([0.5, -0.5, 0.5, 0, 0, 0]));
+    const matrix = { ...manifest.influence_matrices[0], k: 2 };
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const row = await repo.loadInfluenceRow(matrix, "abs", 0);
+
+    expect(Array.from(row.indices)).toEqual([0, 1]);
+    expect(Array.from(row.values)).toEqual([expect.closeTo(0.5), expect.closeTo(-0.5)]);
   });
 
   it("can share decoded score rows across repository instances", async () => {
@@ -619,7 +667,6 @@ describe("run prefetch planner", () => {
   const context: PrefetchContext = {
     fieldId: "pred_output_0",
     matrixId: "m0",
-    sign: "abs",
     selectedCandidateIndex: 0,
     selectedTrainIndex: 0,
   };
@@ -652,14 +699,12 @@ describe("run prefetch planner", () => {
 
     prefetcher.update(context);
     await prefetcher.waitForIdle();
-    const attemptedAfterFirstPass = prefetcher.attemptedCount;
-    const failedAfterFirstPass = prefetcher.failedCount;
+    const fetchesAfterFirstPass = vi.mocked(globalThis.fetch).mock.calls.length;
 
     prefetcher.update(context);
     await prefetcher.waitForIdle();
 
-    expect(attemptedAfterFirstPass).toBeGreaterThan(0);
-    expect(prefetcher.attemptedCount).toBe(attemptedAfterFirstPass);
-    expect(prefetcher.failedCount).toBe(failedAfterFirstPass);
+    expect(fetchesAfterFirstPass).toBeGreaterThan(0);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(fetchesAfterFirstPass);
   });
 });

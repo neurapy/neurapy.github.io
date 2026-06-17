@@ -4,20 +4,12 @@ export interface CacheEntry<T> {
 }
 
 export class LruCache<T> {
-  readonly maxBytes: number;
+  private readonly maxBytes: number;
   private readonly entries = new Map<string, CacheEntry<T>>();
   private usedBytesValue = 0;
 
   constructor(maxBytes = 128 * 1024 * 1024) {
     this.maxBytes = maxBytes;
-  }
-
-  get usedBytes(): number {
-    return this.usedBytesValue;
-  }
-
-  get size(): number {
-    return this.entries.size;
   }
 
   get(key: string): T | undefined {
@@ -41,11 +33,6 @@ export class LruCache<T> {
 
   has(key: string): boolean {
     return this.entries.has(key);
-  }
-
-  clear(): void {
-    this.entries.clear();
-    this.usedBytesValue = 0;
   }
 
   private evict(): void {

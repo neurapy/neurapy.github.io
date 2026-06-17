@@ -27,7 +27,6 @@ import { divergingColorScale } from "./color";
 import {
   boundsFromAxisMap,
   clampIndex,
-  inferPointBounds,
   pointAt,
   plotViewport,
   projectPointToViewport,
@@ -36,7 +35,6 @@ import {
 import {
   plotProjectionForManifest,
   projectBounds,
-  projectPointToDisplay,
   type PlotProjection,
 } from "./projection";
 import { plotVisualScale, referenceAspectPlotArea, scaledPlotPx } from "./scale";
@@ -756,7 +754,6 @@ function renderColorbar(
 
 export function renderAxes(
   svg: SVGSVGElement,
-  bounds: Bounds,
   width: number,
   height: number,
   viewport: PlotViewport,
@@ -942,7 +939,6 @@ export function drawPointCloudLayer(
   ctx: CanvasRenderingContext2D,
   points: Float32Array,
   dim: number,
-  bounds: Bounds,
   viewport: PlotViewport,
   projection: PlotProjection,
   options: {
@@ -1009,7 +1005,6 @@ export function renderMainPlot(args: {
       ctx,
       args.context.points.train_points,
       args.context.trainDim,
-      rasterBounds,
       viewport,
       projection,
       {
@@ -1024,7 +1019,6 @@ export function renderMainPlot(args: {
       ctx,
       args.context.points.candidate_points,
       args.context.candidateDim,
-      rasterBounds,
       viewport,
       projection,
       {
@@ -1044,13 +1038,13 @@ export function renderMainPlot(args: {
     drawPointMarker(ctx, sx, sy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
   }
   if (args.selectedRegion) {
-    drawRegionOverlay(ctx, args.selectedRegion, rasterBounds, viewport, projection, false);
+    drawRegionOverlay(ctx, args.selectedRegion, viewport, projection, false);
   }
   if (args.draftRegion) {
-    drawRegionOverlay(ctx, args.draftRegion, rasterBounds, viewport, projection, true);
+    drawRegionOverlay(ctx, args.draftRegion, viewport, projection, true);
   }
 
-  renderAxes(args.svg, rasterBounds, width, height, viewport, projection);
+  renderAxes(args.svg, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1073,7 +1067,6 @@ export function renderMainPlot(args: {
 function drawRegionOverlay(
   ctx: CanvasRenderingContext2D,
   region: Bounds,
-  bounds: Bounds,
   viewport: PlotViewport,
   projection: PlotProjection,
   draft: boolean,
@@ -1423,7 +1416,7 @@ export function renderLocalInfluencePlot(args: {
   const chrome = plotChromeForBounds(width, height, projection.displayBounds);
   const viewport = plotViewport(projection.displayBounds, width, height, chrome.padding);
   drawPlotStage(ctx, viewport);
-  renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
+  renderAxes(args.svg, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1437,7 +1430,6 @@ export function renderLocalInfluencePlot(args: {
     ctx,
     args.context.points.train_points,
     args.context.trainDim,
-    args.context.bounds,
     viewport,
     projection,
     {
@@ -1539,7 +1531,7 @@ export function renderRegionalInfluencePlot(args: {
   const chrome = plotChromeForBounds(width, height, projection.displayBounds);
   const viewport = plotViewport(projection.displayBounds, width, height, chrome.padding);
   drawPlotStage(ctx, viewport);
-  renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
+  renderAxes(args.svg, width, height, viewport, projection);
   renderContourOverlay({
     svg: args.svg,
     raster: args.raster,
@@ -1553,7 +1545,6 @@ export function renderRegionalInfluencePlot(args: {
     ctx,
     args.context.points.train_points,
     args.context.trainDim,
-    args.context.bounds,
     viewport,
     projection,
     {
