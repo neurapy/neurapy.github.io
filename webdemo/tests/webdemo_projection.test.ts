@@ -10,7 +10,7 @@ import {
 } from "../src/viz/projection";
 
 const baseManifest = {
-  schema_version: 8,
+  schema_version: 9,
   problem: "fixture",
   display_name: "Fixture",
   model_quality: "good",
@@ -34,8 +34,6 @@ const baseManifest = {
   arrays: {
     candidate_points: { path: "", dtype: "float32", shape: [0, 2] },
     train_points: { path: "", dtype: "float32", shape: [0, 2] },
-    train_kind: { path: "", dtype: "uint8", shape: [0] },
-    train_bc_id: { path: "", dtype: "int16", shape: [0] },
   },
   field_raster: null,
   fields: {},

@@ -18,22 +18,6 @@
         1024
       ]
     },
-    "train_bc_id": {
-      "bytes": 480,
-      "dtype": "int16",
-      "path": "arrays/train_bc_id.i16",
-      "shape": [
-        240
-      ]
-    },
-    "train_kind": {
-      "bytes": 240,
-      "dtype": "uint8",
-      "path": "arrays/train_kind.u8",
-      "shape": [
-        240
-      ]
-    },
     "train_points": {
       "bytes": 1920,
       "dtype": "float32",
@@ -152,7 +136,7 @@
     }
   },
   "folder": "drift_diffusion_float64_bad",
-  "generated_at": "2026-06-16T15:46:07+0200",
+  "generated_at": "2026-06-17T19:16:04+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
@@ -258,7 +242,7 @@
   "point_selection": "deterministic_spread",
   "problem": "drift_diffusion",
   "run_id": "drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft",
-  "schema_version": 8,
+  "schema_version": 9,
   "source_n_candidate": 10000,
   "source_n_train": 240,
   "status": "complete",

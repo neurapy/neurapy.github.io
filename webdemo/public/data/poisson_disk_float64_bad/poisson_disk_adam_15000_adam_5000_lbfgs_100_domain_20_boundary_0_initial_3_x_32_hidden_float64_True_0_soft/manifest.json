@@ -18,22 +18,6 @@
         1024
       ]
     },
-    "train_bc_id": {
-      "bytes": 242,
-      "dtype": "int16",
-      "path": "arrays/train_bc_id.i16",
-      "shape": [
-        121
-      ]
-    },
-    "train_kind": {
-      "bytes": 121,
-      "dtype": "uint8",
-      "path": "arrays/train_kind.u8",
-      "shape": [
-        121
-      ]
-    },
     "train_points": {
       "bytes": 968,
       "dtype": "float32",
@@ -152,7 +136,7 @@
     }
   },
   "folder": "poisson_disk_float64_bad",
-  "generated_at": "2026-06-16T15:48:35+0200",
+  "generated_at": "2026-06-17T19:16:20+0200",
   "influence_matrices": [
     {
       "candidate_points_shape": [
@@ -258,7 +242,7 @@
   "point_selection": "deterministic_spread",
   "problem": "poisson_disk",
   "run_id": "poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft",
-  "schema_version": 8,
+  "schema_version": 9,
   "source_n_candidate": 10000,
   "source_n_train": 121,
   "status": "complete",

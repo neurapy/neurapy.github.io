@@ -241,17 +241,6 @@ def test_prediction_display_domain_falls_back_without_matching_override() -> Non
     )
 
 
-def test_int16_symmetric_quantization_round_trips_with_scale() -> None:
-    values = np.array([[-2.0, 0.0, 1.0]], dtype=np.float32)
-
-    quantized, scale = build_static.quantize_int16_symmetric(values)
-    restored = quantized.astype(np.float32) * scale
-
-    assert quantized.dtype == np.int16
-    assert scale > 0
-    np.testing.assert_allclose(restored, values, atol=scale * 0.55)
-
-
 def test_deterministic_spread_indices_cover_full_source_range() -> None:
     np.testing.assert_array_equal(
         build_static.deterministic_spread_indices(10, 4, "candidate"),
@@ -467,6 +456,6 @@ def test_bundle_report_groups_influence_matrix_files(tmp_path) -> None:
 
     report = build_static.build_bundle_report(tmp_path, budget_bytes=10_000)
 
-    assert report["schema_version"] == 8
+    assert report["schema_version"] == 9
     assert report["within_budget"] is True
     assert report["by_kind"]["influence_matrices"] == 12

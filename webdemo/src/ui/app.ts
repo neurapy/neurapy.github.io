@@ -159,7 +159,7 @@ export class AppController {
       this.populateProblemSelect();
       const firstProblem = firstAvailableProblem(this.index);
       if (!firstProblem) {
-        throw new Error("No complete schema-v8 problem manifest is available");
+        throw new Error("No complete schema-v9 problem manifest is available");
       }
       this.store.dispatch({ type: "problem", problem: firstProblem.problem });
       this.dom.problemSelect.value = firstProblem.problem;

@@ -51,7 +51,7 @@ def lean_manifest(base: Path) -> dict[str, Any]:
         "uint16",
     )
     return {
-        "schema_version": 8,
+        "schema_version": 9,
         "problem": "fixture",
         "display_name": "Fixture",
         "model_quality": "good",
@@ -93,9 +93,9 @@ def test_verify_accepts_raster_only_fields(tmp_path: Path) -> None:
     verify_static.verify_topk(manifest_path, samples=1)
 
 
-def test_verify_rejects_schema_v6_manifest(tmp_path: Path) -> None:
+def test_verify_rejects_schema_v8_manifest(tmp_path: Path) -> None:
     manifest = lean_manifest(tmp_path)
-    manifest["schema_version"] = 6
+    manifest["schema_version"] = 8
     manifest_path = write_manifest(tmp_path, manifest)
 
     with pytest.raises(AssertionError, match="schema_version"):
@@ -113,7 +113,27 @@ def test_verify_rejects_deprecated_display_arrays(tmp_path: Path) -> None:
     )
     manifest_path = write_manifest(tmp_path, manifest)
 
-    with pytest.raises(AssertionError, match="Deprecated display arrays"):
+    with pytest.raises(AssertionError, match="Deprecated arrays"):
+        verify_static.verify_topk(manifest_path, samples=1)
+
+
+def test_verify_rejects_deprecated_train_label_arrays(tmp_path: Path) -> None:
+    manifest = lean_manifest(tmp_path)
+    manifest["arrays"]["train_kind"] = write_array(
+        tmp_path,
+        "arrays/train_kind.u8",
+        np.array([0], dtype=np.uint8),
+        "uint8",
+    )
+    manifest["arrays"]["train_bc_id"] = write_array(
+        tmp_path,
+        "arrays/train_bc_id.i16",
+        np.array([-1], dtype=np.int16),
+        "int16",
+    )
+    manifest_path = write_manifest(tmp_path, manifest)
+
+    with pytest.raises(AssertionError, match="Deprecated arrays"):
         verify_static.verify_topk(manifest_path, samples=1)
 
 
@@ -222,7 +242,7 @@ def test_verify_slices_source_matrix_for_downsampled_manifest(tmp_path: Path) ->
     candidate_points = source_candidates[candidate_indices].astype(np.float32)
     train_points = np.column_stack([np.arange(6), np.arange(6) + 1.0])[train_indices]
     manifest = {
-        "schema_version": 8,
+        "schema_version": 9,
         "problem": "fixture",
         "display_name": "Fixture",
         "model_quality": "good",

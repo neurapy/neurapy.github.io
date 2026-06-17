@@ -929,11 +929,6 @@ canvas {
   font-weight: 400;
 }
 
-.axis path,
-.axis line {
-  stroke: var(--line-strong);
-}
-
 .loss-decomposition-frame {
   fill: var(--plot-bg);
   stroke: var(--line);

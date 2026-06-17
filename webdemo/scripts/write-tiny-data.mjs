@@ -91,20 +91,6 @@ async function buildVariant(quality, config) {
     "float32",
     [5, 2],
   );
-  const trainKind = await writeArray(
-    runRoot,
-    join(runRoot, "arrays", "train_kind.u8"),
-    new Uint8Array([0, 1, 0, 1, 0]),
-    "uint8",
-    [5],
-  );
-  const trainBcId = await writeArray(
-    runRoot,
-    join(runRoot, "arrays", "train_bc_id.i16"),
-    new Int16Array([-1, 0, -1, 1, -1]),
-    "int16",
-    [5],
-  );
   const mask = await writeArray(
     runRoot,
     join(runRoot, "arrays", "field_raster_mask.u8"),
@@ -142,7 +128,7 @@ async function buildVariant(quality, config) {
   );
 
   const manifest = {
-    schema_version: 8,
+    schema_version: 9,
     problem: config.problem,
     display_name: config.displayName,
     model_quality: quality,
@@ -167,8 +153,6 @@ async function buildVariant(quality, config) {
     arrays: {
       candidate_points: candidatePoints,
       train_points: trainPoints,
-      train_kind: trainKind,
-      train_bc_id: trainBcId,
     },
     field_raster: {
       width: 4,
@@ -297,7 +281,7 @@ async function build() {
   const navierBad = await buildVariant("bad", navierConfig);
 
   const index = {
-    schema_version: 8,
+    schema_version: 9,
     generated_at: "2026-06-09T00:00:00+0000",
     matrix_mode: "core",
     max_local_influence_points: 4,
@@ -347,7 +331,7 @@ async function build() {
     await Promise.all(files.map(async (file) => (await stat(file)).size))
   ).reduce((sum, size) => sum + size, 0);
   await writeJson(join(root, "bundle_report.json"), {
-    schema_version: 8,
+    schema_version: 9,
     root: ".",
     total_bytes: total,
     budget_bytes: 750 * 1024 * 1024,

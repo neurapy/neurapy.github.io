@@ -43,18 +43,9 @@ DTYPES = {
     "uint8": np.uint8,
     "int16": np.int16,
 }
-DTYPE_EXTENSIONS = {
-    "float32": "f32",
-    "uint32": "u32",
-    "uint16": "u16",
-    "uint8": "u8",
-    "int16": "i16",
-}
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 DEFAULT_RASTER_MAX_RESOLUTION = 512
-DEFAULT_MAX_LOCAL_INFLUENCE_POINTS = 64
-DEFAULT_ROW_CHUNK_SIZE = 256
 DEFAULT_FIELD_BATCH_SIZE = 8192
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 PREFERRED_DEFAULT_MATRIX_ID = "influences_total_loss_output_0"
@@ -145,7 +136,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-fields",
         action="store_true",
-        help="Only build points and influence top-k data; skip prediction/loss fields.",
+        help="Only build points and dense influence data; skip prediction/loss fields.",
     )
     parser.add_argument(
         "--skip-incomplete",
@@ -300,17 +291,6 @@ def quantize_uint16_linear(
     return quantized.reshape(values.shape), encoding, robust_display_domain(values, mask)
 
 
-def quantize_int16_symmetric(values: np.ndarray) -> tuple[np.ndarray, float]:
-    values = np.asarray(values, dtype=np.float32)
-    if values.size == 0:
-        return values.astype(np.int16), 1.0
-    max_abs = float(np.nanmax(np.abs(values)))
-    scale = max_abs / 32767.0 if np.isfinite(max_abs) and max_abs > 0 else 1.0
-    quantized = np.rint(values / scale)
-    quantized = np.clip(quantized, -32767, 32767).astype(np.int16)
-    return quantized, float(scale)
-
-
 def bundle_file_kind(path: Path) -> str:
     suffix = path.suffix.lower()
     if suffix == ".json":
@@ -359,10 +339,6 @@ def build_bundle_report(root: Path, budget_bytes: int = BUNDLE_SIZE_BUDGET_BYTES
 
 def slug_path(path: Path) -> str:
     return path.as_posix()
-
-
-def dtype_extension(dtype: str) -> str:
-    return DTYPE_EXTENSIONS[dtype]
 
 
 def raw_data_base_folder_name(folder: Path) -> str:
@@ -864,21 +840,6 @@ def validate_points_match(
         raise ValueError(f"{path.name}: {name} values do not match expected points")
 
 
-def infer_train_labels(data: Any, n_train: int) -> tuple[np.ndarray, np.ndarray]:
-    kind = np.zeros(n_train, dtype=np.uint8)
-    bc_id = np.full(n_train, -1, dtype=np.int16)
-    counts = getattr(data, "num_bcs", None)
-    if counts is None:
-        return kind, bc_id
-    start = 0
-    for idx, count in enumerate(counts):
-        end = min(start + int(count), n_train)
-        kind[start:end] = 1
-        bc_id[start:end] = idx
-        start = end
-    return kind, bc_id
-
-
 def predict_fields(
     model: Any,
     data: Any,
@@ -921,32 +882,6 @@ def predict_fields(
 
     fields["loss_total"] = squared.sum(axis=1).astype(np.float32)
     return fields
-
-
-def topk_sorted(values: np.ndarray, k: int, mode: str) -> tuple[np.ndarray, np.ndarray]:
-    if mode == "abs":
-        order_source = np.abs(values)
-        part = np.argpartition(-order_source, kth=k - 1, axis=1)[:, :k]
-        part_scores = np.take_along_axis(order_source, part, axis=1)
-        order = np.argsort(-part_scores, axis=1)
-    elif mode == "pos":
-        part = np.argpartition(-values, kth=k - 1, axis=1)[:, :k]
-        part_scores = np.take_along_axis(values, part, axis=1)
-        order = np.argsort(-part_scores, axis=1)
-    elif mode == "neg":
-        part = np.argpartition(values, kth=k - 1, axis=1)[:, :k]
-        part_scores = np.take_along_axis(values, part, axis=1)
-        order = np.argsort(part_scores, axis=1)
-    else:
-        raise ValueError(f"Unknown top-k mode: {mode}")
-
-    indices = np.take_along_axis(part, order, axis=1)
-    top_values = np.take_along_axis(values, indices, axis=1)
-    return indices.astype(np.uint32), top_values.astype(np.float32)
-
-
-def float32_chunks(values: np.ndarray) -> np.ndarray:
-    return np.asarray(values, dtype=np.float32)
 
 
 def process_influence_matrix(
@@ -1239,21 +1174,11 @@ def build_run(run: RunPaths, args: argparse.Namespace) -> dict[str, Any]:
         except Exception as exc:
             errors.append(f"Field precomputation failed: {exc}")
 
-    if data is not None:
-        source_train_kind, source_train_bc_id = infer_train_labels(data, source_n_train)
-    else:
-        source_train_kind = np.zeros(source_n_train, dtype=np.uint8)
-        source_train_bc_id = np.full(source_n_train, -1, dtype=np.int16)
-    train_kind = source_train_kind[train_indices]
-    train_bc_id = source_train_bc_id[train_indices]
-
     arrays: dict[str, Any] = {
         "candidate_points": write_array(
             out_dir, "arrays/candidate_points.f32", candidate_points, "float32"
         ),
         "train_points": write_array(out_dir, "arrays/train_points.f32", train_points, "float32"),
-        "train_kind": write_array(out_dir, "arrays/train_kind.u8", train_kind, "uint8"),
-        "train_bc_id": write_array(out_dir, "arrays/train_bc_id.i16", train_bc_id, "int16"),
     }
     field_raster_entry = None
     if raster_grid is not None:

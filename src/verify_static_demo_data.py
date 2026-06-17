@@ -1,4 +1,4 @@
-"""Verify schema-v8 static PINNfluence demo artifacts against source influence files."""
+"""Verify schema-v9 static PINNfluence demo artifacts against source influence files."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 MODEL_QUALITIES = ("good", "bad")
 BUNDLE_SIZE_BUDGET_BYTES = 750 * 1024 * 1024
 
@@ -250,10 +250,16 @@ def verify_topk(
     train_indices = deterministic_spread_indices(source_n_train, n_train, "train")
     candidate_indices = deterministic_spread_indices(source_n_candidate, n_candidate, "candidate")
 
-    deprecated_arrays = {"display_points", "display_to_candidate", "display_to_train"}
+    deprecated_arrays = {
+        "display_points",
+        "display_to_candidate",
+        "display_to_train",
+        "train_bc_id",
+        "train_kind",
+    }
     found_deprecated = sorted(deprecated_arrays & set(manifest["arrays"]))
     if found_deprecated:
-        raise AssertionError(f"Deprecated display arrays are still present: {found_deprecated}")
+        raise AssertionError(f"Deprecated arrays are still present: {found_deprecated}")
     if "n_display" in manifest:
         raise AssertionError("Deprecated n_display metadata is still present")
     if "row_chunk_size" in manifest:

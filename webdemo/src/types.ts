@@ -84,7 +84,7 @@ export interface InfluenceMatrixManifest {
 }
 
 export interface RunManifest {
-  schema_version: 8;
+  schema_version: 9;
   problem: string;
   display_name: string;
   model_quality: ModelQuality;
@@ -112,8 +112,6 @@ export interface RunManifest {
   arrays: {
     candidate_points: ArraySpec;
     train_points: ArraySpec;
-    train_kind: ArraySpec;
-    train_bc_id: ArraySpec;
   };
   field_raster: FieldRasterManifest | null;
   fields: Record<string, RasterFieldManifest>;
@@ -147,7 +145,7 @@ export interface IndexProblemEntry {
 }
 
 export interface DataIndex {
-  schema_version: 8;
+  schema_version: 9;
   generated_at: string;
   matrix_mode?: string;
   max_local_influence_points?: number;
@@ -161,8 +159,6 @@ export interface DataIndex {
 export interface PointArrays {
   candidate_points: Float32Array;
   train_points: Float32Array;
-  train_kind: Uint8Array;
-  train_bc_id: Int16Array;
 }
 
 export interface RasterData {
@@ -179,8 +175,6 @@ export interface InfluenceRow {
   rowIndex: number;
   indices: Uint16Array | Uint32Array;
   values: Float32Array;
-  rawValues: Int16Array | Float32Array;
-  valueScale?: number;
 }
 
 export interface InfluenceAggregate {

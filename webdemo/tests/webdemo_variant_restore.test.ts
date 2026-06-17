@@ -43,7 +43,7 @@ function matrix(
 
 function manifest(overrides: Partial<RunManifest> = {}): RunManifest {
   return {
-    schema_version: 8,
+    schema_version: 9,
     problem: "fixture",
     display_name: "Fixture",
     model_quality: "good",
@@ -67,8 +67,6 @@ function manifest(overrides: Partial<RunManifest> = {}): RunManifest {
     arrays: {
       candidate_points: { path: "candidate.f32", dtype: "float32", shape: [4, 2] },
       train_points: { path: "train.f32", dtype: "float32", shape: [5, 2] },
-      train_kind: { path: "kind.u8", dtype: "uint8", shape: [5] },
-      train_bc_id: { path: "bc.i16", dtype: "int16", shape: [5] },
     },
     field_raster: null,
     fields: {

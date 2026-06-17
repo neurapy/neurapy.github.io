@@ -4,8 +4,8 @@ import { DataRepository } from "../src/data/arrays";
 import { LruCache } from "../src/data/cache";
 import { dequantizeUint16Linear } from "../src/data/dequantize";
 import {
-  assertV8Index,
-  assertV8RunManifest,
+  assertV9Index,
+  assertV9RunManifest,
   formatProblemLabel,
   resolveProblemVariant,
 } from "../src/data/manifest";
@@ -72,7 +72,7 @@ function installDeferredFetch(): DeferredFetchCall[] {
 }
 
 const manifest = {
-  schema_version: 8,
+  schema_version: 9,
   problem: "fixture",
   display_name: "Fixture",
   model_quality: "good",
@@ -96,8 +96,6 @@ const manifest = {
   arrays: {
     candidate_points: { path: "candidate.f32", dtype: "float32", shape: [2, 2] },
     train_points: { path: "train.f32", dtype: "float32", shape: [3, 2] },
-    train_kind: { path: "kind.u8", dtype: "uint8", shape: [3] },
-    train_bc_id: { path: "bc.i16", dtype: "int16", shape: [3] },
   },
   field_raster: {
     width: 2,
@@ -169,7 +167,7 @@ const badVariant = {
 } satisfies DataIndex["problems"][number]["variants"]["bad"];
 
 const index = {
-  schema_version: 8,
+  schema_version: 9,
   generated_at: "2026-06-09T00:00:00+0000",
   matrix_mode: "core",
   max_local_influence_points: 2,
@@ -193,15 +191,15 @@ describe("typed array validation", () => {
     ).toThrow(/expected 12 bytes/);
   });
 
-  it("parses v8 indexes and manifests and rejects schema v7", () => {
-    expect(assertV8Index(index)).toBe(index);
-    expect(assertV8RunManifest(manifest)).toBe(manifest);
-    expect(() => assertV8RunManifest({ ...manifest, schema_version: 7 } as unknown as RunManifest)).toThrow(
-      /expected 8/,
+  it("parses v9 indexes and manifests and rejects schema v8", () => {
+    expect(assertV9Index(index)).toBe(index);
+    expect(assertV9RunManifest(manifest)).toBe(manifest);
+    expect(() => assertV9RunManifest({ ...manifest, schema_version: 8 } as unknown as RunManifest)).toThrow(
+      /expected 9/,
     );
     expect(() =>
-      assertV8Index({ ...index, schema_version: 7, runs: [] } as unknown as DataIndex),
-    ).toThrow(/expected 8/);
+      assertV9Index({ ...index, schema_version: 8, runs: [] } as unknown as DataIndex),
+    ).toThrow(/expected 9/);
   });
 
   it("parses results dashboard data and rejects unsupported schemas", () => {

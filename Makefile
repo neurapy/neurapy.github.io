@@ -52,6 +52,15 @@ build: require-node24
 preview: require-node24
 	$(NPM) --prefix webdemo run preview
 
+webdemo-test: require-node24
+	$(NPM) --prefix webdemo run test
+
+webdemo-e2e: require-node24
+	$(NPM) --prefix webdemo run test:e2e
+
+webdemo-check: require-node24
+	$(NPM) --prefix webdemo run check
+
 verify-data:
 	$(UV) run python src/verify_static_demo_data.py --samples $(VERIFY_SAMPLES)
 

@@ -1,19 +1,18 @@
 {
   "budget_bytes": 786432000,
   "by_kind": {
-    "arrays": 451736,
+    "arrays": 343808,
     "field_rasters": 41889792,
-    "index": 12704,
+    "index": 472835,
     "influence_matrices": 191904000,
     "json": 36856,
-    "manifest": 200650
+    "manifest": 196479
   },
   "by_suffix": {
     ".f32": 192247808,
-    ".i16": 71952,
-    ".json": 250210,
+    ".json": 706170,
     ".u16": 33824768,
-    ".u8": 8101000
+    ".u8": 8065024
   },
   "files": [
     {
@@ -37,16 +36,6 @@
       "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 7000,
-      "kind": "arrays",
-      "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3500,
-      "kind": "arrays",
-      "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 28000,
       "kind": "arrays",
       "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -62,7 +51,7 @@
       "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 32488,
+      "bytes": 32189,
       "kind": "manifest",
       "path": "allen_cahn_float64_bad/allen_cahn_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -87,16 +76,6 @@
       "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 7000,
-      "kind": "arrays",
-      "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3500,
-      "kind": "arrays",
-      "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 28000,
       "kind": "arrays",
       "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -112,7 +91,7 @@
       "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 7131,
+      "bytes": 6832,
       "kind": "manifest",
       "path": "allen_cahn_float64_good/allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -142,16 +121,6 @@
       "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 1400,
-      "kind": "arrays",
-      "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 700,
-      "kind": "arrays",
-      "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 5600,
       "kind": "arrays",
       "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -167,7 +136,7 @@
       "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 12410,
+      "bytes": 12114,
       "kind": "manifest",
       "path": "burgers_float64_bad/burgers_adam_50000_adam_12000_lbfgs_500_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
     },
@@ -192,16 +161,6 @@
       "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 7000,
-      "kind": "arrays",
-      "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3500,
-      "kind": "arrays",
-      "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 28000,
       "kind": "arrays",
       "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -217,7 +176,7 @@
       "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 15315,
+      "bytes": 15016,
       "kind": "manifest",
       "path": "burgers_float64_good/burgers_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_500_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
     },
@@ -242,16 +201,6 @@
       "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 28,
-      "kind": "arrays",
-      "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 14,
-      "kind": "arrays",
-      "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 112,
       "kind": "arrays",
       "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -267,7 +216,7 @@
       "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 9489,
+      "bytes": 9198,
       "kind": "manifest",
       "path": "diffusion_float64_bad/diffusion_adam_15000_adam_5000_lbfgs_10_domain_2_boundary_2_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
     },
@@ -292,16 +241,6 @@
       "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 2400,
-      "kind": "arrays",
-      "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 1200,
-      "kind": "arrays",
-      "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 9600,
       "kind": "arrays",
       "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -317,7 +256,7 @@
       "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 14844,
+      "bytes": 14545,
       "kind": "manifest",
       "path": "diffusion_float64_good/diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
     },
@@ -342,16 +281,6 @@
       "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 480,
-      "kind": "arrays",
-      "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 240,
-      "kind": "arrays",
-      "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 1920,
       "kind": "arrays",
       "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -367,7 +296,7 @@
       "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 14578,
+      "bytes": 14283,
       "kind": "manifest",
       "path": "drift_diffusion_float64_bad/drift_diffusion_adam_15000_adam_5000_lbfgs_200_domain_20_boundary_20_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -392,16 +321,6 @@
       "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 2400,
-      "kind": "arrays",
-      "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 1200,
-      "kind": "arrays",
-      "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 9600,
       "kind": "arrays",
       "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -417,7 +336,7 @@
       "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 14890,
+      "bytes": 14591,
       "kind": "manifest",
       "path": "drift_diffusion_float64_good/drift_diffusion_adam_15000_adam_5000_lbfgs_1000_domain_100_boundary_100_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -457,16 +376,6 @@
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_2_raster.u16"
     },
     {
-      "bytes": 4000,
-      "kind": "arrays",
-      "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 2000,
-      "kind": "arrays",
-      "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 16000,
       "kind": "arrays",
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -492,7 +401,7 @@
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 10410,
+      "bytes": 10111,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64_bad/navier_stokes_nd_adam_100000_adam_25000_lbfgs_1500_domain_500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -527,16 +436,6 @@
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/pred_output_2_raster.u16"
     },
     {
-      "bytes": 20000,
-      "kind": "arrays",
-      "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 10000,
-      "kind": "arrays",
-      "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 80000,
       "kind": "arrays",
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -562,7 +461,7 @@
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 10471,
+      "bytes": 10168,
       "kind": "manifest",
       "path": "navier_stokes_nd_float64_good/navier_stokes_nd_adam_100000_adam_25000_lbfgs_7500_domain_2500_boundary_0_initial_3_x_64_hidden_float64_True_0_soft/manifest.json"
     },
@@ -587,16 +486,6 @@
       "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 242,
-      "kind": "arrays",
-      "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 121,
-      "kind": "arrays",
-      "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 968,
       "kind": "arrays",
       "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -612,7 +501,7 @@
       "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 14225,
+      "bytes": 13930,
       "kind": "manifest",
       "path": "poisson_disk_float64_bad/poisson_disk_adam_15000_adam_5000_lbfgs_100_domain_20_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
     },
@@ -637,16 +526,6 @@
       "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 6002,
-      "kind": "arrays",
-      "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3001,
-      "kind": "arrays",
-      "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 24008,
       "kind": "arrays",
       "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/arrays/train_points.f32"
@@ -662,9 +541,14 @@
       "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 15322,
+      "bytes": 15023,
       "kind": "manifest",
       "path": "poisson_disk_float64_good/poisson_disk_adam_50000_adam_12000_lbfgs_2500_domain_500_boundary_0_initial_3_x_32_hidden_float64_True_0_soft/manifest.json"
+    },
+    {
+      "bytes": 460131,
+      "kind": "index",
+      "path": "results/index.json"
     },
     {
       "bytes": 4000,
@@ -687,16 +571,6 @@
       "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 7000,
-      "kind": "arrays",
-      "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3500,
-      "kind": "arrays",
-      "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 28000,
       "kind": "arrays",
       "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_points.f32"
@@ -712,7 +586,7 @@
       "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 15359,
+      "bytes": 15060,
       "kind": "manifest",
       "path": "wave_float64_bad/wave_adam_100000_adam_0_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/manifest.json"
     },
@@ -737,16 +611,6 @@
       "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/pred_output_0_raster.u16"
     },
     {
-      "bytes": 7000,
-      "kind": "arrays",
-      "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_bc_id.i16"
-    },
-    {
-      "bytes": 3500,
-      "kind": "arrays",
-      "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_kind.u8"
-    },
-    {
       "bytes": 28000,
       "kind": "arrays",
       "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/arrays/train_points.f32"
@@ -762,13 +626,13 @@
       "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/influence/influences_total_loss_total_loss/scores.f32"
     },
     {
-      "bytes": 13718,
+      "bytes": 13419,
       "kind": "manifest",
       "path": "wave_float64_good/wave_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_5_x_100_hidden_float64_True_2_soft/manifest.json"
     }
   ],
   "root": ".",
-  "schema_version": 8,
-  "total_bytes": 234495738,
+  "schema_version": 9,
+  "total_bytes": 234843770,
   "within_budget": true
 }

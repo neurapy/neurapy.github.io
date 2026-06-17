@@ -25,7 +25,6 @@ classifiers = []
 
 [dependency-groups]
 dev = ["pre-commit", "pyright", "pytest>=9.0", "ruff", "taplo"]
-streamlit_demo = ["fastapi", "plotly", "streamlit", "uvicorn"]
 
 [tool.uv]
 package = false

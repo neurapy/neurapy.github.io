@@ -1,6 +1,6 @@
 {
   "bundle_report": "bundle_report.json",
-  "generated_at": "2026-06-16T15:51:55+0200",
+  "generated_at": "2026-06-17T19:16:57+0200",
   "matrix_mode": "core",
   "max_local_influence_points": 3500,
   "n_candidate": 500,
@@ -303,5 +303,5 @@
     }
   ],
   "raster_max_resolution": 1024,
-  "schema_version": 8
+  "schema_version": 9
 }
