@@ -1,7 +1,7 @@
 import { rm, mkdir, writeFile, stat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 
-const root = join(process.cwd(), "public", "fixtures", "tiny-data");
+const root = join(process.cwd(), "test-results", "tiny-data");
 
 async function writeJson(path, payload) {
   await mkdir(dirname(path), { recursive: true });

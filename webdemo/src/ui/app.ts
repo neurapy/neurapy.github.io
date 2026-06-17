@@ -688,7 +688,6 @@ export class AppController {
       this.raster = await this.repo.loadRaster(fieldId, "foreground");
       await this.renderRasterWithWorker();
       this.dom.mainTitle.textContent = "Model";
-      this.dom.mainRange.textContent = "";
       if (this.refreshResponsiveLayout()) this.schedule("train");
       this.schedule("main");
       this.updateStats();

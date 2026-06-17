@@ -72,7 +72,9 @@ export interface InfluenceMatrixManifest {
   n_outputs: number;
   self_influence: boolean;
   scores_shape: number[];
+  source_scores_shape?: number[];
   candidate_points_shape?: number[];
+  source_candidate_points_shape?: number[];
   row_source: "candidate_points" | "train_points";
   row_count: number;
   k: number;
@@ -152,6 +154,7 @@ export interface DataIndex {
   n_candidate?: number | null;
   n_train?: number | null;
   point_selection?: "deterministic_spread";
+  raster_max_resolution?: number;
   bundle_report?: string;
   problems: IndexProblemEntry[];
 }

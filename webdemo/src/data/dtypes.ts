@@ -15,7 +15,7 @@ type TypedArrayConstructor =
   | Uint8ArrayConstructor
   | Int16ArrayConstructor;
 
-export function arrayElementCount(shape: number[]): number {
+function arrayElementCount(shape: number[]): number {
   return shape.reduce((acc, value) => acc * value, 1);
 }
 

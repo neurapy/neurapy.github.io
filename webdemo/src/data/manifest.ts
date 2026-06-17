@@ -75,7 +75,7 @@ export async function loadRunManifest(indexUrl: URL, manifestPath: string): Prom
   return assertV9RunManifest(await fetchJson<RunManifest>(new URL(manifestPath, indexUrl)));
 }
 
-export const MODEL_QUALITIES: ModelQuality[] = ["good", "bad"];
+const MODEL_QUALITIES: ModelQuality[] = ["good", "bad"];
 
 export function isModelQuality(value: unknown): value is ModelQuality {
   return value === "good" || value === "bad";

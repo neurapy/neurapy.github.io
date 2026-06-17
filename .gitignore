@@ -50,4 +50,3 @@ webdemo/node_modules/
 webdemo/dist/
 webdemo/test-results/
 webdemo/playwright-report/
-webdemo/public/fixtures/tiny-data/

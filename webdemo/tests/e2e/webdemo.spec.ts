@@ -728,7 +728,6 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator(".plot-panel")).toHaveCount(2);
   await expect(page.locator("#globalPanel")).toHaveCount(0);
   await expect(page.locator("#mainTitle")).toHaveText("Model");
-  await expect(page.locator("#mainRange")).toHaveText("");
   await expect(page.locator("#trainTitle")).toHaveText("Training");
   await expect(page.locator(".model-panel #fieldSelect")).toBeVisible();
   await expect(page.locator(".model-panel #fieldKindButtons")).toHaveCount(0);
@@ -831,7 +830,6 @@ test("desktop renders two plots and continues background prefetching", async ({ 
 
   await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#mainTitle")).toHaveText("Model");
-  await expect(page.locator("#mainRange")).toHaveText("");
 
   await page.locator("button[data-sign='pos']").click();
   await expectNonblankCanvas(page, "#trainCanvas");
@@ -973,7 +971,6 @@ test("switching models and problems preserves comparison state", async ({ page }
 
   await page.locator("#fieldSelect").selectOption("loss_total");
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
-  await expect(page.locator("#mainRange")).toHaveText("");
 
   await page.locator("button[data-background-mode='cell']").click();
   await page.locator("button[data-sign='neg']").click();
@@ -990,7 +987,6 @@ test("switching models and problems preserves comparison state", async ({ page }
   await page.locator("button[data-model-quality='bad']").click();
   await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
-  await expect(page.locator("#mainRange")).toHaveText("");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
   await expect(page.locator("#kOutput")).toHaveText("7");
@@ -1003,7 +999,6 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_residual");
   await expect(page.locator("#matrixSelect")).toHaveValue("m_shifted");
-  await expect(page.locator("#mainRange")).toHaveText("");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
   await expect(page.locator("#kOutput")).toHaveText("7");
