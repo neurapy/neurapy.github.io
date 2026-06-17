@@ -180,3 +180,6 @@ if [[ "$BUILD_STATIC_DEMO_DATA" -eq 1 ]]; then
   echo "Regenerating webdemo/public/data with configured prediction display domains"
   "${build_cmd[@]}"
 fi
+
+# rsync -av 'ai-ws-213:/mnt/storage/pinnfluence_icml/model_zoo_cluster/loss_decompositions' loss_decomposition
+#
