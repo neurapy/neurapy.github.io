@@ -36,6 +36,7 @@ import {
   type VariantStateSnapshot,
 } from "../state/variantRestore";
 import type { RasterWorkerRequest, RasterWorkerResponse } from "../worker/rasterWorker";
+import type { PlotColorbarPlacement } from "../viz/chrome";
 import {
   boundsFromAxisMap,
   clampIndex,
@@ -838,7 +839,7 @@ export class AppController {
       const meanValue = this.influenceAggregate?.meanValue;
       this.setTrainSummary(this.store.state.selectedRegion
         ? `Local region · ${backgroundLabel} · average over ${selectedCount.toLocaleString()} candidates${Number.isFinite(meanValue) ? ` · mean I ${formatNumber(meanValue)}` : ""}`
-        : "", stats.viewport);
+        : "", stats.viewport, stats.colorbarPlacement);
       return;
     }
     const stats = renderLocalInfluencePlot({
@@ -859,10 +860,14 @@ export class AppController {
     this.trainViewport = stats.viewport;
     this.setTrainSummary(stats.maxAbs
       ? `Local · ${backgroundLabel} · max |I| ${formatNumber(stats.maxAbs)}`
-      : `Local · ${backgroundLabel}`, stats.viewport);
+      : `Local · ${backgroundLabel}`, stats.viewport, stats.colorbarPlacement);
   }
 
-  private setTrainSummary(text: string, viewport: PlotViewport | null): void {
+  private setTrainSummary(
+    text: string,
+    viewport: PlotViewport | null,
+    colorbarPlacement: PlotColorbarPlacement = "right",
+  ): void {
     const badge = this.dom.trainRange;
     badge.textContent = text;
     if (!text || !viewport) {
@@ -884,12 +889,128 @@ export class AppController {
       badge.style.left = "8px";
       badge.style.maxWidth = `${Math.round(Math.max(80, bodyWidth - 16))}px`;
     }
+    const fitBadgeAtLeft = (left: number): number => {
+      badge.style.left = `${Math.round(left)}px`;
+      badge.style.maxWidth = `${Math.round(Math.max(80, bodyWidth - left - 6))}px`;
+      if (badge.scrollWidth > badge.clientWidth + 1) {
+        badge.style.left = "8px";
+        badge.style.maxWidth = `${Math.round(Math.max(80, bodyWidth - 16))}px`;
+        return 8;
+      }
+      return left;
+    };
 
     const badgeHeight = badge.getBoundingClientRect().height || 16;
-    const top = Math.min(
-      viewport.bottom + 18,
-      Math.max(viewport.bottom + 2, bodyHeight - badgeHeight - 2),
-    );
+    const colorbar = body?.querySelector<SVGRectElement>(".colorbar-frame");
+    const bodyRect = body?.getBoundingClientRect();
+    const colorbarRect = colorbar?.getBoundingClientRect();
+    const svgDecorationBounds = bodyRect
+      ? Array.from(
+          body?.querySelectorAll<SVGGraphicsElement>(
+            "#trainSvg .axis text, #trainSvg .axis-label, #trainSvg .colorbar-ticks text",
+          ) ?? [],
+        ).map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            left: rect.left - bodyRect.left,
+            right: rect.right - bodyRect.left,
+            top: rect.top - bodyRect.top,
+            bottom: rect.bottom - bodyRect.top,
+          };
+        })
+      : [];
+    const colorbarBounds =
+      bodyRect && colorbarRect
+        ? {
+            left: colorbarRect.left - bodyRect.left,
+            right: colorbarRect.right - bodyRect.left,
+            top: colorbarRect.top - bodyRect.top,
+            bottom: colorbarRect.bottom - bodyRect.top,
+          }
+        : null;
+    const badgeIntersectsBounds = (
+      left: number,
+      top: number,
+      bounds: { left: number; right: number; top: number; bottom: number },
+    ): boolean => {
+      const badgeWidth = badge.getBoundingClientRect().width || badge.clientWidth || 0;
+      return (
+        left < bounds.right - 1 &&
+        left + badgeWidth > bounds.left + 1 &&
+        top < bounds.bottom - 1 &&
+        top + badgeHeight > bounds.top + 1
+      );
+    };
+    const badgeIntersectsFrame = (left: number, top: number): boolean =>
+      badgeIntersectsBounds(left, top, {
+        left: viewport.x,
+        right: viewport.right,
+        top: viewport.y,
+        bottom: viewport.bottom,
+      });
+    const badgeIntersectsColorbar = (left: number, top: number): boolean =>
+      colorbarBounds ? badgeIntersectsBounds(left, top, colorbarBounds) : false;
+    const badgeIntersectsSvgDecorations = (left: number, top: number): boolean => {
+      const badgeWidth = badge.getBoundingClientRect().width || badge.clientWidth || 0;
+      const badgeRight = left + badgeWidth;
+      return svgDecorationBounds.some(
+        (decoration) =>
+          left < decoration.right + 1 &&
+          badgeRight > decoration.left - 1 &&
+          top < decoration.bottom + 1 &&
+          top + badgeHeight > decoration.top - 1,
+      );
+    };
+    const inBody = (top: number): boolean => top >= 2 && top + badgeHeight <= bodyHeight - 2;
+    const topCandidates =
+      colorbarPlacement === "bottom"
+        ? [
+            viewport.y - badgeHeight - 4,
+            viewport.bottom + 2,
+            viewport.bottom + 6,
+            colorbarBounds ? colorbarBounds.top - badgeHeight - 4 : viewport.bottom + 2,
+            bodyHeight - badgeHeight - 2,
+          ]
+        : [
+            viewport.y - badgeHeight - 4,
+            viewport.bottom + 2,
+            Math.min(
+              viewport.bottom + 18,
+              Math.max(viewport.bottom + 2, bodyHeight - badgeHeight - 2),
+            ),
+            bodyHeight - badgeHeight - 2,
+          ];
+    const leftCandidates = [preferredLeft, 8, Math.max(8, viewport.right - 180)];
+    const findPlacement = (
+      requireDecorationClearance: boolean,
+    ): { left: number; top: number } | null => {
+      for (const leftCandidate of leftCandidates) {
+        const fittedLeft = fitBadgeAtLeft(leftCandidate);
+        const topCandidate = topCandidates.find(
+          (candidate) =>
+            inBody(candidate) &&
+            !badgeIntersectsFrame(fittedLeft, candidate) &&
+            !badgeIntersectsColorbar(fittedLeft, candidate) &&
+            (!requireDecorationClearance ||
+              !badgeIntersectsSvgDecorations(fittedLeft, candidate)),
+        );
+        if (topCandidate !== undefined) return { left: fittedLeft, top: topCandidate };
+      }
+      return null;
+    };
+
+    const placement = findPlacement(true) ?? findPlacement(false);
+    const left = placement?.left ?? fitBadgeAtLeft(preferredLeft);
+    const top =
+      placement?.top ??
+      Math.max(
+        2,
+        Math.min(
+          bodyHeight - badgeHeight - 2,
+          viewport.y >= badgeHeight + 6 ? viewport.y - badgeHeight - 4 : viewport.bottom + 2,
+        ),
+      );
+    badge.style.left = `${Math.round(left)}px`;
     badge.style.top = `${Math.round(top)}px`;
   }
 

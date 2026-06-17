@@ -65,6 +65,26 @@ async function plotFrameMetrics(
   }, svgSelector);
 }
 
+async function expectModelTrainFramesHorizontallyAligned(page: Page): Promise<void> {
+  const metrics = await page.evaluate(() => {
+    const frameMetrics = (selector: string) => {
+      const frame = document.querySelector<SVGRectElement>(`${selector} .axis-frame`);
+      if (!frame) throw new Error(`Missing axis frame for ${selector}`);
+      const x = Number(frame.getAttribute("x"));
+      const width = Number(frame.getAttribute("width"));
+      return { x, width, right: x + width };
+    };
+    return {
+      model: frameMetrics("#mainSvg"),
+      train: frameMetrics("#trainSvg"),
+    };
+  });
+
+  expect(Math.abs(metrics.train.x - metrics.model.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(metrics.train.width - metrics.model.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(metrics.train.right - metrics.model.right)).toBeLessThanOrEqual(1);
+}
+
 async function expectCompactOutsideDecorations(page: Page, selector: string): Promise<void> {
   const metrics = await page.locator(selector).evaluate((svg) => {
     const root = svg as SVGSVGElement;
@@ -102,13 +122,20 @@ async function expectCompactOutsideDecorations(page: Page, selector: string): Pr
   });
 
   expect(metrics.margins.left).toBeGreaterThan(12);
-  expect(metrics.margins.right).toBeGreaterThan(20);
+  expect(metrics.margins.right).toBeGreaterThan(6);
   expect(metrics.margins.bottom).toBeGreaterThan(20);
-  expect(metrics.margins.right - metrics.margins.left).toBeCloseTo(8, 0);
-  expect(metrics.margins.bottom - metrics.margins.top).toBeCloseTo(28, 0);
   expect(metrics.colorbar).not.toBeNull();
-  expect(metrics.colorbar!.x).toBeGreaterThanOrEqual(metrics.frame.right + 1);
+  const colorbarIntersectsFrame =
+    metrics.colorbar!.x < metrics.frame.right - 1 &&
+    metrics.colorbar!.right > metrics.frame.x + 1 &&
+    metrics.colorbar!.y < metrics.frame.bottom - 1 &&
+    metrics.colorbar!.bottom > metrics.frame.y + 1;
+  const colorbarInRightGutter = metrics.colorbar!.x >= metrics.frame.right + 1;
+  const colorbarInBottomGutter = metrics.colorbar!.y >= metrics.frame.bottom + 1;
+  expect(colorbarIntersectsFrame).toBe(false);
+  expect(colorbarInRightGutter || colorbarInBottomGutter).toBe(true);
   expect(metrics.colorbar!.right).toBeLessThanOrEqual(metrics.box.width + 1);
+  expect(metrics.colorbar!.bottom).toBeLessThanOrEqual(metrics.box.height + 1);
   expect(metrics.xLabel).not.toBeNull();
   expect(metrics.xLabel!.y).toBeGreaterThanOrEqual(metrics.frame.bottom - 1);
   expect(metrics.xLabel!.bottom).toBeLessThanOrEqual(metrics.box.height + 1);
@@ -407,17 +434,41 @@ async function expectTrainSummaryBadgeFits(page: Page): Promise<void> {
     const badge = panel.querySelector<HTMLElement>("#trainRange");
     const body = panel.querySelector<HTMLElement>(".plot-body");
     const frame = panel.querySelector<SVGRectElement>("#trainSvg .axis-frame");
+    const colorbar = panel.querySelector<SVGRectElement>("#trainSvg .colorbar-frame");
     if (!badge || !body || !frame) return ["missing"];
 
     const badgeStyle = getComputedStyle(badge);
+    const svg = panel.querySelector<SVGSVGElement>("#trainSvg");
+    const svgZIndex = Number.parseInt(getComputedStyle(svg!).zIndex, 10) || 0;
+    const badgeZIndex = Number.parseInt(badgeStyle.zIndex, 10) || 0;
     const badgeRect = badge.getBoundingClientRect();
     const bodyRect = body.getBoundingClientRect();
     const frameRect = frame.getBoundingClientRect();
+    const colorbarRect = colorbar?.getBoundingClientRect() ?? null;
+    const svgDecorationRects = Array.from(
+      panel.querySelectorAll<SVGGraphicsElement>(
+        "#trainSvg .axis text, #trainSvg .axis-label, #trainSvg .colorbar-ticks text",
+      ),
+      (element) => element.getBoundingClientRect(),
+    );
     const intersectsFrame =
       badgeRect.left < frameRect.right - 1 &&
       badgeRect.right > frameRect.left + 1 &&
       badgeRect.top < frameRect.bottom - 1 &&
       badgeRect.bottom > frameRect.top + 1;
+    const intersectsColorbar =
+      colorbarRect !== null &&
+      badgeRect.left < colorbarRect.right - 1 &&
+      badgeRect.right > colorbarRect.left + 1 &&
+      badgeRect.top < colorbarRect.bottom - 1 &&
+      badgeRect.bottom > colorbarRect.top + 1;
+    const intersectsSvgDecoration = svgDecorationRects.some(
+      (rect) =>
+        badgeRect.left < rect.right - 1 &&
+        badgeRect.right > rect.left + 1 &&
+        badgeRect.top < rect.bottom - 1 &&
+        badgeRect.bottom > rect.top + 1,
+    );
     const outsideBody =
       badgeRect.left < bodyRect.left - 1 ||
       badgeRect.right > bodyRect.right + 1 ||
@@ -433,6 +484,8 @@ async function expectTrainSummaryBadgeFits(page: Page): Promise<void> {
         : "",
       clipped ? "clipped" : "",
       intersectsFrame ? "intersects-frame" : "",
+      intersectsColorbar ? "intersects-colorbar" : "",
+      intersectsSvgDecoration && badgeZIndex >= svgZIndex ? "intersects-svg-decoration" : "",
       outsideBody ? "outside-body" : "",
     ].filter(Boolean);
   });
@@ -445,7 +498,11 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
     const viewportRight = document.documentElement.clientWidth;
     const elements = topbar.querySelectorAll<HTMLElement>(
       [
+        ".brand-lockup",
+        ".hhi-logo",
         ".topbar-copy",
+        ".topbar h1",
+        "#runMeta",
         ".topbar-actions",
         ".topbar-links",
         ".topbar-link",
@@ -479,6 +536,50 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
     .locator(".topbar")
     .evaluate((topbar) => topbar.getBoundingClientRect().bottom);
   expect(topbarBottom).toBeLessThanOrEqual(page.viewportSize()!.height);
+}
+
+async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise<void> {
+  await expectTopbarControlsFit(page);
+  await expectTopbarProjectLinks(page);
+
+  const metrics = await page.locator(".topbar").evaluate((topbar) => {
+    const title = topbar.querySelector<HTMLElement>("h1");
+    const links = Array.from(topbar.querySelectorAll<HTMLElement>(".topbar-link"));
+    const titleRange = document.createRange();
+    if (title) titleRange.selectNodeContents(title);
+    const titleRects = title
+      ? Array.from(titleRange.getClientRects()).filter(
+          (rect) => rect.width > 1 && rect.height > 1,
+        )
+      : [];
+    const titleBox = title?.getBoundingClientRect() ?? null;
+    const linkRects = links
+      .map((link) => link.getBoundingClientRect())
+      .filter((rect) => rect.width > 1 && rect.height > 1);
+    const lineCount = (rects: DOMRect[]): number =>
+      new Set(rects.map((rect) => Math.round(rect.top))).size;
+    const titleFits =
+      titleBox !== null &&
+      titleRects.length > 0 &&
+      Math.min(...titleRects.map((rect) => rect.left)) >= titleBox.left - 1 &&
+      Math.max(...titleRects.map((rect) => rect.right)) <= titleBox.right + 1;
+
+    return {
+      height: topbar.getBoundingClientRect().height,
+      linkLineCount: lineCount(linkRects),
+      linksVisible: linkRects.length === links.length,
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      titleFits,
+      titleLineCount: lineCount(titleRects),
+    };
+  });
+
+  expect(metrics.height).toBeLessThanOrEqual(maxHeight);
+  expect(metrics.titleLineCount).toBe(1);
+  expect(metrics.titleFits).toBe(true);
+  expect(metrics.linksVisible).toBe(true);
+  expect(metrics.linkLineCount).toBe(1);
+  expect(metrics.overflowX).toBeLessThanOrEqual(1);
 }
 
 async function expectTopbarProjectLinks(page: Page): Promise<void> {
@@ -554,6 +655,27 @@ async function touchDragMainRegion(page: Page): Promise<void> {
   });
 }
 
+test("topbar stays compact while keeping title and project links inline", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only responsive topbar coverage");
+  await page.goto(FIXTURE_URL);
+
+  for (const { width, height, maxHeight } of [
+    { width: 1440, height: 900, maxHeight: 72 },
+    { width: 1280, height: 900, maxHeight: 72 },
+    { width: 1120, height: 900, maxHeight: 70 },
+    { width: 920, height: 900, maxHeight: 70 },
+    { width: 901, height: 900, maxHeight: 70 },
+    { width: 900, height: 900, maxHeight: 116 },
+    { width: 390, height: 844, maxHeight: 138 },
+    { width: 320, height: 844, maxHeight: 138 },
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expectTopbarResponsiveFit(page, maxHeight);
+  }
+});
+
 test("model plot shows an initial interaction hint", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only timing coverage is enough");
   await page.goto(FIXTURE_URL);
@@ -619,6 +741,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  await expectModelTrainFramesHorizontallyAligned(page);
   await expect.poll(() => modelPointDarkeningAtRatio(page, 0.58, 0.5)).toBeLessThan(8);
   const goodMainSignature = await canvasSignature(page, "#mainCanvas");
   await page.locator("button[data-model-quality='bad']").click();
@@ -921,6 +1044,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expectVisibleControlsInsidePanels(page);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+  await expectModelTrainFramesHorizontallyAligned(page);
 
   const mainBox = await page.locator(".model-panel").boundingBox();
   const trainBox = await page.locator("#trainPanel").boundingBox();
@@ -934,7 +1058,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   const burgersFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(burgersFrame.frameWidth).toBeGreaterThan(310);
   expect(burgersFrame.frameWidth / burgersFrame.bodyWidth).toBeGreaterThan(0.84);
-  expect(burgersFrame.colorbars).toBe(0);
+  expect(burgersFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("navier_stokes_nd");
   await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
@@ -943,7 +1067,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(navierFrame.frameWidth).toBeGreaterThan(310);
   expect(navierFrame.frameWidth / navierFrame.bodyWidth).toBeGreaterThan(0.84);
   expect(navierFrame.marginLeft + navierFrame.marginRight).toBeLessThan(60);
-  expect(navierFrame.colorbars).toBe(0);
+  expect(navierFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("fixture");
   await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);

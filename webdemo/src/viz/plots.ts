@@ -40,6 +40,7 @@ import {
   type PlotProjection,
 } from "./projection";
 import { plotVisualScale, referenceAspectPlotArea, scaledPlotPx } from "./scale";
+import type { PlotColorbarPlacement } from "./chrome";
 
 export interface RasterRenderResult {
   image: HTMLCanvasElement;
@@ -65,6 +66,7 @@ export interface InfluenceRenderStats {
 
 export interface InfluenceRenderResult extends InfluenceRenderStats {
   viewport: PlotViewport;
+  colorbarPlacement: PlotColorbarPlacement;
 }
 
 export interface InfluenceField {
@@ -658,27 +660,43 @@ function renderColorbar(
   root: Selection<SVGSVGElement, unknown, null, undefined>,
   viewport: PlotViewport,
   width: number,
+  height: number,
+  placement: PlotColorbarPlacement,
   spec: ColorbarSpec,
 ): void {
   const [min, max] = finiteDomain(spec.domain);
   const visualScale = plotVisualScale(viewport);
-  const barWidth = Math.max(8, Math.min(12, 9 * visualScale));
-  const rightGutter = width - viewport.right;
-  if (rightGutter < 32 || viewport.height < 54) return;
-
-  const barHeight = Math.max(46, Math.min(150, viewport.height * 0.56));
+  const isBottom = placement === "bottom";
   const outerInset = Math.max(5, 6 * visualScale);
-  const barX = Math.max(viewport.right + 18, width - outerInset - barWidth);
-  const barY = viewport.y + (viewport.height - barHeight) / 2;
+  const barWidth = isBottom
+    ? Math.max(
+        Math.min(84, Math.max(24, viewport.width)),
+        Math.min(180, Math.max(24, viewport.width - 8), viewport.width * 0.56),
+      )
+    : Math.max(8, Math.min(12, 9 * visualScale));
+  const barHeight = isBottom
+    ? Math.max(7, Math.min(10, 8 * visualScale))
+    : Math.max(18, Math.min(150, viewport.height * 0.56));
+  const barX = isBottom
+    ? viewport.x + (viewport.width - barWidth) / 2
+    : Math.max(viewport.right + Math.max(12, 14 * visualScale), width - outerInset - barWidth);
+  const bottomTickOffset = Math.max(11, 12 * visualScale);
+  const bottomMinY = viewport.bottom + Math.max(12, 14 * visualScale);
+  const bottomMaxY = height - barHeight - bottomTickOffset - 2;
+  const barY = isBottom
+    ? bottomMaxY >= bottomMinY
+      ? Math.min(viewport.bottom + Math.max(24, 26 * visualScale), bottomMaxY)
+      : Math.max(viewport.bottom + 2, bottomMaxY)
+    : viewport.y + (viewport.height - barHeight) / 2;
   const gradientId = `${spec.id}-gradient`;
   const defs = root.append("defs");
   const gradient = defs
     .append("linearGradient")
     .attr("id", gradientId)
-    .attr("x1", "0%")
-    .attr("x2", "0%")
-    .attr("y1", "100%")
-    .attr("y2", "0%");
+    .attr("x1", isBottom ? "0%" : "0%")
+    .attr("x2", isBottom ? "100%" : "0%")
+    .attr("y1", isBottom ? "0%" : "100%")
+    .attr("y2", isBottom ? "0%" : "0%");
   const stops = Array.from({ length: 9 }, (_unused, index) => index / 8);
   gradient
     .selectAll("stop")
@@ -706,25 +724,33 @@ function renderColorbar(
     .attr("height", barHeight)
     .attr("rx", 2);
 
-  const tickScale = scaleLinear().domain([min, max]).range([barY + barHeight, barY]);
+  const tickScale = isBottom
+    ? scaleLinear().domain([min, max]).range([barX, barX + barWidth])
+    : scaleLinear().domain([min, max]).range([barY + barHeight, barY]);
   const ticks = colorbarTicks(spec);
   const tickGroup = group.append("g").attr("class", "colorbar-ticks");
   tickGroup
     .selectAll("line")
     .data(ticks)
     .join("line")
-    .attr("x1", barX)
-    .attr("x2", barX - Math.max(3, 4 * visualScale))
-    .attr("y1", (value) => tickScale(value))
-    .attr("y2", (value) => tickScale(value));
+    .attr("x1", (value) => (isBottom ? tickScale(value) : barX))
+    .attr("x2", (value) =>
+      isBottom ? tickScale(value) : barX - Math.max(3, 4 * visualScale),
+    )
+    .attr("y1", (value) => (isBottom ? barY + barHeight : tickScale(value)))
+    .attr("y2", (value) =>
+      isBottom ? barY + barHeight + Math.max(3, 4 * visualScale) : tickScale(value),
+    );
   tickGroup
     .selectAll("text")
     .data(ticks)
     .join("text")
-    .attr("x", barX - Math.max(6, 7 * visualScale))
-    .attr("y", (value) => tickScale(value))
-    .attr("dy", "0.32em")
-    .attr("text-anchor", "end")
+    .attr("x", (value) => (isBottom ? tickScale(value) : barX - Math.max(6, 7 * visualScale)))
+    .attr("y", (value) =>
+      isBottom ? barY + barHeight + bottomTickOffset : tickScale(value),
+    )
+    .attr("dy", isBottom ? "0.71em" : "0.32em")
+    .attr("text-anchor", isBottom ? "middle" : "end")
     .text((value) => formatAxisNumber(value));
 }
 
@@ -797,7 +823,7 @@ export function renderAxes(
     .attr("y", Math.min(height - 6, viewport.bottom + xLabelOffset))
     .attr("text-anchor", "end")
     .text(projection.labels.x);
-  const yLabelX = Math.max(8, viewport.x - yLabelOffset);
+  const yLabelX = Math.max(11, viewport.x - yLabelOffset);
   const yLabelY = viewport.y + viewport.height / 2;
   root
     .append("text")
@@ -1034,8 +1060,8 @@ export function renderMainPlot(args: {
     viewport,
     projection,
   });
-  if (args.raster && chrome.showColorbar) {
-    renderColorbar(select(args.svg), viewport, width, {
+  if (args.raster) {
+    renderColorbar(select(args.svg), viewport, width, height, chrome.colorbarPlacement, {
       id: "model-colorbar",
       kind: "sequential",
       domain: args.raster.displayDomain,
@@ -1438,7 +1464,11 @@ export function renderLocalInfluencePlot(args: {
   );
   if (!args.row) {
     drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-    return { ...emptyInfluenceStats(args.backgroundMode), viewport };
+    return {
+      ...emptyInfluenceStats(args.backgroundMode),
+      viewport,
+      colorbarPlacement: chrome.colorbarPlacement,
+    };
   }
   const backgroundEntries = influenceEntriesForBackground(args.row.indices, args.row.values, args.sign);
   const backgroundStats = renderInfluenceBackground({
@@ -1485,14 +1515,12 @@ export function renderLocalInfluencePlot(args: {
   });
 
   drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-  if (chrome.showColorbar) {
-    renderColorbar(select(args.svg), viewport, width, {
-      id: "train-colorbar",
-      kind: "diverging",
-      domain: [-scaleMax, scaleMax],
-    });
-  }
-  return { ...backgroundStats, scaleMax, viewport };
+  renderColorbar(select(args.svg), viewport, width, height, chrome.colorbarPlacement, {
+    id: "train-colorbar",
+    kind: "diverging",
+    domain: [-scaleMax, scaleMax],
+  });
+  return { ...backgroundStats, scaleMax, viewport, colorbarPlacement: chrome.colorbarPlacement };
 }
 
 export function renderRegionalInfluencePlot(args: {
@@ -1536,7 +1564,13 @@ export function renderRegionalInfluencePlot(args: {
     },
   );
 
-  if (!args.aggregate) return { ...emptyInfluenceStats(args.backgroundMode), viewport };
+  if (!args.aggregate) {
+    return {
+      ...emptyInfluenceStats(args.backgroundMode),
+      viewport,
+      colorbarPlacement: chrome.colorbarPlacement,
+    };
+  }
   const backgroundStats = renderInfluenceBackground({
     ctx,
     context: args.context,
@@ -1562,14 +1596,12 @@ export function renderRegionalInfluencePlot(args: {
     values: topKValues,
     scaleMax,
   });
-  if (chrome.showColorbar) {
-    renderColorbar(select(args.svg), viewport, width, {
-      id: "train-colorbar",
-      kind: "diverging",
-      domain: [-scaleMax, scaleMax],
-    });
-  }
-  return { ...backgroundStats, scaleMax, viewport };
+  renderColorbar(select(args.svg), viewport, width, height, chrome.colorbarPlacement, {
+    id: "train-colorbar",
+    kind: "diverging",
+    domain: [-scaleMax, scaleMax],
+  });
+  return { ...backgroundStats, scaleMax, viewport, colorbarPlacement: chrome.colorbarPlacement };
 }
 
 export function buildDelaunay(

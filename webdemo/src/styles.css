@@ -78,12 +78,12 @@ button {
 .topbar {
   grid-row: 1;
   width: 100%;
-  min-height: 82px;
-  display: flex;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(336px, 1fr) minmax(0, auto);
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px 18px;
+  gap: 10px 14px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
   box-shadow: none;
@@ -93,17 +93,16 @@ button {
 }
 
 .brand-lockup {
-  flex: 1 1 380px;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .hhi-logo {
   flex: 0 0 auto;
-  width: clamp(164px, 18vw, 214px);
-  max-width: 42vw;
+  width: clamp(136px, 12vw, 178px);
+  max-width: 24vw;
   display: flex;
   align-items: center;
   text-decoration: none;
@@ -116,12 +115,13 @@ button {
 }
 
 .topbar-copy {
-  flex: 1 1 180px;
+  flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  gap: 3px;
-  padding-left: 16px;
+  gap: 2px;
+  padding-left: 12px;
   border-left: 1px solid var(--line);
+  overflow: hidden;
 }
 
 h1,
@@ -136,6 +136,9 @@ h1 {
   font-weight: 400;
   line-height: 1.1;
   letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 h2 {
@@ -152,23 +155,33 @@ h2 {
   line-height: 1.25;
 }
 
-.topbar-actions {
+.topbar-copy .muted {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  flex-wrap: nowrap;
+  gap: 8px;
 }
 
 .topbar-links {
   min-width: 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 3px;
-  min-height: 32px;
+  gap: 2px;
+  min-height: 30px;
 }
 
 .topbar-link {
@@ -176,7 +189,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 1px solid transparent;
   border-radius: 0;
   color: var(--accent);
@@ -206,8 +219,9 @@ h2 {
   min-width: 0;
   display: flex;
   align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
 .topbar-control {
@@ -222,12 +236,26 @@ h2 {
 }
 
 .problem-control {
-  flex: 1 1 230px;
-  width: clamp(180px, 28vw, 320px);
+  flex: 1 1 clamp(170px, 19vw, 280px);
+  min-width: 160px;
+  width: clamp(170px, 19vw, 280px);
 }
 
 .quality-control {
-  flex: 0 0 128px;
+  flex: 0 0 118px;
+}
+
+.topbar .quality-switch {
+  width: 118px;
+}
+
+.topbar select {
+  min-height: 32px;
+}
+
+.topbar .icon-button {
+  width: 32px;
+  height: 32px;
 }
 
 label {
@@ -716,7 +744,7 @@ canvas {
 
 .train-summary-badge {
   position: absolute;
-  z-index: 4;
+  z-index: 1;
   min-width: 0;
   max-width: calc(100% - 16px);
   padding: 2px 6px;
@@ -938,6 +966,95 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: minmax(310px, 1fr) minmax(0, auto);
+    gap: 8px 10px;
+    padding: 8px 12px;
+  }
+
+  .brand-lockup {
+    gap: 10px;
+  }
+
+  .hhi-logo {
+    width: clamp(118px, 13vw, 150px);
+    max-width: 20vw;
+  }
+
+  .topbar-copy {
+    padding-left: 10px;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .topbar-links {
+    gap: 1px;
+  }
+
+  .topbar-link {
+    padding: 0 4px;
+    font-size: 10px;
+    letter-spacing: 0.055em;
+  }
+
+  .problem-control {
+    flex-basis: clamp(144px, 16vw, 230px);
+    min-width: 140px;
+    width: clamp(144px, 16vw, 230px);
+  }
+
+  .quality-control {
+    flex-basis: 112px;
+  }
+
+  .topbar .quality-switch {
+    width: 112px;
+  }
+
+  .topbar .segmented button {
+    padding: 0 6px;
+  }
+
+  .topbar .icon-button {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 5px;
+    padding: 7px 10px;
+  }
+
+  .hhi-logo {
+    width: clamp(112px, 16vw, 132px);
+    max-width: 22vw;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-self: stretch;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: 8px;
+  }
+
+  .topbar-links {
+    justify-content: flex-start;
+  }
+
+  .topbar-controls {
+    justify-content: flex-end;
+  }
+}
+
 @media (max-width: 720px) {
   .app-shell {
     grid-template-rows: auto auto minmax(0, 1fr);
@@ -945,30 +1062,30 @@ input[type="range"]::-moz-range-thumb {
 
   .topbar {
     align-items: stretch;
-    flex-direction: column;
-    gap: 6px;
-    min-height: auto;
-    padding: 10px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    min-height: 0;
+    padding: 8px 10px;
   }
 
   .brand-lockup {
     width: 100%;
     flex: none;
-    gap: 10px;
+    gap: 8px;
   }
 
   .hhi-logo {
-    width: min(148px, 40vw);
-    max-width: 40vw;
+    width: clamp(96px, 30vw, 118px);
+    max-width: 32vw;
   }
 
   .topbar-copy {
     width: auto;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     grid-template-columns: minmax(0, 1fr);
     align-items: baseline;
     gap: 2px;
-    padding-left: 10px;
+    padding-left: 8px;
   }
 
   h1 {
@@ -993,27 +1110,28 @@ input[type="range"]::-moz-range-thumb {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
     justify-content: stretch;
-    gap: 5px;
+    gap: 4px;
   }
 
   .topbar-links {
     justify-content: flex-start;
-    min-height: 25px;
-    gap: 2px;
-    overflow: hidden;
+    min-height: 24px;
+    gap: 1px;
+    overflow: visible;
   }
 
   .topbar-link {
-    min-height: 25px;
-    padding: 0 6px;
+    min-height: 24px;
+    padding: 0 5px;
     font-size: 10px;
+    letter-spacing: 0.05em;
   }
 
   .topbar-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 112px 30px;
+    grid-template-columns: minmax(0, 1fr) 108px 30px;
     align-items: end;
-    gap: 6px;
+    gap: 5px;
   }
 
   .topbar-control {
@@ -1023,14 +1141,15 @@ input[type="range"]::-moz-range-thumb {
 
   .problem-control {
     width: auto;
+    min-width: 0;
   }
 
   .quality-control {
-    width: 112px;
+    width: 108px;
   }
 
-  .quality-switch {
-    width: 112px;
+  .topbar .quality-switch {
+    width: 108px;
   }
 
   .topbar-controls .icon-button {
