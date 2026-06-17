@@ -48,7 +48,6 @@ import {
 import { chooseAdaptivePlotLayout } from "../viz/layout";
 import {
   buildDelaunay,
-  PLOT_VIEWPORT_PADDING,
   pointerInDomain,
   rasterSampleAtCoord,
   renderLocalInfluencePlot,
@@ -766,7 +765,6 @@ export class AppController {
       headerHeight,
       modelAspect: domainAspectRatio(this.mainProjection(context).displayBounds),
       trainAspect: domainAspectRatio(this.trainProjection(context).displayBounds),
-      padding: PLOT_VIEWPORT_PADDING,
     });
     const modelTrack = `${Math.max(1, Math.round(layout.modelTrackPx))}px`;
     const trainTrack = `${Math.max(1, Math.round(layout.trainTrackPx))}px`;

@@ -273,12 +273,28 @@ async function build() {
     candidateUnitPoints: [0.08, 0.25, 0.97, 0.52, 0.22, 0.78, 0.82, 0.75],
     trainUnitPoints: [0.05, 0.1, 0.34, 0.22, 0.58, 0.5, 0.25, 0.85, 0.95, 0.52],
   };
+  const burgersConfig = {
+    problem: "burgers",
+    displayName: "Burgers",
+    bounds: { x: [-1, 1], y: [0, 1] },
+    matrixId: "m_burgers",
+  };
+  const navierConfig = {
+    problem: "navier_stokes_nd",
+    displayName: "Navier Stokes",
+    bounds: { x: [0, 22], y: [0, 4.1] },
+    matrixId: "m_navier",
+  };
   const good = await buildVariant("good", fixtureConfig);
   const bad = await buildVariant("bad", fixtureConfig);
   const shiftedGood = await buildVariant("good", shiftedConfig);
   const shiftedBad = await buildVariant("bad", shiftedConfig);
   const driftGood = await buildVariant("good", driftConfig);
   const driftBad = await buildVariant("bad", driftConfig);
+  const burgersGood = await buildVariant("good", burgersConfig);
+  const burgersBad = await buildVariant("bad", burgersConfig);
+  const navierGood = await buildVariant("good", navierConfig);
+  const navierBad = await buildVariant("bad", navierConfig);
 
   const index = {
     schema_version: 8,
@@ -298,9 +314,19 @@ async function build() {
         variants: { good: shiftedGood, bad: shiftedBad },
       },
       {
+        problem: "burgers",
+        display_name: "Burgers",
+        variants: { good: burgersGood, bad: burgersBad },
+      },
+      {
         problem: "drift_diffusion",
         display_name: "Drift Diffusion",
         variants: { good: driftGood, bad: driftBad },
+      },
+      {
+        problem: "navier_stokes_nd",
+        display_name: "Navier Stokes",
+        variants: { good: navierGood, bad: navierBad },
       },
     ],
   };

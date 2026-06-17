@@ -4,6 +4,8 @@ import {
   adaptivePlotLayoutCandidates,
   chooseAdaptivePlotLayout,
 } from "../src/viz/layout";
+import { COMPACT_PLOT_PADDING } from "../src/viz/chrome";
+import { plotViewport } from "../src/viz/geometry";
 
 function close(actual: number, expected: number, tolerance = 1e-9) {
   expect(Math.abs(actual - expected)).toBeLessThan(tolerance);
@@ -79,7 +81,7 @@ describe("adaptive plot layout", () => {
 
   it("selects the orientation with the larger fitted viewport area", () => {
     const input = {
-      width: 480,
+      width: 900,
       height: 1100,
       gap: 20,
       headerHeight: 44,
@@ -92,5 +94,43 @@ describe("adaptive plot layout", () => {
     expect(column.score).toBeGreaterThan(row.score);
     expect(layout.orientation).toBe("column");
     expect(layout.score).toBe(column.score);
+  });
+
+  it("keeps choosing the higher-scoring column layout on tall desktop viewports", () => {
+    const input = {
+      width: 1440,
+      height: 1700,
+      gap: 20,
+      headerHeight: 54,
+      modelAspect: 2,
+      trainAspect: 2,
+    };
+    const [row, column] = adaptivePlotLayoutCandidates(input);
+    const layout = chooseAdaptivePlotLayout(input);
+
+    expect(column.score).toBeGreaterThan(row.score);
+    expect(layout.orientation).toBe("column");
+    expect(layout.score).toBe(column.score);
+  });
+
+  it("scores narrow plot tracks with compact responsive insets", () => {
+    const [row, column] = adaptivePlotLayoutCandidates({
+      width: 390,
+      height: 844,
+      gap: 8,
+      headerHeight: 48,
+      modelAspect: 2,
+      trainAspect: 2,
+    });
+    const modelBodyHeight = (844 - 8 - 48 * 2) / 2;
+    const expectedViewport = plotViewport(
+      { minX: 0, maxX: 2, minY: 0, maxY: 1 },
+      390,
+      modelBodyHeight,
+      COMPACT_PLOT_PADDING,
+    );
+
+    close(column.modelViewportArea, expectedViewport.width * expectedViewport.height);
+    expect(column.modelViewportArea).toBeGreaterThan(row.modelViewportArea);
   });
 });

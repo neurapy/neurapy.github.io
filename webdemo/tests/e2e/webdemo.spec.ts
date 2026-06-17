@@ -35,6 +35,36 @@ async function axisFrameRatio(page: Page, selector: string): Promise<number> {
   });
 }
 
+async function plotFrameMetrics(
+  page: Page,
+  panelSelector: string,
+  svgSelector: string,
+): Promise<{
+  bodyWidth: number;
+  frameWidth: number;
+  marginLeft: number;
+  marginRight: number;
+  colorbars: number;
+}> {
+  return page.locator(panelSelector).evaluate((panel, selector) => {
+    const body = panel.querySelector<HTMLElement>(".plot-body");
+    const svg = document.querySelector<SVGSVGElement>(selector);
+    const frame = svg?.querySelector<SVGRectElement>(".axis-frame");
+    if (!body || !svg || !frame) throw new Error("Missing plot frame");
+    const bodyBox = body.getBoundingClientRect();
+    const svgBox = svg.getBoundingClientRect();
+    const x = Number(frame.getAttribute("x"));
+    const width = Number(frame.getAttribute("width"));
+    return {
+      bodyWidth: bodyBox.width,
+      frameWidth: width,
+      marginLeft: x,
+      marginRight: svgBox.width - x - width,
+      colorbars: svg.querySelectorAll(".colorbar-frame").length,
+    };
+  }, svgSelector);
+}
+
 async function expectCompactOutsideDecorations(page: Page, selector: string): Promise<void> {
   const metrics = await page.locator(selector).evaluate((svg) => {
     const root = svg as SVGSVGElement;
@@ -564,7 +594,9 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#problemSelect option")).toHaveText([
     "Fixture",
     "Shifted Fixture",
+    "Burgers",
     "Drift Diffusion",
+    "Navier Stokes",
   ]);
   await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
   await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
@@ -714,6 +746,42 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
+test("wide desktop uses the viewport width and keeps plot tiles side by side", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
+  await page.setViewportSize({ width: 2400, height: 1600 });
+  await page.goto(FIXTURE_URL);
+
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+  await expect(page.locator("#plotGrid")).toHaveAttribute("data-layout", "row");
+
+  const metrics = await page.evaluate(() => {
+    const shell = document.querySelector<HTMLElement>(".app-shell");
+    const grid = document.querySelector<HTMLElement>("#plotGrid");
+    const model = document.querySelector<HTMLElement>("#modelPanel");
+    const train = document.querySelector<HTMLElement>("#trainPanel");
+    if (!shell || !grid || !model || !train) throw new Error("Missing layout elements");
+    const shellRect = shell.getBoundingClientRect();
+    const gridRect = grid.getBoundingClientRect();
+    const modelRect = model.getBoundingClientRect();
+    const trainRect = train.getBoundingClientRect();
+    return {
+      viewportWidth: document.documentElement.clientWidth,
+      shellWidth: shellRect.width,
+      gridWidth: gridRect.width,
+      modelRight: modelRect.right,
+      trainLeft: trainRect.left,
+      modelTop: modelRect.top,
+      trainTop: trainRect.top,
+    };
+  });
+
+  expect(metrics.shellWidth).toBeGreaterThanOrEqual(metrics.viewportWidth - 1);
+  expect(metrics.gridWidth).toBeGreaterThan(metrics.viewportWidth - 50);
+  expect(metrics.modelRight).toBeLessThan(metrics.trainLeft);
+  expect(Math.abs(metrics.modelTop - metrics.trainTop)).toBeLessThan(1);
+});
+
 test("legal pages load through the dev server", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "static page smoke coverage is enough on desktop");
 
@@ -822,7 +890,9 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   await expect(page.locator("#problemSelect option")).toHaveText([
     "Fixture",
     "Shifted Fixture",
+    "Burgers",
     "Drift Diffusion",
+    "Navier Stokes",
   ]);
   await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
   await expectTopbarControlsFit(page);
@@ -857,6 +927,28 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   const viewport = page.viewportSize();
   expect((mainBox?.y ?? 0) + (mainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
   expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
+
+  await page.locator("#problemSelect").selectOption("burgers");
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  const burgersFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
+  expect(burgersFrame.frameWidth).toBeGreaterThan(310);
+  expect(burgersFrame.frameWidth / burgersFrame.bodyWidth).toBeGreaterThan(0.84);
+  expect(burgersFrame.colorbars).toBe(0);
+
+  await page.locator("#problemSelect").selectOption("navier_stokes_nd");
+  await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  const navierFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
+  expect(navierFrame.frameWidth).toBeGreaterThan(310);
+  expect(navierFrame.frameWidth / navierFrame.bodyWidth).toBeGreaterThan(0.84);
+  expect(navierFrame.marginLeft + navierFrame.marginRight).toBeLessThan(60);
+  expect(navierFrame.colorbars).toBe(0);
+
+  await page.locator("#problemSelect").selectOption("fixture");
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
 
   await tapMainPoint(page);
   await expect(page.locator("#selectedPoint")).toHaveText(/\(.+,.+\)/);

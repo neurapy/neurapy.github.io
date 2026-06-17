@@ -22,6 +22,7 @@ import type {
   RunManifest,
 } from "../types";
 import { clearCanvas, prepareCanvas } from "./canvas";
+import { plotChromeForBounds } from "./chrome";
 import { divergingColorScale } from "./color";
 import {
   boundsFromAxisMap,
@@ -31,7 +32,6 @@ import {
   plotViewport,
   projectPointToViewport,
   unprojectPointFromViewport,
-  type PlotInsets,
 } from "./geometry";
 import {
   plotProjectionForManifest,
@@ -122,12 +122,6 @@ const MAX_MAP_GRID_CELL_SIZE_PX = 6;
 const MAX_MAP_GRID_CELLS = 50_000;
 const DUPLICATE_MERGE_TOLERANCE_GRID_PX = 0.25;
 export const MAX_VISIBLE_INFLUENCE_LINES = 64;
-export const PLOT_VIEWPORT_PADDING: PlotInsets = {
-  top: 8,
-  right: 54,
-  bottom: 36,
-  left: 46,
-};
 const SELECTION_PULSE_DURATION_MS = 720;
 
 type ColorbarKind = "sequential" | "diverging";
@@ -976,7 +970,8 @@ export function renderMainPlot(args: {
   clearCanvas(ctx, width, height);
   const rasterBounds = rasterPlotBounds(args.context);
   const projection = plotProjectionForManifest(args.context.manifest, rasterBounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
+  const chrome = plotChromeForBounds(width, height, projection.displayBounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, chrome.padding);
   drawPlotStage(ctx, viewport);
 
   if (args.raster && args.rasterResult) {
@@ -1039,7 +1034,7 @@ export function renderMainPlot(args: {
     viewport,
     projection,
   });
-  if (args.raster) {
+  if (args.raster && chrome.showColorbar) {
     renderColorbar(select(args.svg), viewport, width, {
       id: "model-colorbar",
       kind: "sequential",
@@ -1399,7 +1394,8 @@ export function renderLocalInfluencePlot(args: {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
+  const chrome = plotChromeForBounds(width, height, projection.displayBounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, chrome.padding);
   drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
@@ -1489,11 +1485,13 @@ export function renderLocalInfluencePlot(args: {
   });
 
   drawPointMarker(ctx, rowSx, rowSy, 7, plotVisualScale(viewport), args.selectionPulse ?? 0);
-  renderColorbar(select(args.svg), viewport, width, {
-    id: "train-colorbar",
-    kind: "diverging",
-    domain: [-scaleMax, scaleMax],
-  });
+  if (chrome.showColorbar) {
+    renderColorbar(select(args.svg), viewport, width, {
+      id: "train-colorbar",
+      kind: "diverging",
+      domain: [-scaleMax, scaleMax],
+    });
+  }
   return { ...backgroundStats, scaleMax, viewport };
 }
 
@@ -1510,7 +1508,8 @@ export function renderRegionalInfluencePlot(args: {
   const { ctx, width, height } = prepareCanvas(args.canvas);
   clearCanvas(ctx, width, height);
   const projection = plotProjectionForManifest(args.context.manifest, args.context.bounds);
-  const viewport = plotViewport(projection.displayBounds, width, height, PLOT_VIEWPORT_PADDING);
+  const chrome = plotChromeForBounds(width, height, projection.displayBounds);
+  const viewport = plotViewport(projection.displayBounds, width, height, chrome.padding);
   drawPlotStage(ctx, viewport);
   renderAxes(args.svg, args.context.bounds, width, height, viewport, projection);
   renderContourOverlay({
@@ -1563,11 +1562,13 @@ export function renderRegionalInfluencePlot(args: {
     values: topKValues,
     scaleMax,
   });
-  renderColorbar(select(args.svg), viewport, width, {
-    id: "train-colorbar",
-    kind: "diverging",
-    domain: [-scaleMax, scaleMax],
-  });
+  if (chrome.showColorbar) {
+    renderColorbar(select(args.svg), viewport, width, {
+      id: "train-colorbar",
+      kind: "diverging",
+      domain: [-scaleMax, scaleMax],
+    });
+  }
   return { ...backgroundStats, scaleMax, viewport };
 }
 

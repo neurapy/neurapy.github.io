@@ -1,4 +1,5 @@
-import { DEFAULT_PLOT_PADDING, plotViewport, type PlotPadding } from "./geometry";
+import { plotChromeForSize } from "./chrome";
+import { plotViewport, type PlotPadding } from "./geometry";
 
 export type PlotLayoutOrientation = "row" | "column";
 
@@ -31,14 +32,15 @@ function fittedViewportArea(
   aspect: number,
   width: number,
   height: number,
-  padding: PlotPadding,
+  padding?: PlotPadding,
 ): number {
   if (width <= 0 || height <= 0) return 0;
+  const plotPadding = padding ?? plotChromeForSize(width, height, aspect).padding;
   const viewport = plotViewport(
     { minX: 0, maxX: aspect, minY: 0, maxY: 1 },
     width,
     height,
-    padding,
+    plotPadding,
   );
   return viewport.width * viewport.height;
 }
@@ -52,7 +54,7 @@ export function adaptivePlotLayoutCandidates(
   const headerHeight = Math.max(0, Number.isFinite(input.headerHeight) ? input.headerHeight : 0);
   const modelAspect = positiveNumber(input.modelAspect, 1);
   const trainAspect = positiveNumber(input.trainAspect, 1);
-  const padding = input.padding ?? DEFAULT_PLOT_PADDING;
+  const padding = input.padding;
 
   const rowTrackTotal = Math.max(0, width - gap);
   const rowWeightTotal = modelAspect + trainAspect;
