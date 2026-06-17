@@ -144,21 +144,28 @@ export class DataRepository {
     const totals = new Map<number, number>();
     let meanTotal = 0;
     let meanCount = 0;
+    let selectionScratch: Uint32Array | undefined;
     for (const row of validRows) {
       const scoreRow = this.cachedScoreRow(matrix, row);
-      for (const value of scoreRow) {
-        if (!Number.isFinite(value)) continue;
-        if (sign === "pos" && value <= 0) continue;
-        if (sign === "neg" && value >= 0) continue;
+      const topKCount = denseTopKCount(scoreRow, matrix.k);
+      const useAllContributions = topKCount >= scoreRow.length;
+      for (let trainIndex = 0; trainIndex < scoreRow.length; trainIndex += 1) {
+        const value = scoreRow[trainIndex];
+        if (!includeDenseValueForSign(value, sign)) continue;
         meanTotal += value;
         meanCount += 1;
+        if (useAllContributions) {
+          addAggregateContribution(totals, trainIndex, value, sign);
+        }
       }
-      const { indices, values } = topKDenseRow(scoreRow, sign, matrix.k);
-      for (let index = 0; index < indices.length; index += 1) {
-        const trainIndex = indices[index];
-        const contribution = aggregateContribution(values[index], sign);
-        if (!contribution) continue;
-        totals.set(trainIndex, (totals.get(trainIndex) ?? 0) + contribution);
+      if (!useAllContributions && topKCount > 0) {
+        if (!selectionScratch || selectionScratch.length < scoreRow.length) {
+          selectionScratch = new Uint32Array(scoreRow.length);
+        }
+        const selectedIndices = selectTopKDenseIndices(scoreRow, sign, topKCount, selectionScratch);
+        for (const trainIndex of selectedIndices) {
+          addAggregateContribution(totals, trainIndex, scoreRow[trainIndex], sign);
+        }
       }
     }
 
@@ -309,6 +316,24 @@ function aggregateContribution(value: number, sign: InfluenceSign): number {
   return value < 0 ? value : 0;
 }
 
+function includeDenseValueForSign(value: number, sign: InfluenceSign): boolean {
+  if (!Number.isFinite(value)) return false;
+  if (sign === "pos") return value > 0;
+  if (sign === "neg") return value < 0;
+  return true;
+}
+
+function addAggregateContribution(
+  totals: Map<number, number>,
+  trainIndex: number,
+  value: number,
+  sign: InfluenceSign,
+): void {
+  const contribution = aggregateContribution(value, sign);
+  if (!contribution) return;
+  totals.set(trainIndex, (totals.get(trainIndex) ?? 0) + contribution);
+}
+
 function compareAggregateEntries(
   a: [number, number],
   b: [number, number],
@@ -348,133 +373,89 @@ function topKDenseRow(
   sign: InfluenceSign,
   k: number,
 ): { indices: Uint32Array; values: Float32Array } {
-  const count = Math.min(Math.max(0, Math.trunc(k)), row.length);
+  const count = denseTopKCount(row, k);
   if (count === 0) {
     return { indices: new Uint32Array(0), values: new Float32Array(0) };
   }
+  const selectedIndices = selectTopKDenseIndices(row, sign, count);
+  sortDenseIndices(selectedIndices, row, sign);
   const indices = new Uint32Array(count);
   const values = new Float32Array(count);
-  if (count === row.length) {
-    for (let index = 0; index < row.length; index += 1) {
-      indices[index] = index;
-      values[index] = row[index];
-    }
-    sortDenseEntries(indices, values, sign);
-    return { indices, values };
+  for (let index = 0; index < count; index += 1) {
+    const trainIndex = selectedIndices[index];
+    indices[index] = trainIndex;
+    values[index] = row[trainIndex];
   }
-
-  let heapSize = 0;
-  for (let index = 0; index < row.length; index += 1) {
-    const value = row[index];
-    if (heapSize < count) {
-      indices[heapSize] = index;
-      values[heapSize] = value;
-      siftDenseHeapUp(indices, values, heapSize, sign);
-      heapSize += 1;
-      continue;
-    }
-    if (compareDenseEntries(index, value, indices[0], values[0], sign) < 0) {
-      indices[0] = index;
-      values[0] = value;
-      siftDenseHeapDown(indices, values, heapSize, 0, sign);
-    }
-  }
-  sortDenseEntries(indices, values, sign);
   return { indices, values };
 }
 
-function siftDenseHeapUp(
-  indices: Uint32Array,
-  values: Float32Array,
-  start: number,
-  sign: InfluenceSign,
-): void {
-  let child = start;
-  while (child > 0) {
-    const parent = (child - 1) >> 1;
-    if (!denseEntryIsWorse(indices, values, child, parent, sign)) break;
-    swapDenseEntries(indices, values, child, parent);
-    child = parent;
-  }
+function denseTopKCount(row: Float32Array, k: number): number {
+  return Math.min(Math.max(0, Math.trunc(k)), row.length);
 }
 
-function siftDenseHeapDown(
+function selectTopKDenseIndices(
+  row: Float32Array,
+  sign: InfluenceSign,
+  count: number,
+  scratch?: Uint32Array,
+): Uint32Array {
+  if (count <= 0) return new Uint32Array(0);
+  const indices = scratch && scratch.length >= row.length
+    ? scratch.subarray(0, row.length)
+    : new Uint32Array(row.length);
+  for (let index = 0; index < row.length; index += 1) {
+    indices[index] = index;
+  }
+  if (count < indices.length) {
+    quickselectDenseIndices(row, indices, count - 1, sign);
+  }
+  return indices.subarray(0, count);
+}
+
+function quickselectDenseIndices(
+  row: Float32Array,
   indices: Uint32Array,
-  values: Float32Array,
-  size: number,
-  start: number,
+  target: number,
   sign: InfluenceSign,
 ): void {
-  let parent = start;
-  while (true) {
-    const left = parent * 2 + 1;
-    if (left >= size) break;
-    const right = left + 1;
-    let worst = left;
-    if (right < size && denseEntryIsWorse(indices, values, right, left, sign)) {
-      worst = right;
+  let left = 0;
+  let right = indices.length - 1;
+  while (left < right) {
+    const pivotIndex = indices[(left + right) >>> 1];
+    const pivotValue = row[pivotIndex];
+    let i = left;
+    let j = right;
+    while (i <= j) {
+      while (compareDenseEntries(indices[i], row[indices[i]], pivotIndex, pivotValue, sign) < 0) {
+        i += 1;
+      }
+      while (compareDenseEntries(indices[j], row[indices[j]], pivotIndex, pivotValue, sign) > 0) {
+        j -= 1;
+      }
+      if (i <= j) {
+        const temp = indices[i];
+        indices[i] = indices[j];
+        indices[j] = temp;
+        i += 1;
+        j -= 1;
+      }
     }
-    if (!denseEntryIsWorse(indices, values, worst, parent, sign)) break;
-    swapDenseEntries(indices, values, worst, parent);
-    parent = worst;
-  }
-}
-
-function denseEntryIsWorse(
-  indices: Uint32Array,
-  values: Float32Array,
-  a: number,
-  b: number,
-  sign: InfluenceSign,
-): boolean {
-  return compareDenseEntries(indices[a], values[a], indices[b], values[b], sign) > 0;
-}
-
-function sortDenseEntries(
-  indices: Uint32Array,
-  values: Float32Array,
-  sign: InfluenceSign,
-): void {
-  quickSortDenseEntries(indices, values, 0, indices.length - 1, sign);
-}
-
-function quickSortDenseEntries(
-  indices: Uint32Array,
-  values: Float32Array,
-  left: number,
-  right: number,
-  sign: InfluenceSign,
-): void {
-  let i = left;
-  let j = right;
-  const pivot = (left + right) >> 1;
-  const pivotIndex = indices[pivot];
-  const pivotValue = values[pivot];
-  while (i <= j) {
-    while (compareDenseEntries(indices[i], values[i], pivotIndex, pivotValue, sign) < 0) i += 1;
-    while (compareDenseEntries(indices[j], values[j], pivotIndex, pivotValue, sign) > 0) j -= 1;
-    if (i <= j) {
-      swapDenseEntries(indices, values, i, j);
-      i += 1;
-      j -= 1;
+    if (target <= j) {
+      right = j;
+    } else if (target >= i) {
+      left = i;
+    } else {
+      break;
     }
   }
-  if (left < j) quickSortDenseEntries(indices, values, left, j, sign);
-  if (i < right) quickSortDenseEntries(indices, values, i, right, sign);
 }
 
-function swapDenseEntries(
+function sortDenseIndices(
   indices: Uint32Array,
-  values: Float32Array,
-  a: number,
-  b: number,
+  row: Float32Array,
+  sign: InfluenceSign,
 ): void {
-  const index = indices[a];
-  const value = values[a];
-  indices[a] = indices[b];
-  values[a] = values[b];
-  indices[b] = index;
-  values[b] = value;
+  indices.sort((a, b) => compareDenseEntries(a, row[a], b, row[b], sign));
 }
 
 function compareDenseEntries(

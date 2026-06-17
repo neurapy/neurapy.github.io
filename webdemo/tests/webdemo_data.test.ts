@@ -256,35 +256,58 @@ describe("dense influence row lookup", () => {
     expect(fetchRangeHeader(0)).toBe("bytes=12-23");
   });
 
-  it("orders dense row top-k entries by selected sign and clamps to the row length", async () => {
+  it("orders dense row top-k entries by selected sign when k is below the row length", async () => {
     installScoreFetch(new Float32Array([0.3, -0.5, 0.5, 2, -1, 0]));
-    const matrix = { ...manifest.influence_matrices[0], k: 10 };
+    const matrix = { ...manifest.influence_matrices[0], k: 2 };
     const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
 
     const abs = await repo.loadInfluenceRow(matrix, "abs", 0);
     const pos = await repo.loadInfluenceRow(matrix, "pos", 0);
     const neg = await repo.loadInfluenceRow(matrix, "neg", 0);
 
-    expect(Array.from(abs.indices)).toEqual([1, 2, 0]);
+    expect(Array.from(abs.indices)).toEqual([1, 2]);
     expect(Array.from(abs.values)).toEqual([
       expect.closeTo(-0.5),
       expect.closeTo(0.5),
-      expect.closeTo(0.3),
     ]);
-    expect(Array.from(pos.indices)).toEqual([2, 0, 1]);
+    expect(Array.from(pos.indices)).toEqual([2, 0]);
     expect(Array.from(pos.values)).toEqual([
       expect.closeTo(0.5),
       expect.closeTo(0.3),
-      expect.closeTo(-0.5),
     ]);
-    expect(Array.from(neg.indices)).toEqual([1, 0, 2]);
+    expect(Array.from(neg.indices)).toEqual([1, 0]);
     expect(Array.from(neg.values)).toEqual([
       expect.closeTo(-0.5),
       expect.closeTo(0.3),
-      expect.closeTo(0.5),
     ]);
-    expect(abs.indices).toHaveLength(3);
+    expect(abs.indices).toHaveLength(2);
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("clamps dense row top-k to the row length", async () => {
+    installScoreFetch(new Float32Array([0.3, -0.5, 0.5, 2, -1, 0]));
+    const matrix = { ...manifest.influence_matrices[0], k: 10 };
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const row = await repo.loadInfluenceRow(matrix, "abs", 0);
+
+    expect(Array.from(row.indices)).toEqual([1, 2, 0]);
+    expect(Array.from(row.values)).toEqual([
+      expect.closeTo(-0.5),
+      expect.closeTo(0.5),
+      expect.closeTo(0.3),
+    ]);
+  });
+
+  it("returns no dense row entries when k is zero", async () => {
+    installScoreFetch(new Float32Array([0.3, -0.5, 0.5, 2, -1, 0]));
+    const matrix = { ...manifest.influence_matrices[0], k: 0 };
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const row = await repo.loadInfluenceRow(matrix, "abs", 0);
+
+    expect(row.indices).toHaveLength(0);
+    expect(row.values).toHaveLength(0);
   });
 
   it("orders dense row top-k ties by train index", async () => {
@@ -411,6 +434,22 @@ describe("dense influence row aggregation", () => {
     expect(Array.from(neg.indices)).toEqual([1, 2]);
     expect(Array.from(neg.values)).toEqual([expect.closeTo(-0.1), expect.closeTo(-0.05)]);
     expect(neg.meanValue).toBeCloseTo(-0.15);
+  });
+
+  it("aggregates all dense row values directly when k reaches the row length", async () => {
+    installScoreFetch(aggregateScores());
+    const matrix = { ...aggregateMatrix(), k: 3, max_local_influence_points: 3 };
+    const repo = new DataRepository(new URL("http://example.test/manifest.json"), manifest, 1024);
+
+    const aggregate = await repo.loadInfluenceAggregate(matrix, "abs", [0, 1]);
+
+    expect(Array.from(aggregate.indices)).toEqual([1, 2, 0]);
+    expect(Array.from(aggregate.values)).toEqual([
+      expect.closeTo(-0.125),
+      expect.closeTo(0.1),
+      expect.closeTo(0.05),
+    ]);
+    expect(aggregate.meanValue).toBeCloseTo(0.05 / 6);
   });
 });
 
