@@ -8,6 +8,7 @@ import {
   formatProblemLabel,
   resolveProblemVariant,
 } from "../src/data/manifest";
+import { assertResultsData } from "../src/data/results";
 import { typedArrayFromBuffer } from "../src/data/dtypes";
 import { PriorityLoader } from "../src/data/loader";
 import {
@@ -16,7 +17,7 @@ import {
   type PrefetchContext,
 } from "../src/data/prefetcher";
 import type { InfluenceMatrixManifest, RunManifest } from "../src/types";
-import type { DataIndex, TypedArray } from "../src/types";
+import type { DataIndex, ResultsData, TypedArray } from "../src/types";
 
 function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
   const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
@@ -200,6 +201,24 @@ describe("typed array validation", () => {
     expect(() =>
       assertV8Index({ ...index, schema_version: 7, runs: [] } as unknown as DataIndex),
     ).toThrow(/expected 8/);
+  });
+
+  it("parses results dashboard data and rejects unsupported schemas", () => {
+    const results: ResultsData = {
+      schema_version: 1,
+      generated_at: "2026-06-17T00:00:00+0000",
+      sources: [],
+      loss_decompositions: [],
+      indicators: {
+        temporal: [],
+        directionality: [],
+      },
+    };
+
+    expect(assertResultsData(results)).toBe(results);
+    expect(() =>
+      assertResultsData({ ...results, schema_version: 2 } as unknown as ResultsData),
+    ).toThrow(/expected 1/);
   });
 
   it("formats problem labels and resolves active Good/Bad variants", () => {

@@ -1,5 +1,6 @@
 import type { Delaunay } from "d3";
 import type {
+  AppView,
   BackgroundMode,
   Bounds,
   DataIndex,
@@ -11,11 +12,13 @@ import type {
   PointArrays,
   PlotViewport,
   RasterData,
+  ResultsData,
   RunManifest,
   TypedArray,
 } from "../types";
 import { DataRepository } from "../data/arrays";
 import { LruCache } from "../data/cache";
+import { loadResultsData } from "../data/results";
 import {
   firstAvailableProblem,
   formatProblemLabel,
@@ -73,6 +76,7 @@ import {
   showMessage,
   type DomRefs,
 } from "./dom";
+import { ResultsDashboard } from "./results";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_output_0";
 const BACKGROUND_MODE_LABELS: Record<BackgroundMode, string> = {
@@ -104,6 +108,7 @@ type PlotClickGesture = {
 export class AppController {
   private readonly dom: DomRefs = getDomRefs();
   private readonly store = new Store();
+  private readonly resultsDashboard = new ResultsDashboard(this.dom.resultsWorkspace);
   private readonly indexUrl = resolveIndexUrl();
   private readonly worker = new Worker(new URL("../worker/rasterWorker.ts", import.meta.url), {
     type: "module",
@@ -131,6 +136,9 @@ export class AppController {
   private latestRasterRequest = 0;
   private latestAggregateRequest = 0;
   private scheduled = new Set<PanelName>();
+  private resultsData: ResultsData | null = null;
+  private resultsLoadPromise: Promise<ResultsData> | null = null;
+  private scheduledResultsRender = 0;
   private lastLayoutSignature = "";
   private selectionPulseStartedAt = 0;
   private selectionPulseAnimation = 0;
@@ -143,6 +151,8 @@ export class AppController {
     this.bindEvents();
     this.observeLayout();
     showMessage(this.dom.message, null);
+    this.setActiveButtons(this.dom.viewButtons, this.store.state.appView, "appView");
+    this.applyActiveView();
     this.dom.runMeta.textContent = "Loading data index";
     try {
       this.index = await loadIndex(this.indexUrl);
@@ -155,6 +165,10 @@ export class AppController {
       this.dom.problemSelect.value = firstProblem.problem;
       this.setActiveButtons(this.dom.qualityButtons, this.store.state.modelQuality, "modelQuality");
       await this.loadActiveVariant();
+      if (this.store.state.appView === "results") {
+        await this.ensureResultsData();
+        this.renderResultsDashboard();
+      }
     } catch (error) {
       showMessage(this.dom.message, error instanceof Error ? error.message : String(error));
       this.dom.runMeta.textContent = "Data unavailable";
@@ -162,8 +176,19 @@ export class AppController {
   }
 
   private bindEvents(): void {
+    this.dom.viewButtons.addEventListener("click", (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>("button[data-app-view]");
+      if (!button) return;
+      const appView: AppView = button.dataset.appView === "results" ? "results" : "playground";
+      this.store.dispatch({ type: "view", appView });
+      this.applyActiveView();
+    });
     this.dom.problemSelect.addEventListener("change", () => {
       this.store.dispatch({ type: "problem", problem: this.dom.problemSelect.value });
+      if (this.store.state.appView === "results") {
+        this.renderResultsDashboard();
+        return;
+      }
       void this.loadActiveVariant();
     });
     this.dom.qualityButtons.addEventListener("click", (event) => {
@@ -172,6 +197,10 @@ export class AppController {
       const quality: ModelQuality = button.dataset.modelQuality === "bad" ? "bad" : "good";
       this.store.dispatch({ type: "modelQuality", modelQuality: quality });
       this.setActiveButtons(this.dom.qualityButtons, quality, "modelQuality");
+      if (this.store.state.appView === "results") {
+        this.updateToplineMeta();
+        return;
+      }
       void this.loadActiveVariant();
     });
     this.dom.fieldSelect.addEventListener("change", () => {
@@ -260,6 +289,82 @@ export class AppController {
     const span = Number.isFinite(max - min) && max > min ? max - min : 1;
     const progress = Math.max(0, Math.min(100, ((value - min) / span) * 100));
     this.dom.kSlider.style.setProperty("--range-progress", `${progress}%`);
+  }
+
+  private applyActiveView(): void {
+    const isResults = this.store.state.appView === "results";
+    this.dom.playgroundWorkspace.hidden = isResults;
+    this.dom.resultsWorkspace.hidden = !isResults;
+    this.dom.resetButton.hidden = isResults;
+    this.setActiveButtons(this.dom.viewButtons, this.store.state.appView, "appView");
+    this.updateToplineMeta();
+    if (isResults) {
+      this.dismissModelInteractionHint();
+      void this.ensureResultsData()
+        .then(() => this.renderResultsDashboard())
+        .catch(() => undefined);
+      return;
+    }
+    if (this.index && !this.activeVariantMatchesState()) {
+      void this.loadActiveVariant();
+      return;
+    }
+    this.refreshResponsiveLayout();
+    this.schedule("main");
+    this.schedule("train");
+  }
+
+  private async ensureResultsData(): Promise<ResultsData | null> {
+    if (this.resultsData) return this.resultsData;
+    if (!this.resultsLoadPromise) {
+      this.resultsDashboard.setLoading();
+      this.resultsLoadPromise = loadResultsData(this.indexUrl)
+        .then((data) => {
+          this.resultsData = data;
+          return data;
+        })
+        .catch((error) => {
+          this.resultsLoadPromise = null;
+          const message = error instanceof Error ? error.message : String(error);
+          this.resultsDashboard.setError(message);
+          throw error;
+        });
+    }
+    return this.resultsLoadPromise;
+  }
+
+  private renderResultsDashboard(): void {
+    if (this.store.state.appView !== "results" || !this.resultsData || !this.index) return;
+    this.resultsDashboard.render(this.resultsData, this.store.state.problem ?? this.dom.problemSelect.value);
+    this.updateToplineMeta();
+  }
+
+  private scheduleResultsRender(): void {
+    if (this.scheduledResultsRender) return;
+    this.scheduledResultsRender = requestAnimationFrame(() => {
+      this.scheduledResultsRender = 0;
+      this.resultsDashboard.rerender();
+    });
+  }
+
+  private updateToplineMeta(): void {
+    if (this.store.state.appView === "results") {
+      const problemLabel = this.dom.problemSelect.selectedOptions[0]?.textContent ?? "Selected problem";
+      this.dom.runMeta.textContent = `Results · ${problemLabel}`;
+      return;
+    }
+    if (!this.manifest) return;
+    this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+  }
+
+  private activeVariantMatchesState(): boolean {
+    const problemId = this.store.state.problem ?? this.dom.problemSelect.value;
+    return Boolean(
+      this.manifest &&
+        problemId &&
+        this.manifest.problem === problemId &&
+        this.manifest.model_quality === this.store.state.modelQuality,
+    );
   }
 
   private prefersReducedMotion(): boolean {
@@ -367,6 +472,10 @@ export class AppController {
   }
 
   private handleViewportScaleChange(): void {
+    if (this.store.state.appView === "results") {
+      this.scheduleResultsRender();
+      return;
+    }
     this.refreshResponsiveLayout();
     this.schedule("main");
     this.schedule("train");
@@ -455,7 +564,7 @@ export class AppController {
         this.loadRaster(this.store.state.fieldId),
         this.loadInfluenceForSelection(),
       ]);
-      this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+      this.updateToplineMeta();
       this.refreshResponsiveLayout();
       if (this.store.state.selectionMode === "point") this.triggerSelectionPulse();
       this.schedule("main");

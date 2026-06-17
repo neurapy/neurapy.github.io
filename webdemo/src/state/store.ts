@@ -1,8 +1,9 @@
-import type { BackgroundMode, Bounds, InfluenceSign, ModelQuality, SelectionMode } from "../types";
+import type { AppView, BackgroundMode, Bounds, InfluenceSign, ModelQuality, SelectionMode } from "../types";
 
 export const MAX_TOP_K = 256;
 
 export interface AppState {
+  appView: AppView;
   problem: string | null;
   modelQuality: ModelQuality;
   fieldId: string | null;
@@ -19,6 +20,7 @@ export interface AppState {
 }
 
 export type AppAction =
+  | { type: "view"; appView: AppView }
   | { type: "problem"; problem: string }
   | { type: "modelQuality"; modelQuality: ModelQuality }
   | { type: "field"; fieldId: string | null }
@@ -41,6 +43,7 @@ export type AppAction =
   | { type: "resetSelection" };
 
 export const initialState: AppState = {
+  appView: "playground",
   problem: null,
   modelQuality: "good",
   fieldId: null,
@@ -58,6 +61,8 @@ export const initialState: AppState = {
 
 export function reduceState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "view":
+      return { ...state, appView: action.appView };
     case "problem":
       return { ...state, problem: action.problem };
     case "modelQuality":

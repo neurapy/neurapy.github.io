@@ -1,11 +1,14 @@
 import type { InfluenceMatrixManifest } from "../types";
 
 export interface DomRefs {
+  viewButtons: HTMLElement;
   runMeta: HTMLElement;
   problemSelect: HTMLSelectElement;
   qualityButtons: HTMLElement;
   resetButton: HTMLButtonElement;
   message: HTMLElement;
+  playgroundWorkspace: HTMLElement;
+  resultsWorkspace: HTMLElement;
   fieldSelect: HTMLSelectElement;
   matrixSelect: HTMLSelectElement;
   signButtons: HTMLElement;
@@ -41,11 +44,14 @@ function required<T extends Element>(selector: string, ctor: new (...args: never
 
 export function getDomRefs(): DomRefs {
   return {
+    viewButtons: required("#viewButtons", HTMLElement),
     runMeta: required("#runMeta", HTMLElement),
     problemSelect: required("#problemSelect", HTMLSelectElement),
     qualityButtons: required("#qualityButtons", HTMLElement),
     resetButton: required("#resetButton", HTMLButtonElement),
     message: required("#message", HTMLElement),
+    playgroundWorkspace: required("#playgroundWorkspace", HTMLElement),
+    resultsWorkspace: required("#resultsWorkspace", HTMLElement),
     fieldSelect: required("#fieldSelect", HTMLSelectElement),
     matrixSelect: required("#matrixSelect", HTMLSelectElement),
     signButtons: required("#signButtons", HTMLElement),

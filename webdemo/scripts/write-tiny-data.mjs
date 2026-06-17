@@ -331,6 +331,7 @@ async function build() {
     ],
   };
   await writeJson(join(root, "index.json"), index);
+  await writeJson(join(root, "results", "index.json"), buildResultsFixture(index));
 
   const files = [];
   async function walk(dir) {
@@ -358,3 +359,85 @@ async function build() {
 }
 
 await build();
+
+function buildResultsFixture(index) {
+  return {
+    schema_version: 1,
+    generated_at: "2026-06-09T00:00:00+0000",
+    sources: ["tiny fixture"],
+    loss_decompositions: index.problems.flatMap((problem) => [
+      tinyLossDecomposition(problem.problem, problem.display_name, "good"),
+      tinyLossDecomposition(problem.problem, problem.display_name, "bad"),
+    ]),
+    indicators: {
+      temporal: [
+        tinyTemporal("burgers", "Burgers", 0.43, 0.41, 0.02, 0.28, 0.02),
+        tinyTemporal("drift_diffusion", "Drift Diffusion", 0.46, 0.46, 0.04, 0.21, 0.06),
+      ],
+      directionality: [
+        {
+          problem: "navier_stokes_nd",
+          display_name: "Navier Stokes",
+          output_id: "output_0",
+          output_label: "x-velocity",
+          baseline: 0.48,
+          values: {
+            good: { mean: 0.15, std: 0.01 },
+            bad: { mean: 0.15, std: 0.03 },
+          },
+        },
+      ],
+    },
+  };
+}
+
+function tinyLossDecomposition(problem, displayName, quality) {
+  const bad = quality === "bad";
+  return {
+    problem,
+    display_name: displayName,
+    quality,
+    source_kind: "aggregate_summary",
+    axis: { id: "t", label: "t" },
+    outputs: [
+      {
+        id: "output_0",
+        label: "û",
+        mean_coherence: bad ? 0.91 : 0.96,
+        std_coherence: 0.02,
+        binned_coherence: bad ? [0.9, 0.91, 0.92] : [0.96, 0.95, 0.97],
+        bin_centers: [0.16, 0.5, 0.84],
+        terms: [
+          {
+            id: "pde_0",
+            label: "PDE Loss",
+            mean_fraction: bad ? 0.58 : 0.72,
+            std_fraction: 0.04,
+            binned_fraction: bad ? [0.45, 0.58, 0.7] : [0.62, 0.72, 0.82],
+            binned_fraction_std: [0.02, 0.02, 0.03],
+          },
+          {
+            id: "bc_0",
+            label: "IC Loss",
+            mean_fraction: bad ? 0.42 : 0.28,
+            std_fraction: 0.04,
+            binned_fraction: bad ? [0.55, 0.42, 0.3] : [0.38, 0.28, 0.18],
+            binned_fraction_std: [0.02, 0.02, 0.03],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function tinyTemporal(problem, displayName, baseline, good, goodStd, bad, badStd) {
+  return {
+    problem,
+    display_name: displayName,
+    baseline,
+    values: {
+      good: { mean: good, std: goodStd },
+      bad: { mean: bad, std: badStd },
+    },
+  };
+}

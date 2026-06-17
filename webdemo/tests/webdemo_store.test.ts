@@ -5,6 +5,24 @@ import { MAX_TOP_K, initialState, reduceState } from "../src/state/store";
 describe("app state reducer", () => {
   it("defaults to the Good model quality", () => {
     expect(initialState.modelQuality).toBe("good");
+    expect(initialState.appView).toBe("playground");
+  });
+
+  it("switches between Playground and Results without resetting selection state", () => {
+    const selected = reduceState(initialState, {
+      type: "selection",
+      candidateIndex: 4,
+      trainIndex: 7,
+      coord: [0.2, 0.8],
+    });
+    const results = reduceState(selected, { type: "view", appView: "results" });
+    const playground = reduceState(results, { type: "view", appView: "playground" });
+
+    expect(results.appView).toBe("results");
+    expect(results.selectedCandidateIndex).toBe(4);
+    expect(results.selectedTrainIndex).toBe(7);
+    expect(results.selectedCoord).toEqual([0.2, 0.8]);
+    expect(playground.appView).toBe("playground");
   });
 
   it("switches the influence background explicitly", () => {

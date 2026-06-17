@@ -869,6 +869,44 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
+test("results tab renders dashboard charts and preserves the Playground", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only tab coverage is enough");
+  await page.goto(FIXTURE_URL);
+  await expectNonblankCanvas(page, "#mainCanvas");
+
+  await page.locator("button[data-app-view='results']").click();
+  await page.locator("#problemSelect").selectOption("burgers");
+
+  await expect(page.locator("#resultsWorkspace")).toBeVisible();
+  await expect(page.locator("#playgroundWorkspace")).toBeHidden();
+  await expect(page.locator("#resetButton")).toBeHidden();
+  await expect(page.locator("#runMeta")).toHaveText("Results · Burgers");
+  await expect(page.locator("#resultsWorkspace .results-panel")).toHaveCount(3);
+  await expect(page.locator("#resultsWorkspace [data-results-chart]")).toHaveCount(3);
+  await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Temporal Indicator" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Constraint Dominance" })).toBeVisible();
+  await expect
+    .poll(() => page.locator(".results-loss-chart .loss-fraction-area").count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => page.locator('[data-results-chart="indicator"] .results-bar').count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect(page.locator('[data-results-chart="dominance"] .results-line')).toHaveCount(2);
+
+  const resultsBeforeQualitySwitch = await page.locator("#resultsWorkspace").innerHTML();
+  await page.locator("button[data-model-quality='bad']").click();
+  await expect(page.locator("#runMeta")).toHaveText("Results · Burgers");
+  expect(await page.locator("#resultsWorkspace").innerHTML()).toBe(resultsBeforeQualitySwitch);
+
+  await page.locator("button[data-app-view='playground']").click();
+  await expect(page.locator("#playgroundWorkspace")).toBeVisible();
+  await expect(page.locator("#resultsWorkspace")).toBeHidden();
+  await expect(page.locator("#resetButton")).toBeVisible();
+  await expectNonblankCanvas(page, "#mainCanvas");
+  await expectNonblankCanvas(page, "#trainCanvas");
+});
+
 test("wide desktop uses the viewport width and keeps plot tiles side by side", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only viewport assertions");
   await page.setViewportSize({ width: 2400, height: 1600 });

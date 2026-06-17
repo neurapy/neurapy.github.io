@@ -12,6 +12,7 @@ export type InfluenceSign = "abs" | "pos" | "neg";
 export type BackgroundMode = "points" | "smooth" | "cell";
 export type SelectionMode = "point" | "region";
 export type ModelQuality = "good" | "bad";
+export type AppView = "playground" | "results";
 
 export interface ArraySpec {
   path: string;
@@ -196,4 +197,69 @@ export interface PlotViewport {
   height: number;
   right: number;
   bottom: number;
+}
+
+export interface LossDecompositionTermSeries {
+  id: string;
+  label: string;
+  mean_fraction: number;
+  std_fraction: number;
+  binned_fraction: number[];
+  binned_fraction_std: number[];
+}
+
+export interface LossDecompositionOutput {
+  id: string;
+  label: string;
+  mean_coherence: number;
+  std_coherence: number;
+  binned_coherence: number[];
+  bin_centers: number[];
+  terms: LossDecompositionTermSeries[];
+}
+
+export interface LossDecompositionData {
+  problem: string;
+  display_name: string;
+  quality: ModelQuality;
+  source_kind: "aggregate_summary";
+  axis: {
+    id: string;
+    label: string;
+  };
+  outputs: LossDecompositionOutput[];
+}
+
+export interface PaperIndicatorValue {
+  mean: number;
+  std: number;
+}
+
+export interface TemporalIndicatorEntry {
+  problem: string;
+  display_name: string;
+  baseline: number;
+  bad_baseline?: number;
+  values: Record<ModelQuality, PaperIndicatorValue>;
+  note?: string;
+}
+
+export interface DirectionalityIndicatorEntry {
+  problem: string;
+  display_name: string;
+  output_id: string;
+  output_label: string;
+  baseline: number;
+  values: Record<ModelQuality, PaperIndicatorValue>;
+}
+
+export interface ResultsData {
+  schema_version: 1;
+  generated_at: string;
+  sources: string[];
+  loss_decompositions: LossDecompositionData[];
+  indicators: {
+    temporal: TemporalIndicatorEntry[];
+    directionality: DirectionalityIndicatorEntry[];
+  };
 }

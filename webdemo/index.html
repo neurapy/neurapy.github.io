@@ -26,6 +26,13 @@
             <a class="topbar-link" href="./legal/impressum.html">Impressum</a>
           </nav>
           <div class="topbar-controls">
+            <div class="topbar-control view-control">
+              <span>View</span>
+              <div class="segmented view-switch" id="viewButtons" role="group" aria-label="Workspace view">
+                <button type="button" data-app-view="playground" class="active">Playground</button>
+                <button type="button" data-app-view="results">Results</button>
+              </div>
+            </div>
             <label class="topbar-control problem-control">
               <span>Problem</span>
               <select id="problemSelect"></select>
@@ -49,7 +56,7 @@
 
       <section id="message" class="message" hidden></section>
 
-      <section class="workspace">
+      <section id="playgroundWorkspace" class="workspace playground-workspace">
         <section id="plotGrid" class="plot-grid" data-layout="row">
           <article id="modelPanel" class="plot-panel model-panel">
             <div class="plot-header">
@@ -130,6 +137,12 @@
             </div>
           </article>
         </section>
+      </section>
+
+      <section id="resultsWorkspace" class="workspace results-workspace" hidden>
+        <div class="results-shell" data-state="loading">
+          <div class="results-empty">Loading results</div>
+        </div>
       </section>
     </main>
     <script src="/src/main.ts" type="module"></script>
