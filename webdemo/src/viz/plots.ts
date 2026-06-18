@@ -144,6 +144,13 @@ function formatAxisNumber(value: number): string {
   });
 }
 
+export function formatColorbarTick(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  if (value === 0) return "0";
+  if (Math.abs(value) < 1e-3) return value.toExponential(0).replace("e+", "e");
+  return formatAxisNumber(value);
+}
+
 function emptyInfluenceStats(backgroundMode: BackgroundMode): InfluenceRenderStats {
   return { maxAbs: 0, renderedCount: 0, backgroundMode, scaleMax: 1 };
 }
@@ -749,7 +756,7 @@ function renderColorbar(
     )
     .attr("dy", isBottom ? "0.71em" : "0.32em")
     .attr("text-anchor", isBottom ? "middle" : "end")
-    .text((value) => formatAxisNumber(value));
+    .text((value) => formatColorbarTick(value));
 }
 
 export function renderAxes(

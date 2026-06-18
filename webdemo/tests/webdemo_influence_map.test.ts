@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeCellsInfluenceLayer,
   computeSmoothInfluenceField,
+  formatColorbarTick,
   influenceEntriesForBackground,
   MAX_VISIBLE_INFLUENCE_LINES,
   robustAbsScaleMax,
@@ -76,6 +77,20 @@ describe("influence map samples", () => {
     expect(lines.indices.length).toBe(MAX_VISIBLE_INFLUENCE_LINES);
     expect(lines.values.length).toBe(MAX_VISIBLE_INFLUENCE_LINES);
     expect(lines.indices[lines.count - 1]).toBe(MAX_VISIBLE_INFLUENCE_LINES - 1);
+  });
+});
+
+describe("influence colorbar formatting", () => {
+  it("uses compact scientific notation for tiny nonzero ticks", () => {
+    expect(formatColorbarTick(-1.2e-12)).toBe("-1e-12");
+    expect(formatColorbarTick(0)).toBe("0");
+    expect(formatColorbarTick(-0)).toBe("0");
+    expect(formatColorbarTick(1.2e-12)).toBe("1e-12");
+  });
+
+  it("keeps ordinary colorbar ticks in decimal notation", () => {
+    expect(formatColorbarTick(-0.25)).toBe("-0.25");
+    expect(formatColorbarTick(3.14159)).toBe("3.142");
   });
 });
 

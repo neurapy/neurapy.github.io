@@ -92,6 +92,10 @@ const MODEL_INTERACTION_HINT_HIDE_MS = 440;
 const MODEL_INTERACTION_HINT_REDUCED_HIDE_MS = 1;
 
 type PanelName = "main" | "train";
+type RunMetaSource = Pick<
+  RunManifest,
+  "display_name" | "model_quality" | "n_candidate" | "n_train"
+>;
 type ModelGesture = {
   pointerId: number;
   pointerType: string;
@@ -375,17 +379,26 @@ export class AppController {
     this.dom.modelMeta.hidden = !text;
   }
 
+  private formatRunMeta(source: RunMetaSource): string {
+    return `${formatProblemLabel(source.display_name)} · ${qualityLabel(source.model_quality)} · ${source.n_candidate.toLocaleString()} candidate · ${source.n_train.toLocaleString()} train`;
+  }
+
   private updateToplineMeta(): void {
-    this.setRunMeta(null);
+    this.setModelMeta(null);
+    const problemId = this.store.state.problem ?? this.dom.problemSelect.value;
+    const selectedVariant = this.index
+      ? resolveProblemVariant(this.index, problemId, this.store.state.modelQuality)
+      : null;
     if (this.store.state.appView === "explainer" || this.store.state.appView === "indicators") {
-      this.setModelMeta(null);
+      const source = selectedVariant ?? this.manifest;
+      this.setRunMeta(source ? this.formatRunMeta(source) : null);
       return;
     }
     if (!this.manifest) {
-      this.setModelMeta(null);
+      this.setRunMeta(null);
       return;
     }
-    this.setModelMeta(`${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`);
+    this.setRunMeta(this.formatRunMeta(this.manifest));
   }
 
   private activeVariantMatchesState(): boolean {

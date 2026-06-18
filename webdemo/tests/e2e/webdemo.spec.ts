@@ -870,8 +870,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
     "Navier Stokes",
   ]);
   await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
-  await expect(page.locator("#runMeta")).toBeHidden();
-  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toBeHidden();
   await expectTopbarControlsFit(page);
   await expect(page.locator(".control-panel")).toHaveCount(0);
   await expect(page.locator(".control-group")).toHaveCount(0);
@@ -895,7 +895,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   const goodMainSignature = await canvasSignature(page, "#mainCanvas");
   await page.locator("button[data-model-quality='bad']").click();
   await expect(page.locator("button[data-model-quality='bad']")).toHaveClass(/active/);
-  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
   await expect.poll(() => canvasSignature(page, "#mainCanvas")).not.toBe(goodMainSignature);
@@ -1026,7 +1026,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("#explainerWorkspace")).toBeVisible();
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
-  await expect(page.locator("#runMeta")).toBeHidden();
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
   await expect(page.locator("#problemSelect")).toBeDisabled();
   await expect(page.locator("button[data-model-quality='good']")).toBeDisabled();
   await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
@@ -1042,7 +1042,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#explainerWorkspace")).toBeHidden();
   await expect(page.locator("#resetButton")).toHaveCount(0);
-  await expect(page.locator("#runMeta")).toBeHidden();
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
   await expect(page.locator("#resultsWorkspace .results-panel")).toHaveCount(3);
   await expect(page.locator("#resultsWorkspace [data-results-chart]")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
@@ -1101,7 +1101,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
 
   const resultsBeforeQualitySwitch = await page.locator("#resultsWorkspace").innerHTML();
   await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
-  await expect(page.locator("#runMeta")).toBeHidden();
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
   expect(await page.locator("#resultsWorkspace").innerHTML()).toBe(resultsBeforeQualitySwitch);
 
   await page.locator("button[data-app-view='playground']").click();
@@ -1253,7 +1253,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   const selectedBeforeModelSwitch = await page.locator("#selectedPoint").textContent();
 
   await page.locator("button[data-model-quality='bad']").click();
-  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
@@ -1264,7 +1264,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await page.locator("#problemSelect").selectOption("shifted_fixture");
-  await expect(page.locator("#modelMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_residual");
   await expect(page.locator("#matrixSelect")).toHaveValue("m_shifted");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
@@ -1281,7 +1281,7 @@ test("drift diffusion uses a square physical pi axis", async ({ page }, testInfo
   await page.goto(FIXTURE_URL);
 
   await page.locator("#problemSelect").selectOption("drift_diffusion");
-  await expect(page.locator("#modelMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
@@ -1354,7 +1354,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
   await page.locator("#problemSelect").selectOption("burgers");
-  await expect(page.locator("#modelMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const burgersFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(burgersFrame.frameWidth).toBeGreaterThan(310);
@@ -1362,7 +1362,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(burgersFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("navier_stokes_nd");
-  await expect(page.locator("#modelMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const navierFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(navierFrame.frameWidth).toBeGreaterThan(310);
@@ -1371,7 +1371,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(navierFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("fixture");
-  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
