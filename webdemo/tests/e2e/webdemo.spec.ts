@@ -36,6 +36,14 @@ async function waitForIndicatorsCharts(page: Page): Promise<void> {
     .toBeGreaterThan(0);
 }
 
+async function expectNoDocumentHorizontalOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => {
+    const bodyWidth = document.body?.scrollWidth ?? 0;
+    return Math.max(document.documentElement.scrollWidth, bodyWidth) - document.documentElement.clientWidth;
+  });
+  expect(overflow).toBeLessThanOrEqual(1);
+}
+
 async function openIndicatorsDashboard(page: Page, problem = "burgers"): Promise<void> {
   await page.goto(FIXTURE_URL);
   await page.locator("button[data-app-view='indicators']").click();
@@ -1015,6 +1023,36 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expect(page.locator("#trainRange")).toHaveText(/Local/);
   await expectTrainSummaryBadgeFits(page);
   await expectNonblankCanvas(page, "#trainCanvas");
+});
+
+test("explainer tab renders an interactive formula guide", async ({ page }) => {
+  await page.goto(FIXTURE_URL);
+  await page.locator("button[data-app-view='explainer']").click();
+
+  await expect(page.locator("#explainerWorkspace")).toBeVisible();
+  await expect(page.locator("#playgroundWorkspace")).toBeHidden();
+  await expect(page.locator("#resultsWorkspace")).toBeHidden();
+  await expect(page.getByRole("heading", { name: "How one training point shapes a PINN prediction" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Influence as local sensitivity" })).toBeVisible();
+  await expect(page.locator("[data-explainer-token]")).toHaveCount(12);
+  await expect(page.locator("#explainer-token-title")).toHaveText("Influence Score");
+  await expect(page.locator("#explainer-token-body")).toContainText("locally sensitive");
+  await expectNoDocumentHorizontalOverflow(page);
+
+  await page.locator("[data-explainer-token='hessian']").click();
+  await expect(page.locator("#explainer-token-title")).toHaveText("Local Training Geometry");
+  await expect(page.locator("#explainer-token-body")).toContainText("inverse-Hessian vector products");
+  await expect(page.locator("[data-explainer-token='hessian']")).toHaveAttribute("aria-pressed", "true");
+
+  await page.locator("[data-explainer-token='train-point']").focus();
+  await expect(page.locator("#explainer-token-title")).toHaveText("Training Point x");
+  await expect(page.locator("#explainer-token-body")).toContainText("participated in training");
+
+  await page.locator("[data-explainer-token='loss-fraction']").click();
+  await expect(page.locator("#explainer-token-title")).toHaveText("Loss-Term Fraction");
+  await expect(page.locator("#explainer-token-body")).toContainText("one loss component");
+  await expect(page.locator("[data-explainer-token='loss-fraction']")).toHaveAttribute("aria-pressed", "true");
+  await expectNoDocumentHorizontalOverflow(page);
 });
 
 test("indicators tab renders dashboard charts and preserves the Playground", async ({ page }, testInfo) => {

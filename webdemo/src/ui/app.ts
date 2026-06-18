@@ -76,6 +76,7 @@ import {
   showMessage,
   type DomRefs,
 } from "./dom";
+import { ExplainerView } from "./explainer";
 import { ResultsDashboard } from "./results";
 
 const DEFAULT_MATRIX_ID = "influences_total_loss_output_0";
@@ -112,6 +113,7 @@ type PlotClickGesture = {
 export class AppController {
   private readonly dom: DomRefs = getDomRefs();
   private readonly store = new Store();
+  private readonly explainerView = new ExplainerView(this.dom.explainerWorkspace);
   private readonly resultsDashboard = new ResultsDashboard(this.dom.resultsWorkspace);
   private readonly indexUrl = resolveIndexUrl();
   private readonly worker = new Worker(new URL("../worker/rasterWorker.ts", import.meta.url), {
@@ -302,6 +304,7 @@ export class AppController {
     }
     if (isExplainer) {
       this.dismissModelInteractionHint();
+      this.explainerView.activate();
       return;
     }
     if (this.index && !this.activeVariantMatchesState()) {
