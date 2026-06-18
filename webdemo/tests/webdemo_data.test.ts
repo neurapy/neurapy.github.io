@@ -9,7 +9,7 @@ import {
   formatProblemLabel,
   resolveProblemVariant,
 } from "../src/data/manifest";
-import { assertResultsData } from "../src/data/results";
+import { assertResultsData, loadResultsData } from "../src/data/results";
 import { typedArrayFromBuffer } from "../src/data/dtypes";
 import { PriorityLoader } from "../src/data/loader";
 import {
@@ -18,7 +18,7 @@ import {
   type PrefetchContext,
 } from "../src/data/prefetcher";
 import type { InfluenceMatrixManifest, RunManifest } from "../src/types";
-import type { DataIndex, ResultsData, TypedArray } from "../src/types";
+import type { DataIndex, ResultsIndexData, TypedArray } from "../src/types";
 
 function bufferFrom<T extends ArrayBufferView>(array: T): ArrayBuffer {
   const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
@@ -184,6 +184,114 @@ const index = {
   ],
 } satisfies DataIndex;
 
+function resultsIndexFixture(): ResultsIndexData {
+  return {
+    schema_version: 2,
+    generated_at: "2026-06-17T00:00:00+0000",
+    sources: ["fixture"],
+    indicators: {
+      temporal: [
+        {
+          problem: "fixture",
+          display_name: "Fixture",
+          baseline: 0.5,
+          values: {
+            good: { mean: 0.4, std: 0.02 },
+            bad: { mean: 0.2, std: 0.03 },
+          },
+        },
+      ],
+      directionality: [],
+    },
+    loss_decompositions: [
+      {
+        problem: "fixture",
+        display_name: "Fixture",
+        quality: "good",
+        source_kind: "full_matrix",
+        axis: { id: "t", label: "t" },
+        outputs: [
+          {
+            id: "output_0",
+            label: "u",
+            mean_coherence: 0.85,
+            std_coherence: 0.05,
+            n_bins: 2,
+            n_terms: 2,
+            n_candidate: 4,
+            n_train: 3,
+            source_matrix_ids: ["influences_pde_0_output_0", "influences_bc_0_output_0"],
+            terms: [
+              {
+                id: "pde_0",
+                label: "PDE",
+                mean_fraction: 0.25,
+                std_fraction: 0.02,
+              },
+              {
+                id: "bc_0",
+                label: "BC",
+                mean_fraction: 0.75,
+                std_fraction: 0.02,
+              },
+            ],
+            arrays: {
+              bin_centers: {
+                path: "fixture/good/output_0/bin_centers.f32",
+                dtype: "float32",
+                shape: [2],
+                bytes: 8,
+              },
+              binned_fractions: {
+                path: "fixture/good/output_0/binned_fractions.f32",
+                dtype: "float32",
+                shape: [2, 2],
+                bytes: 16,
+              },
+              binned_fractions_std: {
+                path: "fixture/good/output_0/binned_fractions_std.f32",
+                dtype: "float32",
+                shape: [2, 2],
+                bytes: 16,
+              },
+              binned_coherence: {
+                path: "fixture/good/output_0/binned_coherence.f32",
+                dtype: "float32",
+                shape: [2],
+                bytes: 8,
+              },
+              binned_coherence_std: {
+                path: "fixture/good/output_0/binned_coherence_std.f32",
+                dtype: "float32",
+                shape: [2],
+                bytes: 8,
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function installResultsFetch(results: ResultsIndexData, arrays: Record<string, Float32Array>): void {
+  globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+    const url = input.toString();
+    if (url.endsWith("/results/index.json")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(results), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }
+    const match = Object.entries(arrays).find(([path]) => url.endsWith(`/results/${path}`));
+    if (!match) {
+      return Promise.resolve(new Response(null, { status: 404, statusText: "Not Found" }));
+    }
+    return Promise.resolve(new Response(bufferFrom(match[1])));
+  });
+}
+
 describe("typed array validation", () => {
   it("rejects buffers that do not match dtype and shape metadata", () => {
     expect(() =>
@@ -202,22 +310,51 @@ describe("typed array validation", () => {
     ).toThrow(/expected 9/);
   });
 
-  it("parses results dashboard data and rejects unsupported schemas", () => {
-    const results: ResultsData = {
-      schema_version: 1,
-      generated_at: "2026-06-17T00:00:00+0000",
-      sources: [],
-      loss_decompositions: [],
-      indicators: {
-        temporal: [],
-        directionality: [],
-      },
-    };
+  it("loads schema-v2 results dashboard arrays and rejects invalid schemas", async () => {
+    const results = resultsIndexFixture();
+    installResultsFetch(results, {
+      "fixture/good/output_0/bin_centers.f32": new Float32Array([0.25, 0.75]),
+      "fixture/good/output_0/binned_fractions.f32": new Float32Array([0.2, 0.3, 0.8, 0.7]),
+      "fixture/good/output_0/binned_fractions_std.f32": new Float32Array([0.01, 0.02, 0.03, 0.04]),
+      "fixture/good/output_0/binned_coherence.f32": new Float32Array([0.9, 0.8]),
+      "fixture/good/output_0/binned_coherence_std.f32": new Float32Array([0.05, 0.06]),
+    });
 
     expect(assertResultsData(results)).toBe(results);
     expect(() =>
-      assertResultsData({ ...results, schema_version: 2 } as unknown as ResultsData),
-    ).toThrow(/expected 1/);
+      assertResultsData({ ...results, schema_version: 1 } as unknown as ResultsIndexData),
+    ).toThrow(/expected 2/);
+    expect(() =>
+      assertResultsData({
+        ...results,
+        loss_decompositions: [
+          {
+            ...results.loss_decompositions[0],
+            outputs: [
+              {
+                ...results.loss_decompositions[0].outputs[0],
+                arrays: {
+                  ...results.loss_decompositions[0].outputs[0].arrays,
+                  binned_fractions: {
+                    ...results.loss_decompositions[0].outputs[0].arrays.binned_fractions,
+                    shape: [3, 2],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/binned_fractions shape/);
+
+    const loaded = await loadResultsData(new URL("http://example.test/data/index.json"));
+    const output = loaded.loss_decompositions[0].outputs[0];
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(6);
+    expect(output.bin_centers).toEqual([0.25, 0.75]);
+    expect(output.binned_coherence_std).toEqual([0.05000000074505806, 0.05999999865889549]);
+    expect(output.terms[0].binned_fraction).toEqual([0.20000000298023224, 0.30000001192092896]);
+    expect(output.terms[1].binned_fraction_std).toEqual([0.029999999329447746, 0.03999999910593033]);
   });
 
   it("formats problem labels and resolves active Good/Bad variants", () => {

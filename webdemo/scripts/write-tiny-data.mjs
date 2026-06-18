@@ -315,7 +315,7 @@ async function build() {
     ],
   };
   await writeJson(join(root, "index.json"), index);
-  await writeJson(join(root, "results", "index.json"), buildResultsFixture(index));
+  await writeJson(join(root, "results", "index.json"), await buildResultsFixture(index));
 
   const files = [];
   async function walk(dir) {
@@ -344,15 +344,19 @@ async function build() {
 
 await build();
 
-function buildResultsFixture(index) {
+async function buildResultsFixture(index) {
+  const lossDecompositions = [];
+  for (const problem of index.problems) {
+    lossDecompositions.push(
+      await tinyLossDecomposition(problem.problem, problem.display_name, "good"),
+      await tinyLossDecomposition(problem.problem, problem.display_name, "bad"),
+    );
+  }
   return {
-    schema_version: 1,
+    schema_version: 2,
     generated_at: "2026-06-09T00:00:00+0000",
     sources: ["tiny fixture"],
-    loss_decompositions: index.problems.flatMap((problem) => [
-      tinyLossDecomposition(problem.problem, problem.display_name, "good"),
-      tinyLossDecomposition(problem.problem, problem.display_name, "bad"),
-    ]),
+    loss_decompositions: lossDecompositions,
     indicators: {
       temporal: [
         tinyTemporal("burgers", "Burgers", 0.43, 0.41, 0.02, 0.28, 0.02),
@@ -375,43 +379,95 @@ function buildResultsFixture(index) {
   };
 }
 
-function tinyLossDecomposition(problem, displayName, quality) {
+async function tinyLossDecomposition(problem, displayName, quality) {
   const bad = quality === "bad";
+  const outputId = "output_0";
+  const relativeDir = join(problem, quality, outputId);
+  const resultsRoot = join(root, "results");
+  const binCenters = new Float32Array([0.16, 0.5, 0.84]);
+  const pdeFractions = bad ? [0.45, 0.58, 0.7] : [0.62, 0.72, 0.82];
+  const bcFractions = bad ? [0.55, 0.42, 0.3] : [0.38, 0.28, 0.18];
+  const coherence = bad ? [0.9, 0.91, 0.92] : [0.96, 0.95, 0.97];
   return {
     problem,
     display_name: displayName,
     quality,
-    source_kind: "aggregate_summary",
-    axis: { id: "t", label: "t" },
+    source_kind: "full_matrix",
+    source_dir: `raw_data/${problem}_float64_${quality}/tiny_influence_scores`,
+    axis: tinyAxis(problem),
     outputs: [
       {
-        id: "output_0",
-        label: "û",
+        id: outputId,
+        label: "u",
         mean_coherence: bad ? 0.91 : 0.96,
         std_coherence: 0.02,
-        binned_coherence: bad ? [0.9, 0.91, 0.92] : [0.96, 0.95, 0.97],
-        bin_centers: [0.16, 0.5, 0.84],
+        n_bins: 3,
+        n_terms: 2,
+        n_candidate: 4,
+        n_train: 5,
+        source_matrix_ids: [
+          "influences_pde_0_output_0",
+          "influences_bc_0_output_0",
+        ],
         terms: [
           {
             id: "pde_0",
             label: "PDE Loss",
             mean_fraction: bad ? 0.58 : 0.72,
             std_fraction: 0.04,
-            binned_fraction: bad ? [0.45, 0.58, 0.7] : [0.62, 0.72, 0.82],
-            binned_fraction_std: [0.02, 0.02, 0.03],
           },
           {
             id: "bc_0",
             label: "IC Loss",
             mean_fraction: bad ? 0.42 : 0.28,
             std_fraction: 0.04,
-            binned_fraction: bad ? [0.55, 0.42, 0.3] : [0.38, 0.28, 0.18],
-            binned_fraction_std: [0.02, 0.02, 0.03],
           },
         ],
+        arrays: {
+          bin_centers: await writeArray(
+            resultsRoot,
+            join(resultsRoot, relativeDir, "bin_centers.f32"),
+            binCenters,
+            "float32",
+            [3],
+          ),
+          binned_fractions: await writeArray(
+            resultsRoot,
+            join(resultsRoot, relativeDir, "binned_fractions.f32"),
+            new Float32Array([...pdeFractions, ...bcFractions]),
+            "float32",
+            [2, 3],
+          ),
+          binned_fractions_std: await writeArray(
+            resultsRoot,
+            join(resultsRoot, relativeDir, "binned_fractions_std.f32"),
+            new Float32Array([0.02, 0.02, 0.03, 0.02, 0.02, 0.03]),
+            "float32",
+            [2, 3],
+          ),
+          binned_coherence: await writeArray(
+            resultsRoot,
+            join(resultsRoot, relativeDir, "binned_coherence.f32"),
+            new Float32Array(coherence),
+            "float32",
+            [3],
+          ),
+          binned_coherence_std: await writeArray(
+            resultsRoot,
+            join(resultsRoot, relativeDir, "binned_coherence_std.f32"),
+            new Float32Array([0.01, 0.01, 0.015]),
+            "float32",
+            [3],
+          ),
+        },
       },
     ],
   };
+}
+
+function tinyAxis(problem) {
+  if (problem === "navier_stokes_nd") return { id: "x", label: "x" };
+  return { id: "t", label: "t" };
 }
 
 function tinyTemporal(problem, displayName, baseline, good, goodStd, bad, badStd) {

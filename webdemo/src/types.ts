@@ -211,7 +211,11 @@ export interface LossDecompositionOutput {
   mean_coherence: number;
   std_coherence: number;
   binned_coherence: number[];
+  binned_coherence_std: number[];
   bin_centers: number[];
+  n_candidate: number;
+  n_train: number;
+  source_matrix_ids: string[];
   terms: LossDecompositionTermSeries[];
 }
 
@@ -219,12 +223,54 @@ export interface LossDecompositionData {
   problem: string;
   display_name: string;
   quality: ModelQuality;
-  source_kind: "aggregate_summary";
+  source_kind: "full_matrix";
   axis: {
     id: string;
     label: string;
   };
   outputs: LossDecompositionOutput[];
+}
+
+export interface LossDecompositionTermMetadata {
+  id: string;
+  label: string;
+  mean_fraction: number;
+  std_fraction: number;
+}
+
+export interface LossDecompositionArrayBundle {
+  bin_centers: ArraySpec;
+  binned_fractions: ArraySpec;
+  binned_fractions_std: ArraySpec;
+  binned_coherence: ArraySpec;
+  binned_coherence_std: ArraySpec;
+}
+
+export interface LossDecompositionOutputMetadata {
+  id: string;
+  label: string;
+  mean_coherence: number;
+  std_coherence: number;
+  n_bins: number;
+  n_terms: number;
+  n_candidate: number;
+  n_train: number;
+  source_matrix_ids: string[];
+  terms: LossDecompositionTermMetadata[];
+  arrays: LossDecompositionArrayBundle;
+}
+
+export interface LossDecompositionDataMetadata {
+  problem: string;
+  display_name: string;
+  quality: ModelQuality;
+  source_kind: "full_matrix";
+  source_dir?: string;
+  axis: {
+    id: string;
+    label: string;
+  };
+  outputs: LossDecompositionOutputMetadata[];
 }
 
 export interface PaperIndicatorValue {
@@ -250,13 +296,23 @@ export interface DirectionalityIndicatorEntry {
   values: Record<ModelQuality, PaperIndicatorValue>;
 }
 
+export interface ResultsIndicators {
+  temporal: TemporalIndicatorEntry[];
+  directionality: DirectionalityIndicatorEntry[];
+}
+
 export interface ResultsData {
-  schema_version: 1;
+  schema_version: 2;
   generated_at: string;
   sources: string[];
   loss_decompositions: LossDecompositionData[];
-  indicators: {
-    temporal: TemporalIndicatorEntry[];
-    directionality: DirectionalityIndicatorEntry[];
-  };
+  indicators: ResultsIndicators;
+}
+
+export interface ResultsIndexData {
+  schema_version: 2;
+  generated_at: string;
+  sources: string[];
+  loss_decompositions: LossDecompositionDataMetadata[];
+  indicators: ResultsIndicators;
 }

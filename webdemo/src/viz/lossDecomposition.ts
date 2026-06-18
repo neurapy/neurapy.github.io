@@ -5,7 +5,7 @@ import type {
   LossDecompositionTermSeries,
   ModelQuality,
 } from "../types";
-import { formatDisplayLabel, formatNumber } from "../ui/dom";
+import { formatDisplayLabel } from "../ui/dom";
 
 export interface LossDecompositionRenderArgs {
   svg: SVGSVGElement;
@@ -13,10 +13,15 @@ export interface LossDecompositionRenderArgs {
   outputId: string | null;
 }
 
-interface StackedPoint {
+interface BandPoint {
   x: number;
   y0: number;
   y1: number;
+}
+
+interface LinePoint {
+  x: number;
+  y: number;
 }
 
 interface PanelDatum {
@@ -27,21 +32,21 @@ interface PanelDatum {
 }
 
 const QUALITY_LABELS: Record<ModelQuality, string> = {
-  good: "Good",
-  bad: "Bad",
+  good: "Well-trained",
+  bad: "Poorly-Trained",
 };
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
 const TERM_COLORS = [
-  "#1f82c0",
-  "#66bfac",
-  "#7353ba",
-  "#e39d25",
-  "#d14f3f",
-  "#8bbf45",
-  "#7c6f64",
-  "#c05a9d",
-  "#4f8f8d",
-  "#9d7b33",
+  "#1f77b4",
+  "#ff7f0e",
+  "#2ca02c",
+  "#d62728",
+  "#9467bd",
+  "#8c564b",
+  "#e377c2",
+  "#7f7f7f",
+  "#bcbd22",
+  "#17becf",
 ];
 
 export function renderLossDecompositionPlot(args: LossDecompositionRenderArgs): void {
@@ -74,10 +79,8 @@ export function renderLossDecompositionPlot(args: LossDecompositionRenderArgs): 
     return;
   }
 
-  const firstOutputPanel = panels.find((panel) => panel.output);
-  const axisLabel = firstOutputPanel?.data?.axis.label ?? "Bin center";
+  const axisLabel = panels.find((panel) => panel.output)?.data?.axis.label ?? "Bin center";
   const xDomain = sharedXDomain(panels);
-  const cancellationMax = sharedCancellationMax(panels);
   const colorForTerm = new Map(terms.map((term, index) => [term, TERM_COLORS[index % TERM_COLORS.length]]));
   const layout = plotLayout(width, height, terms.length);
   drawLegend(root, terms, colorForTerm, layout.legend);
@@ -90,13 +93,11 @@ export function renderLossDecompositionPlot(args: LossDecompositionRenderArgs): 
       terms,
       colorForTerm,
       xDomain,
-      cancellationMax,
       axisLabel,
       x: frame.x,
       y: frame.y,
       width: frame.width,
       height: frame.height,
-      showYAxis: true,
     });
   });
 }
@@ -116,9 +117,7 @@ function selectedOutput(
 function sortedTerms(panels: PanelDatum[]): string[] {
   const terms = new Set<string>();
   for (const panel of panels) {
-    for (const term of panel.output?.terms ?? []) {
-      terms.add(term.id);
-    }
+    for (const term of panel.output?.terms ?? []) terms.add(term.id);
   }
   return Array.from(terms).sort(termSortKey);
 }
@@ -145,35 +144,23 @@ function sharedXDomain(panels: PanelDatum[]): [number, number] {
   return min < max ? [min, max] : [min - 0.5, max + 0.5];
 }
 
-function sharedCancellationMax(panels: PanelDatum[]): number {
-  const values = panels.flatMap((panel) =>
-    (panel.output?.bin_centers ?? []).map((_, index) =>
-      cancellationAt(panel.output, index),
-    ),
-  );
-  const max = Math.max(0, ...values.filter(Number.isFinite));
-  if (max <= 0.08) return 0.08;
-  return Math.min(1, Math.ceil(max * 10) / 10);
-}
-
 function plotLayout(width: number, height: number, termCount: number) {
-  const margin = { top: 10, right: 12, bottom: 10, left: 12 };
-  const legendItemWidth = 58;
+  const margin = { top: 11, right: 13, bottom: 14, left: 13 };
+  const legendItemWidth = 118;
   const legendColumns = Math.max(1, Math.floor((width - margin.left - margin.right) / legendItemWidth));
-  const legendRows = Math.max(1, Math.ceil(termCount / legendColumns));
-  const legendHeight = Math.min(42, 8 + legendRows * 15);
-  const vertical = width < 560;
-  const gap = vertical ? 10 : 14;
+  const legendRows = Math.max(1, Math.ceil((termCount + 1) / legendColumns));
+  const legendHeight = Math.min(58, 8 + legendRows * 16);
+  const vertical = width < 640;
+  const gap = vertical ? 20 : 22;
   const plotTop = margin.top + legendHeight;
-  const plotWidth = width - margin.left - margin.right;
-  const plotHeight = Math.max(80, height - plotTop - margin.bottom);
+  const plotWidth = Math.max(1, width - margin.left - margin.right);
+  const plotHeight = Math.max(100, height - plotTop - margin.bottom);
   const frameWidth = vertical ? plotWidth : (plotWidth - gap) / 2;
   const frameHeight = vertical ? (plotHeight - gap) / 2 : plotHeight;
   return {
     legend: {
       x: margin.left,
       y: margin.top,
-      width: plotWidth,
       itemWidth: legendItemWidth,
       columns: legendColumns,
     },
@@ -193,23 +180,32 @@ function drawLegend(
   legend: { x: number; y: number; itemWidth: number; columns: number },
 ): void {
   const group = root.append("g").attr("class", "loss-decomposition-legend");
-  terms.forEach((term, index) => {
+  [...terms, "cancellation"].forEach((term, index) => {
     const col = index % legend.columns;
     const row = Math.floor(index / legend.columns);
     const item = group
       .append("g")
-      .attr("transform", `translate(${legend.x + col * legend.itemWidth},${legend.y + row * 15})`);
+      .attr("transform", `translate(${legend.x + col * legend.itemWidth},${legend.y + row * 16})`);
+    if (term === "cancellation") {
+      item
+        .append("line")
+        .attr("class", "loss-cancellation-legend-line")
+        .attr("x1", 0)
+        .attr("x2", 16)
+        .attr("y1", 7)
+        .attr("y2", 7);
+      item.append("text").attr("x", 22).attr("y", 10).text("Cancellation κ");
+      return;
+    }
     item
-      .append("rect")
-      .attr("width", 10)
-      .attr("height", 10)
-      .attr("y", 1)
-      .attr("fill", colorForTerm.get(term) ?? "#999999");
-    item
-      .append("text")
-      .attr("x", 14)
-      .attr("y", 10)
-      .text(shortTermLabel(term));
+      .append("line")
+      .attr("class", "loss-fraction-legend-line")
+      .attr("x1", 0)
+      .attr("x2", 16)
+      .attr("y1", 7)
+      .attr("y2", 7)
+      .attr("stroke", colorForTerm.get(term) ?? "#999999");
+    item.append("text").attr("x", 22).attr("y", 10).text(shortTermLabel(term));
   });
 }
 
@@ -220,13 +216,11 @@ function renderPanel(
     terms: string[];
     colorForTerm: Map<string, string>;
     xDomain: [number, number];
-    cancellationMax: number;
     axisLabel: string;
     x: number;
     y: number;
     width: number;
     height: number;
-    showYAxis: boolean;
   },
 ): void {
   const group = parent
@@ -237,9 +231,10 @@ function renderPanel(
   group
     .append("text")
     .attr("class", "loss-decomposition-panel-title")
-    .attr("x", 6)
-    .attr("y", 14)
-    .text(panelTitle(args.panel));
+    .attr("x", args.width / 2)
+    .attr("y", args.height - 4)
+    .attr("text-anchor", "middle")
+    .text(args.panel.label);
 
   if (!args.panel.output) {
     group
@@ -252,137 +247,113 @@ function renderPanel(
     return;
   }
 
-  const left = args.showYAxis ? 34 : 12;
-  const right = 8;
-  const top = 22;
-  const bottom = 28;
-  const gap = 14;
-  const innerWidth = Math.max(1, args.width - left - right);
-  const innerHeight = Math.max(1, args.height - top - bottom);
-  const fractionHeight = Math.max(44, Math.round(innerHeight * 0.62));
-  const cancellationHeight = Math.max(34, innerHeight - fractionHeight - gap);
+  const margin = { top: 10, right: 10, bottom: 34, left: 43 };
+  const innerWidth = Math.max(1, args.width - margin.left - margin.right);
+  const innerHeight = Math.max(1, args.height - margin.top - margin.bottom);
   const x = scaleLinear().domain(args.xDomain).range([0, innerWidth]);
-  const yFraction = scaleLinear().domain([0, 1]).range([fractionHeight, 0]);
-  const yCancellation = scaleLinear()
-    .domain([0, args.cancellationMax || 0.08])
-    .range([cancellationHeight, 0]);
-  const plot = group.append("g").attr("transform", `translate(${left},${top})`);
+  const y = scaleLinear().domain([0, 1]).range([innerHeight, 0]);
+  const plot = group.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const stacks = stackedTermData(args.panel.output, args.terms);
-  const areaPath = area<StackedPoint>()
+  plot
+    .append("g")
+    .attr("class", "axis-grid")
+    .call(axisLeft(y).tickValues([0, 0.25, 0.5, 0.75, 1]).tickSize(-innerWidth).tickFormat(() => ""));
+  plot
+    .append("g")
+    .attr("class", "axis-grid")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(axisBottom(x).ticks(5).tickSize(-innerHeight).tickFormat(() => ""));
+
+  const bandPath = area<BandPoint>()
     .defined((point) => Number.isFinite(point.x) && Number.isFinite(point.y0) && Number.isFinite(point.y1))
     .x((point) => x(point.x))
-    .y0((point) => yFraction(point.y0))
-    .y1((point) => yFraction(point.y1));
-  for (const series of stacks) {
+    .y0((point) => y(point.y0))
+    .y1((point) => y(point.y1));
+  const linePath = line<LinePoint>()
+    .defined((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+    .x((point) => x(point.x))
+    .y((point) => y(point.y));
+
+  for (const termId of args.terms) {
+    const term = args.panel.output.terms.find((entry) => entry.id === termId);
+    if (!term) continue;
+    const color = args.colorForTerm.get(termId) ?? "#999999";
     plot
       .append("path")
-      .datum(series.points)
+      .datum(termBandData(args.panel.output, term))
       .attr("class", "loss-fraction-area")
-      .attr("fill", args.colorForTerm.get(series.term) ?? "#999999")
-      .attr("d", areaPath);
+      .attr("fill", color)
+      .attr("d", bandPath);
+    plot
+      .append("path")
+      .datum(termLineData(args.panel.output, term))
+      .attr("class", "loss-fraction-line")
+      .attr("stroke", color)
+      .attr("d", linePath);
   }
 
   plot
+    .append("path")
+    .datum(cancellationData(args.panel.output))
+    .attr("class", "loss-cancellation-line")
+    .attr("d", linePath);
+  plot
     .append("g")
-    .attr("class", "axis loss-fraction-y")
-    .call(axisLeft(yFraction).tickValues([0, 0.5, 1]).tickSizeOuter(0).tickFormat((value) => `${value}`));
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(axisBottom(x).ticks(5).tickSizeOuter(0));
+  plot.append("g").attr("class", "axis").call(axisLeft(y).tickValues([0, 0.5, 1]).tickSizeOuter(0));
   plot
     .append("text")
     .attr("class", "axis-label loss-fraction-label")
-    .attr("x", 4)
-    .attr("y", 10)
-    .text("Fraction");
-
-  const cancellationY = top + fractionHeight + gap;
-  const cancellationGroup = group
-    .append("g")
-    .attr("class", "loss-cancellation-plot")
-    .attr("transform", `translate(${left},${cancellationY})`);
-  const cancellationLine = line<[number, number]>()
-    .defined(([xValue, yValue]) => Number.isFinite(xValue) && Number.isFinite(yValue))
-    .x(([xValue]) => x(xValue))
-    .y(([, yValue]) => yCancellation(yValue));
-  const cancellation = args.panel.output.bin_centers.map(
-    (center, index) => [center, cancellationAt(args.panel.output, index)] as [number, number],
-  );
-  cancellationGroup
-    .append("path")
-    .datum(cancellation)
-    .attr("class", "loss-cancellation-line")
-    .attr("d", cancellationLine);
-  const meanCancellation = Math.max(0, 1 - args.panel.output.mean_coherence);
-  cancellationGroup
-    .append("line")
-    .attr("class", "loss-cancellation-mean")
-    .attr("x1", 0)
-    .attr("x2", innerWidth)
-    .attr("y1", yCancellation(meanCancellation))
-    .attr("y2", yCancellation(meanCancellation));
-  cancellationGroup
-    .append("g")
-    .attr("class", "axis loss-cancellation-y")
-    .call(axisLeft(yCancellation).ticks(3).tickSizeOuter(0));
-  cancellationGroup
-    .append("g")
-    .attr("class", "axis loss-cancellation-x")
-    .attr("transform", `translate(0,${cancellationHeight})`)
-    .call(axisBottom(x).ticks(Math.max(2, Math.min(5, Math.floor(innerWidth / 70)))).tickSizeOuter(0));
-  cancellationGroup
-    .append("text")
-    .attr("class", "axis-label loss-cancellation-label")
-    .attr("x", 4)
-    .attr("y", 10)
-    .text("κ");
-  cancellationGroup
+    .attr("transform", `translate(-31,${innerHeight / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .text("Loss Fraction");
+  plot
     .append("text")
     .attr("class", "axis-label loss-x-label")
     .attr("x", innerWidth)
-    .attr("y", cancellationHeight + 24)
+    .attr("y", innerHeight + 27)
     .attr("text-anchor", "end")
     .text(args.axisLabel);
 }
 
-function panelTitle(panel: PanelDatum): string {
-  if (!panel.output) return panel.label;
-  const meanCancellation = 1 - panel.output.mean_coherence;
-  return `${panel.label} · mean κ ${formatNumber(meanCancellation)}`;
+function termLineData(output: LossDecompositionOutput, term: LossDecompositionTermSeries): LinePoint[] {
+  return output.bin_centers.map((x, index) => ({
+    x,
+    y: clamp01(term.binned_fraction[index] ?? Number.NaN),
+  }));
 }
 
-function stackedTermData(output: LossDecompositionOutput, terms: string[]): Array<{ term: string; points: StackedPoint[] }> {
-  const termMap = new Map(output.terms.map((term) => [term.id, term]));
-  const accumulators = new Array(output.bin_centers.length).fill(0);
-  return terms.map((termId) => {
-    const term = termMap.get(termId);
-    const values = termValues(term, output.bin_centers.length);
-    const points = output.bin_centers.map((x, index) => {
-      const y0 = accumulators[index];
-      const value = Math.max(0, Number.isFinite(values[index]) ? values[index] : 0);
-      const y1 = Math.min(1.05, y0 + value);
-      accumulators[index] = y1;
-      return { x, y0, y1 };
-    });
-    return { term: termId, points };
+function termBandData(output: LossDecompositionOutput, term: LossDecompositionTermSeries): BandPoint[] {
+  return output.bin_centers.map((x, index) => {
+    const value = term.binned_fraction[index] ?? Number.NaN;
+    const std = term.binned_fraction_std[index] ?? 0;
+    return {
+      x,
+      y0: clamp01(value - std),
+      y1: clamp01(value + std),
+    };
   });
 }
 
-function termValues(term: LossDecompositionTermSeries | undefined, expectedLength: number): number[] {
-  if (!term) return new Array(expectedLength).fill(0);
-  if (term.binned_fraction.length !== expectedLength) return new Array(expectedLength).fill(0);
-  return term.binned_fraction;
+function cancellationData(output: LossDecompositionOutput): LinePoint[] {
+  return output.bin_centers.map((x, index) => ({
+    x,
+    y: cancellationAt(output, index),
+  }));
 }
 
 function cancellationAt(output: LossDecompositionOutput | null, index: number): number {
   if (!output) return Number.NaN;
-  const coherence = output.mean_coherence;
-  const value = 1 - (Number.isFinite(coherence) ? outputMeanOrBinnedCoherence(output, index) : coherence);
-  return Math.max(0, Math.min(1, value));
+  const value = output.binned_coherence[index];
+  const coherence = value != null && Number.isFinite(value) ? value : output.mean_coherence;
+  return clamp01(1 - coherence);
 }
 
-function outputMeanOrBinnedCoherence(output: LossDecompositionOutput, index: number): number {
-  const value = output.binned_coherence[index];
-  if (value != null && Number.isFinite(value)) return value;
-  return output.mean_coherence;
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return Number.NaN;
+  return Math.max(0, Math.min(1, value));
 }
 
 function shortTermLabel(term: string): string {

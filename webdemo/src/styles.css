@@ -807,6 +807,10 @@ canvas {
   grid-column: span 2;
 }
 
+.results-panel-full {
+  grid-column: 1 / -1;
+}
+
 .results-panel-header {
   min-width: 0;
   display: flex;
@@ -873,7 +877,11 @@ canvas {
 }
 
 .results-loss-chart {
-  height: 392px;
+  height: 430px;
+}
+
+.results-ic-chart {
+  height: 318px;
 }
 
 .results-empty,
@@ -921,6 +929,7 @@ canvas {
 .results-chart-note,
 .results-legend text,
 .loss-decomposition-legend text,
+.results-ic-legend text,
 .loss-decomposition-panel-title,
 .axis text,
 .axis-label {
@@ -934,19 +943,76 @@ canvas {
   stroke: var(--line);
 }
 
+.axis-grid line {
+  stroke: rgba(93, 104, 120, 0.22);
+  shape-rendering: crispEdges;
+}
+
+.axis-grid path {
+  display: none;
+}
+
 .loss-fraction-area {
-  opacity: 0.92;
+  opacity: 0.22;
+}
+
+.loss-fraction-line,
+.loss-fraction-legend-line,
+.results-ic-line,
+.results-ic-legend-line {
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .loss-cancellation-line {
   fill: none;
   stroke: var(--text-strong);
-  stroke-width: 1.8;
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
 }
 
-.loss-cancellation-mean {
-  stroke: var(--axis);
+.loss-cancellation-legend-line {
+  fill: none;
+  stroke: var(--text-strong);
+  stroke-width: 1.5;
   stroke-dasharray: 4 3;
+}
+
+.results-ic-band {
+  opacity: 0.2;
+}
+
+.results-indicator-table {
+  min-height: 254px;
+  padding: 12px;
+  background: var(--plot-bg);
+}
+
+.results-indicator-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-indicator-table th,
+.results-indicator-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.results-indicator-table th {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.results-indicator-table td:last-child,
+.results-indicator-table th:last-child {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .model-interaction-hint {
