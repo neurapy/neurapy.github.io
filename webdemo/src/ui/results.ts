@@ -10,29 +10,70 @@ import { renderIcFractionComparisonPlot } from "../viz/icFractionComparison";
 import { renderLossDecompositionPlot } from "../viz/lossDecomposition";
 
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
+const ETA_FORMULA = `
+  <math display="block" aria-label="eta of R equals one minus the average upstream absolute influence fraction over candidate points z in R">
+    <mrow>
+      <mi>η</mi>
+      <mo>(</mo><mi>R</mi><mo>)</mo>
+      <mo>=</mo>
+      <mn>1</mn>
+      <mo>−</mo>
+      <mfrac>
+        <mn>1</mn>
+        <mrow><mo>|</mo><mi>R</mi><mo>|</mo></mrow>
+      </mfrac>
+      <msub>
+        <mo>∑</mo>
+        <mrow><mi>z</mi><mo>∈</mo><mi>R</mi></mrow>
+      </msub>
+      <mfrac>
+        <mrow>
+          <msub>
+            <mo>∑</mo>
+            <mrow><mi>x</mi><mo>∈</mo><mi>U</mi><mo>(</mo><mi>z</mi><mo>)</mo></mrow>
+          </msub>
+          <mo>|</mo><mi>I</mi><mo>(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo>)</mo><mo>|</mo>
+        </mrow>
+        <mrow>
+          <msub>
+            <mo>∑</mo>
+            <mrow><mi>x</mi><mo>∈</mo><msub><mi>X</mi><mtext>train</mtext></msub></mrow>
+          </msub>
+          <mo>|</mo><mi>I</mi><mo>(</mo><mi>x</mi><mo>,</mo><mi>z</mi><mo>)</mo><mo>|</mo>
+        </mrow>
+      </mfrac>
+    </mrow>
+  </math>
+`;
 const RESULTS_HINTS = {
   loss: {
     title: "Loss Component Decomposition",
     points: [
-      "Colored lines show each loss term's average fraction of total influence in a bin.",
-      "Shaded bands show standard deviation across samples.",
-      "Cancellation κ rises when signed term influences cancel each other.",
+      "Contribution of training loss terms to absolute influence, averaged within intervals along the x-axis.",
+      "Cancellation κ rises when positive and negative signed influences of loss terms offset each other.",
+      "Shaded bands show sample-to-sample variation inside a bin.",
     ],
   },
   ic: {
     title: "IC Fraction Across Problems",
     points: [
-      "IC fraction is the share of total influence assigned to initial-condition terms over time.",
-      "Diffusion appears here as the heat-equation benchmark.",
-      "Large early IC influence is expected; persistent dominance later can indicate weak propagation.",
+      "Share of absolute influence assigned to initial-condition terms as time changes.",
+      "High IC influence near t=0 is expected. Slow decay or late peaks suggest the model remains dependent on initial-condition data.",
+      "Shaded bands show sample-to-sample variation inside a bin.",
     ],
   },
   indicator: {
     title: "Influence Indicator",
+    formula: ETA_FORMULA,
     points: [
-      "η summarizes temporal or spatial directionality.",
-      "Baselines show sampling, spatial, or poor-model reference values where available.",
-      "Values above a baseline are evidence to inspect, not automatically a better model.",
+      "η compresses directional influence into one number for the selected problem.",
+      "R is the set of candidate points being summarized; U(z) is the set of earlier or upstream training points for candidate point z.",
+      "The fraction is computed for each z and then averaged over R; because of the 1 - term, lower η means stronger earlier/upstream influence.",
+      "Temporal η uses earlier times; spatial η uses the analogous upstream direction in space.",
+      "Baseline is the value expected from the training-point layout alone, before considering the model's learned influence pattern.",
+      "Well-trained and poorly-trained rows report mean ± standard deviation across runs.",
+      "Compare well-trained and poorly-trained values against the listed baseline before judging a model.",
+      "Values above baseline are prompts for inspection, not automatic proof that a model is better.",
     ],
   },
 } as const;
@@ -50,7 +91,7 @@ export class ResultsDashboard {
   }
 
   setLoading(): void {
-    this.root.innerHTML = `<div class="results-shell" data-state="loading"><div class="results-empty">Loading results</div></div>`;
+    this.root.innerHTML = `<div class="results-shell" data-state="loading"><div class="results-empty">Loading indicators</div></div>`;
   }
 
   setError(message: string): void {
@@ -72,7 +113,7 @@ export class ResultsDashboard {
     if (!this.data) return;
     const problem = this.activeProblemId();
     if (!problem) {
-      this.setError("Results data is unavailable for the selected problem");
+      this.setError("Indicator data is unavailable for the selected problem");
       return;
     }
     const lossDatasets = this.lossDatasets(problem);
@@ -217,6 +258,7 @@ function hintPopover(id: ResultsHintId): string {
   return `
     <div class="results-hint-popover" id="results-hint-${id}" role="note" aria-label="${escapeHtml(hint.title)} hint" hidden>
       <div class="results-hint-title">${escapeHtml(hint.title)}</div>
+      ${"formula" in hint ? `<div class="results-hint-formula">${hint.formula}</div>` : ""}
       <ul>
         ${hint.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
       </ul>

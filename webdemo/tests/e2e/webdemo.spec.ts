@@ -867,18 +867,25 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await expectNonblankCanvas(page, "#trainCanvas");
 });
 
-test("results tab renders dashboard charts and preserves the Playground", async ({ page }, testInfo) => {
+test("indicators tab renders dashboard charts and preserves the Playground", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only tab coverage is enough");
   await page.goto(FIXTURE_URL);
   await expectNonblankCanvas(page, "#mainCanvas");
 
-  await page.locator("button[data-app-view='results']").click();
+  await page.locator("button[data-app-view='explainer']").click();
+  await expect(page.locator("#explainerWorkspace")).toBeVisible();
+  await expect(page.locator("#playgroundWorkspace")).toBeHidden();
+  await expect(page.locator("#resultsWorkspace")).toBeHidden();
+  await expect(page.locator("#runMeta")).toHaveText("Explainer");
+
+  await page.locator("button[data-app-view='indicators']").click();
   await page.locator("#problemSelect").selectOption("burgers");
 
   await expect(page.locator("#resultsWorkspace")).toBeVisible();
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
-  await expect(page.locator("#resetButton")).toBeHidden();
-  await expect(page.locator("#runMeta")).toHaveText("Results · Burgers");
+  await expect(page.locator("#explainerWorkspace")).toBeHidden();
+  await expect(page.locator("#resetButton")).toHaveCount(0);
+  await expect(page.locator("#runMeta")).toHaveText("Indicators · Burgers");
   await expect(page.locator("#resultsWorkspace .results-panel")).toHaveCount(3);
   await expect(page.locator("#resultsWorkspace [data-results-chart]")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
@@ -903,17 +910,17 @@ test("results tab renders dashboard charts and preserves the Playground", async 
     {
       buttonName: "Explain Loss Component Decomposition",
       popover: "#results-hint-loss",
-      text: /std|standard deviation|Cancellation κ/,
+      text: /absolute influence|Cancellation κ/,
     },
     {
       buttonName: "Explain IC Fraction Across Problems",
       popover: "#results-hint-ic",
-      text: /Diffusion appears/,
+      text: /initial-condition terms|late peaks/,
     },
     {
       buttonName: "Explain Influence Indicator",
       popover: "#results-hint-indicator",
-      text: /above a baseline/,
+      text: /U\(z\)|training-point layout/,
     },
   ];
   for (const hint of hintChecks) {
@@ -932,15 +939,39 @@ test("results tab renders dashboard charts and preserves the Playground", async 
 
   const resultsBeforeQualitySwitch = await page.locator("#resultsWorkspace").innerHTML();
   await page.locator("button[data-model-quality='bad']").click();
-  await expect(page.locator("#runMeta")).toHaveText("Results · Burgers");
+  await expect(page.locator("#runMeta")).toHaveText("Indicators · Burgers");
   expect(await page.locator("#resultsWorkspace").innerHTML()).toBe(resultsBeforeQualitySwitch);
 
   await page.locator("button[data-app-view='playground']").click();
   await expect(page.locator("#playgroundWorkspace")).toBeVisible();
+  await expect(page.locator("#explainerWorkspace")).toBeHidden();
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
-  await expect(page.locator("#resetButton")).toBeVisible();
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+});
+
+test("mobile Indicators gives the stacked IC comparison enough height", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "mobile-only Indicators chart sizing");
+  await page.goto(FIXTURE_URL);
+
+  await page.locator("button[data-app-view='indicators']").click();
+  await page.locator("#problemSelect").selectOption("burgers");
+  await expect
+    .poll(() => page.locator('[data-results-chart="ic"] .results-ic-line').count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+
+  const metrics = await page.locator(".results-ic-chart").evaluate((svg) => {
+    const root = svg as SVGSVGElement;
+    const frames = Array.from(root.querySelectorAll<SVGRectElement>(".results-ic-panel .loss-decomposition-frame"));
+    return {
+      chartHeight: root.getBoundingClientRect().height,
+      frameHeights: frames.map((frame) => Number(frame.getAttribute("height"))),
+    };
+  });
+
+  expect(metrics.chartHeight).toBeGreaterThanOrEqual(450);
+  expect(metrics.frameHeights).toHaveLength(2);
+  expect(Math.min(...metrics.frameHeights)).toBeGreaterThanOrEqual(170);
 });
 
 test("wide desktop uses the viewport width and keeps plot tiles side by side", async ({ page }, testInfo) => {

@@ -12,7 +12,7 @@ export type InfluenceSign = "abs" | "pos" | "neg";
 export type BackgroundMode = "points" | "smooth" | "cell";
 export type SelectionMode = "point" | "region";
 export type ModelQuality = "good" | "bad";
-export type AppView = "playground" | "results";
+export type AppView = "explainer" | "playground" | "indicators";
 
 export interface ArraySpec {
   path: string;

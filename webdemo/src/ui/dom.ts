@@ -5,8 +5,8 @@ export interface DomRefs {
   runMeta: HTMLElement;
   problemSelect: HTMLSelectElement;
   qualityButtons: HTMLElement;
-  resetButton: HTMLButtonElement;
   message: HTMLElement;
+  explainerWorkspace: HTMLElement;
   playgroundWorkspace: HTMLElement;
   resultsWorkspace: HTMLElement;
   fieldSelect: HTMLSelectElement;
@@ -47,8 +47,8 @@ export function getDomRefs(): DomRefs {
     runMeta: required("#runMeta", HTMLElement),
     problemSelect: required("#problemSelect", HTMLSelectElement),
     qualityButtons: required("#qualityButtons", HTMLElement),
-    resetButton: required("#resetButton", HTMLButtonElement),
     message: required("#message", HTMLElement),
+    explainerWorkspace: required("#explainerWorkspace", HTMLElement),
     playgroundWorkspace: required("#playgroundWorkspace", HTMLElement),
     resultsWorkspace: required("#resultsWorkspace", HTMLElement),
     fieldSelect: required("#fieldSelect", HTMLSelectElement),

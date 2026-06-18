@@ -165,7 +165,7 @@ export class AppController {
       this.dom.problemSelect.value = firstProblem.problem;
       this.setActiveButtons(this.dom.qualityButtons, this.store.state.modelQuality, "modelQuality");
       await this.loadActiveVariant();
-      if (this.store.state.appView === "results") {
+      if (this.store.state.appView === "indicators") {
         await this.ensureResultsData();
         this.renderResultsDashboard();
       }
@@ -179,13 +179,17 @@ export class AppController {
     this.dom.viewButtons.addEventListener("click", (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>("button[data-app-view]");
       if (!button) return;
-      const appView: AppView = button.dataset.appView === "results" ? "results" : "playground";
+      const requestedView = button.dataset.appView;
+      const appView: AppView =
+        requestedView === "explainer" || requestedView === "indicators"
+          ? requestedView
+          : "playground";
       this.store.dispatch({ type: "view", appView });
       this.applyActiveView();
     });
     this.dom.problemSelect.addEventListener("change", () => {
       this.store.dispatch({ type: "problem", problem: this.dom.problemSelect.value });
-      if (this.store.state.appView === "results") {
+      if (this.store.state.appView === "indicators") {
         this.renderResultsDashboard();
         return;
       }
@@ -197,7 +201,7 @@ export class AppController {
       const quality: ModelQuality = button.dataset.modelQuality === "bad" ? "bad" : "good";
       this.store.dispatch({ type: "modelQuality", modelQuality: quality });
       this.setActiveButtons(this.dom.qualityButtons, quality, "modelQuality");
-      if (this.store.state.appView === "results") {
+      if (this.store.state.appView === "indicators") {
         this.updateToplineMeta();
         return;
       }
@@ -243,22 +247,6 @@ export class AppController {
       this.refreshResponsiveLayout();
       this.schedule("train");
     });
-    this.dom.resetButton.addEventListener("click", () => {
-      this.store.dispatch({ type: "resetSelection" });
-      this.draftRegion = null;
-      this.modelGesture = null;
-      this.trainGesture = null;
-      this.touchRegionArmed = false;
-      this.lastTouchTap = null;
-      this.influenceAggregate = null;
-      this.pickDefaultSelection();
-      this.triggerSelectionPulse();
-      void this.loadInfluenceForSelection().then(() => {
-        this.schedule("main");
-        this.schedule("train");
-        this.updateStats();
-      });
-    });
     this.dom.mainCanvas.addEventListener("pointerdown", (event) => this.handleMainPointerDown(event));
     this.dom.mainCanvas.addEventListener("pointermove", (event) => this.handleMainPointerMove(event));
     this.dom.mainCanvas.addEventListener("pointerup", (event) => this.handleMainPointerUp(event));
@@ -292,17 +280,22 @@ export class AppController {
   }
 
   private applyActiveView(): void {
-    const isResults = this.store.state.appView === "results";
-    this.dom.playgroundWorkspace.hidden = isResults;
-    this.dom.resultsWorkspace.hidden = !isResults;
-    this.dom.resetButton.hidden = isResults;
+    const isExplainer = this.store.state.appView === "explainer";
+    const isIndicators = this.store.state.appView === "indicators";
+    this.dom.explainerWorkspace.hidden = !isExplainer;
+    this.dom.playgroundWorkspace.hidden = isExplainer || isIndicators;
+    this.dom.resultsWorkspace.hidden = !isIndicators;
     this.setActiveButtons(this.dom.viewButtons, this.store.state.appView, "appView");
     this.updateToplineMeta();
-    if (isResults) {
+    if (isIndicators) {
       this.dismissModelInteractionHint();
       void this.ensureResultsData()
         .then(() => this.renderResultsDashboard())
         .catch(() => undefined);
+      return;
+    }
+    if (isExplainer) {
+      this.dismissModelInteractionHint();
       return;
     }
     if (this.index && !this.activeVariantMatchesState()) {
@@ -334,7 +327,7 @@ export class AppController {
   }
 
   private renderResultsDashboard(): void {
-    if (this.store.state.appView !== "results" || !this.resultsData || !this.index) return;
+    if (this.store.state.appView !== "indicators" || !this.resultsData || !this.index) return;
     this.resultsDashboard.render(this.resultsData, this.store.state.problem ?? this.dom.problemSelect.value);
     this.updateToplineMeta();
   }
@@ -348,9 +341,13 @@ export class AppController {
   }
 
   private updateToplineMeta(): void {
-    if (this.store.state.appView === "results") {
+    if (this.store.state.appView === "explainer") {
+      this.dom.runMeta.textContent = "Explainer";
+      return;
+    }
+    if (this.store.state.appView === "indicators") {
       const problemLabel = this.dom.problemSelect.selectedOptions[0]?.textContent ?? "Selected problem";
-      this.dom.runMeta.textContent = `Results · ${problemLabel}`;
+      this.dom.runMeta.textContent = `Indicators · ${problemLabel}`;
       return;
     }
     if (!this.manifest) return;
@@ -472,10 +469,11 @@ export class AppController {
   }
 
   private handleViewportScaleChange(): void {
-    if (this.store.state.appView === "results") {
+    if (this.store.state.appView === "indicators") {
       this.scheduleResultsRender();
       return;
     }
+    if (this.store.state.appView === "explainer") return;
     this.refreshResponsiveLayout();
     this.schedule("main");
     this.schedule("train");

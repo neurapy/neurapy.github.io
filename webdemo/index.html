@@ -29,8 +29,9 @@
             <div class="topbar-control view-control">
               <span>View</span>
               <div class="segmented view-switch" id="viewButtons" role="group" aria-label="Workspace view">
-                <button type="button" data-app-view="playground" class="active">Playground</button>
-                <button type="button" data-app-view="results">Results</button>
+                <button type="button" data-app-view="explainer">EXPLAINER</button>
+                <button type="button" data-app-view="playground" class="active">PLAYGROUND</button>
+                <button type="button" data-app-view="indicators">INDICATORS</button>
               </div>
             </div>
             <label class="topbar-control problem-control">
@@ -44,12 +45,6 @@
                 <button type="button" data-model-quality="bad">Bad</button>
               </div>
             </div>
-            <button id="resetButton" class="icon-button" title="Reset selection" aria-label="Reset selection">
-              <svg aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M6.2 7.4A8 8 0 1 1 4 12" />
-                <path d="M6.2 7.4H3.5V4.7" />
-              </svg>
-            </button>
           </div>
         </div>
       </header>
@@ -138,9 +133,11 @@
         </section>
       </section>
 
+      <section id="explainerWorkspace" class="workspace explainer-workspace" hidden></section>
+
       <section id="resultsWorkspace" class="workspace results-workspace" hidden>
         <div class="results-shell" data-state="loading">
-          <div class="results-empty">Loading results</div>
+          <div class="results-empty">Loading indicators</div>
         </div>
       </section>
     </main>

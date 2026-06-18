@@ -8,20 +8,22 @@ describe("app state reducer", () => {
     expect(initialState.appView).toBe("playground");
   });
 
-  it("switches between Playground and Results without resetting selection state", () => {
+  it("switches among views without resetting selection state", () => {
     const selected = reduceState(initialState, {
       type: "selection",
       candidateIndex: 4,
       trainIndex: 7,
       coord: [0.2, 0.8],
     });
-    const results = reduceState(selected, { type: "view", appView: "results" });
-    const playground = reduceState(results, { type: "view", appView: "playground" });
+    const indicators = reduceState(selected, { type: "view", appView: "indicators" });
+    const explainer = reduceState(indicators, { type: "view", appView: "explainer" });
+    const playground = reduceState(explainer, { type: "view", appView: "playground" });
 
-    expect(results.appView).toBe("results");
-    expect(results.selectedCandidateIndex).toBe(4);
-    expect(results.selectedTrainIndex).toBe(7);
-    expect(results.selectedCoord).toEqual([0.2, 0.8]);
+    expect(indicators.appView).toBe("indicators");
+    expect(explainer.appView).toBe("explainer");
+    expect(indicators.selectedCandidateIndex).toBe(4);
+    expect(indicators.selectedTrainIndex).toBe(7);
+    expect(indicators.selectedCoord).toEqual([0.2, 0.8]);
     expect(playground.appView).toBe("playground");
   });
 
