@@ -500,6 +500,7 @@ export class AppController {
     observer.observe(this.dom.plotGrid);
     observer.observe(this.dom.modelPanel);
     observer.observe(this.dom.trainPanel);
+    observer.observe(this.dom.resultsWorkspace);
   }
 
   private handleViewportScaleChange(): void {

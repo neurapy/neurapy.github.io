@@ -27,6 +27,65 @@ async function expectContourPaths(page: Page, panel: "model" | "train"): Promise
     .toBeGreaterThan(0);
 }
 
+async function waitForIndicatorsCharts(page: Page): Promise<void> {
+  await expect
+    .poll(() => page.locator(".results-loss-chart .loss-fraction-area").count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => page.locator('[data-results-chart="ic"] .results-ic-line').count(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+}
+
+async function openIndicatorsDashboard(page: Page, problem = "burgers"): Promise<void> {
+  await page.goto(FIXTURE_URL);
+  await page.locator("button[data-app-view='indicators']").click();
+  await page.locator("#problemSelect").selectOption(problem);
+  await expect(page.locator("#resultsWorkspace")).toBeVisible();
+  await waitForIndicatorsCharts(page);
+}
+
+async function resultsDashboardLayoutMetrics(page: Page): Promise<{
+  workspace: { clientHeight: number; scrollHeight: number };
+  grid: { top: number; right: number; bottom: number; left: number; width: number; height: number };
+  loss: { top: number; right: number; bottom: number; left: number; width: number; height: number };
+  ic: { top: number; right: number; bottom: number; left: number; width: number; height: number };
+  indicator: { top: number; right: number; bottom: number; left: number; width: number; height: number };
+}> {
+  return page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>("#resultsWorkspace");
+    const grid = document.querySelector<HTMLElement>("#resultsWorkspace .results-grid");
+    const loss = document.querySelector<SVGSVGElement>(".results-loss-chart")?.closest<HTMLElement>(".results-panel");
+    const ic = document.querySelector<SVGSVGElement>(".results-ic-chart")?.closest<HTMLElement>(".results-panel");
+    const indicator = document
+      .querySelector<HTMLElement>(".results-indicator-table")
+      ?.closest<HTMLElement>(".results-panel");
+    if (!workspace || !grid || !loss || !ic || !indicator) throw new Error("Missing results dashboard layout nodes");
+
+    const rect = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        left: box.left,
+        width: box.width,
+        height: box.height,
+      };
+    };
+
+    return {
+      workspace: {
+        clientHeight: workspace.clientHeight,
+        scrollHeight: workspace.scrollHeight,
+      },
+      grid: rect(grid),
+      loss: rect(loss),
+      ic: rect(ic),
+      indicator: rect(indicator),
+    };
+  });
+}
+
 async function axisFrameRatio(page: Page, selector: string): Promise<number> {
   return page.locator(`${selector} .axis-frame`).evaluate((frame) => {
     const width = Number(frame.getAttribute("width"));
@@ -990,12 +1049,17 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.getByRole("heading", { name: "IC Fraction Across Problems" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Influence Indicator" })).toBeVisible();
   await expect(page.locator("#resultsWorkspace .results-panel-header .results-hint-button")).toHaveCount(3);
-  await expect
-    .poll(() => page.locator(".results-loss-chart .loss-fraction-area").count(), { timeout: 10_000 })
-    .toBeGreaterThan(0);
-  await expect
-    .poll(() => page.locator('[data-results-chart="ic"] .results-ic-line').count(), { timeout: 10_000 })
-    .toBeGreaterThan(0);
+  await waitForIndicatorsCharts(page);
+  const dashboardLayout = await resultsDashboardLayoutMetrics(page);
+  expect(dashboardLayout.workspace.scrollHeight - dashboardLayout.workspace.clientHeight).toBeLessThanOrEqual(2);
+  expect(Math.abs(dashboardLayout.loss.left - dashboardLayout.grid.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dashboardLayout.loss.right - dashboardLayout.grid.right)).toBeLessThanOrEqual(1);
+  expect(dashboardLayout.ic.top - dashboardLayout.loss.bottom).toBeGreaterThanOrEqual(10);
+  expect(dashboardLayout.ic.top - dashboardLayout.loss.bottom).toBeLessThanOrEqual(14);
+  expect(Math.abs(dashboardLayout.ic.top - dashboardLayout.indicator.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dashboardLayout.ic.bottom - dashboardLayout.indicator.bottom)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dashboardLayout.ic.left - dashboardLayout.grid.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dashboardLayout.indicator.right - dashboardLayout.grid.right)).toBeLessThanOrEqual(1);
   const lossLegend = page.locator(".loss-decomposition-legend");
   await expect(lossLegend).toContainText("PDE");
   await expect(lossLegend).toContainText("IC");
@@ -1049,6 +1113,40 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("button[data-model-quality='bad']")).toBeEnabled();
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
+});
+
+test("indicators tab stays reachable on a short desktop viewport", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop-only short viewport coverage");
+  await page.setViewportSize({ width: 1440, height: 620 });
+  await openIndicatorsDashboard(page);
+
+  const scrollMetrics = await page.locator("#resultsWorkspace").evaluate((workspace) => {
+    const element = workspace as HTMLElement;
+    element.scrollTop = 0;
+    element.scrollTop = element.scrollHeight;
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+    };
+  });
+  expect(scrollMetrics.scrollHeight - scrollMetrics.clientHeight).toBeGreaterThan(50);
+  expect(scrollMetrics.scrollTop).toBeGreaterThan(0);
+
+  const panels = page.locator("#resultsWorkspace .results-panel");
+  await expect(panels).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    const panel = panels.nth(index);
+    await panel.scrollIntoViewIfNeeded();
+    const visibleHeight = await panel.evaluate((element) => {
+      const workspace = document.querySelector<HTMLElement>("#resultsWorkspace");
+      if (!workspace) throw new Error("Missing results workspace");
+      const panelBox = element.getBoundingClientRect();
+      const workspaceBox = workspace.getBoundingClientRect();
+      return Math.min(panelBox.bottom, workspaceBox.bottom) - Math.max(panelBox.top, workspaceBox.top);
+    });
+    expect(visibleHeight).toBeGreaterThan(40);
+  }
 });
 
 test("mobile Indicators gives the stacked IC comparison enough height", async ({ page }, testInfo) => {
