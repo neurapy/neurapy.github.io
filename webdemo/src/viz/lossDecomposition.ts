@@ -11,6 +11,7 @@ export interface LossDecompositionRenderArgs {
   svg: SVGSVGElement;
   datasets: Partial<Record<ModelQuality, LossDecompositionData>>;
   outputId: string | null;
+  problem: string | null;
 }
 
 interface BandPoint {
@@ -36,6 +37,59 @@ const QUALITY_LABELS: Record<ModelQuality, string> = {
   bad: "Poorly-Trained",
 };
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
+const LOSS_TERM_ALIASES: Record<string, Record<string, string>> = {
+  allen_cahn: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_0: "IC",
+    bc_1: "BC: x=1",
+    bc_2: "BC: x=-1",
+  },
+  burgers: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_0: "IC",
+    bc_1: "BC",
+  },
+  diffusion: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_0: "IC",
+    bc_1: "BC",
+  },
+  drift_diffusion: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_0: "IC",
+    bc_1: "BC: x=0",
+    bc_2: "BC: x=2π",
+  },
+  wave: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_0: "IC",
+    bc_1: "BC: u(0,t)=0",
+    bc_2: "BC: u(1,t)=0",
+    bc_3: "IC: ∂u/∂t",
+  },
+  poisson_disk: {
+    pde_loss: "PDE",
+    pde_0: "PDE",
+    bc_loss: "BC",
+    bc_0: "BC",
+  },
+  navier_stokes_nd: {
+    pde_0: "Continuity",
+    pde_1: "PDE: x-momentum",
+    pde_2: "PDE: y-momentum",
+    bc_0: "No-slip u",
+    bc_1: "No-slip v",
+    bc_2: "Inflow u",
+    bc_3: "Inflow v",
+    bc_4: "Outflow u",
+    bc_5: "Outflow v",
+  },
+};
 const TERM_COLORS = [
   "#1f77b4",
   "#ff7f0e",
@@ -83,7 +137,7 @@ export function renderLossDecompositionPlot(args: LossDecompositionRenderArgs): 
   const xDomain = sharedXDomain(panels);
   const colorForTerm = new Map(terms.map((term, index) => [term, TERM_COLORS[index % TERM_COLORS.length]]));
   const layout = plotLayout(width, height, terms.length);
-  drawLegend(root, terms, colorForTerm, layout.legend);
+  drawLegend(root, terms, colorForTerm, layout.legend, panels, args.problem);
 
   const group = root.append("g").attr("class", "loss-decomposition-panels");
   panels.forEach((panel, index) => {
@@ -178,6 +232,8 @@ function drawLegend(
   terms: string[],
   colorForTerm: Map<string, string>,
   legend: { x: number; y: number; itemWidth: number; columns: number },
+  panels: PanelDatum[],
+  problem: string | null,
 ): void {
   const group = root.append("g").attr("class", "loss-decomposition-legend");
   [...terms, "cancellation"].forEach((term, index) => {
@@ -205,7 +261,7 @@ function drawLegend(
       .attr("y1", 7)
       .attr("y2", 7)
       .attr("stroke", colorForTerm.get(term) ?? "#999999");
-    item.append("text").attr("x", 22).attr("y", 10).text(shortTermLabel(term));
+    item.append("text").attr("x", 22).attr("y", 10).text(lossTermLegendLabel(problem, term, panels));
   });
 }
 
@@ -356,10 +412,13 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function shortTermLabel(term: string): string {
-  const [prefix, suffix] = term.split("_");
-  if ((prefix === "pde" || prefix === "bc") && suffix) return `${prefix.toUpperCase()} ${suffix}`;
-  return formatDisplayLabel(term.replace(/_/g, " "));
+function lossTermLegendLabel(problem: string | null, termId: string, panels: PanelDatum[]): string {
+  const alias = problem ? LOSS_TERM_ALIASES[problem]?.[termId] : undefined;
+  if (alias) return alias;
+  const metadataLabel = panels
+    .flatMap((panel) => panel.output?.terms ?? [])
+    .find((term) => term.id === termId)?.label;
+  return formatDisplayLabel(metadataLabel ?? termId.replace(/_/g, " "));
 }
 
 function drawEmpty(

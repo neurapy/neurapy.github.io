@@ -385,9 +385,47 @@ async function tinyLossDecomposition(problem, displayName, quality) {
   const relativeDir = join(problem, quality, outputId);
   const resultsRoot = join(root, "results");
   const binCenters = new Float32Array([0.16, 0.5, 0.84]);
+  const hasBoundaryTerm = problem === "burgers";
   const pdeFractions = bad ? [0.45, 0.58, 0.7] : [0.62, 0.72, 0.82];
-  const bcFractions = bad ? [0.55, 0.42, 0.3] : [0.38, 0.28, 0.18];
+  const icFractions = hasBoundaryTerm
+    ? bad
+      ? [0.4, 0.3, 0.2]
+      : [0.3, 0.2, 0.1]
+    : bad
+      ? [0.55, 0.42, 0.3]
+      : [0.38, 0.28, 0.18];
+  const boundaryFractions = bad ? [0.15, 0.12, 0.1] : [0.08, 0.08, 0.08];
+  const terms = [
+    {
+      id: "pde_0",
+      label: "PDE Loss",
+      mean_fraction: bad ? 0.58 : 0.72,
+      std_fraction: 0.04,
+    },
+    {
+      id: "bc_0",
+      label: "IC Loss",
+      mean_fraction: bad ? 0.42 : 0.28,
+      std_fraction: 0.04,
+    },
+    ...(hasBoundaryTerm
+      ? [
+          {
+            id: "bc_1",
+            label: "Dirichlet BC ($x=-1$ and $x=1$)",
+            mean_fraction: bad ? 0.12 : 0.08,
+            std_fraction: 0.02,
+          },
+        ]
+      : []),
+  ];
   const coherence = bad ? [0.9, 0.91, 0.92] : [0.96, 0.95, 0.97];
+  const binnedFractions = hasBoundaryTerm
+    ? new Float32Array([...pdeFractions, ...icFractions, ...boundaryFractions])
+    : new Float32Array([...pdeFractions, ...icFractions]);
+  const binnedFractionStd = hasBoundaryTerm
+    ? new Float32Array([0.02, 0.02, 0.03, 0.02, 0.02, 0.03, 0.01, 0.01, 0.01])
+    : new Float32Array([0.02, 0.02, 0.03, 0.02, 0.02, 0.03]);
   return {
     problem,
     display_name: displayName,
@@ -402,27 +440,11 @@ async function tinyLossDecomposition(problem, displayName, quality) {
         mean_coherence: bad ? 0.91 : 0.96,
         std_coherence: 0.02,
         n_bins: 3,
-        n_terms: 2,
+        n_terms: terms.length,
         n_candidate: 4,
         n_train: 5,
-        source_matrix_ids: [
-          "influences_pde_0_output_0",
-          "influences_bc_0_output_0",
-        ],
-        terms: [
-          {
-            id: "pde_0",
-            label: "PDE Loss",
-            mean_fraction: bad ? 0.58 : 0.72,
-            std_fraction: 0.04,
-          },
-          {
-            id: "bc_0",
-            label: "IC Loss",
-            mean_fraction: bad ? 0.42 : 0.28,
-            std_fraction: 0.04,
-          },
-        ],
+        source_matrix_ids: terms.map((term) => `influences_${term.id}_output_0`),
+        terms,
         arrays: {
           bin_centers: await writeArray(
             resultsRoot,
@@ -434,16 +456,16 @@ async function tinyLossDecomposition(problem, displayName, quality) {
           binned_fractions: await writeArray(
             resultsRoot,
             join(resultsRoot, relativeDir, "binned_fractions.f32"),
-            new Float32Array([...pdeFractions, ...bcFractions]),
+            binnedFractions,
             "float32",
-            [2, 3],
+            [terms.length, 3],
           ),
           binned_fractions_std: await writeArray(
             resultsRoot,
             join(resultsRoot, relativeDir, "binned_fractions_std.f32"),
-            new Float32Array([0.02, 0.02, 0.03, 0.02, 0.02, 0.03]),
+            binnedFractionStd,
             "float32",
-            [2, 3],
+            [terms.length, 3],
           ),
           binned_coherence: await writeArray(
             resultsRoot,

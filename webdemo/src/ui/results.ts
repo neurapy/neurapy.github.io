@@ -10,13 +10,44 @@ import { renderIcFractionComparisonPlot } from "../viz/icFractionComparison";
 import { renderLossDecompositionPlot } from "../viz/lossDecomposition";
 
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
+const RESULTS_HINTS = {
+  loss: {
+    title: "Loss Component Decomposition",
+    points: [
+      "Colored lines show each loss term's average fraction of total influence in a bin.",
+      "Shaded bands show standard deviation across samples.",
+      "Cancellation κ rises when signed term influences cancel each other.",
+    ],
+  },
+  ic: {
+    title: "IC Fraction Across Problems",
+    points: [
+      "IC fraction is the share of total influence assigned to initial-condition terms over time.",
+      "Diffusion appears here as the heat-equation benchmark.",
+      "Large early IC influence is expected; persistent dominance later can indicate weak propagation.",
+    ],
+  },
+  indicator: {
+    title: "Influence Indicator",
+    points: [
+      "η summarizes temporal or spatial directionality.",
+      "Baselines show sampling, spatial, or poor-model reference values where available.",
+      "Values above a baseline are evidence to inspect, not automatically a better model.",
+    ],
+  },
+} as const;
+type ResultsHintId = keyof typeof RESULTS_HINTS;
 
 export class ResultsDashboard {
   private data: ResultsData | null = null;
   private problem: string | null = null;
   private outputByProblem = new Map<string, string>();
 
-  constructor(private readonly root: HTMLElement) {}
+  constructor(private readonly root: HTMLElement) {
+    this.root.addEventListener("click", this.handleRootClick);
+    document.addEventListener("click", this.handleDocumentClick);
+    document.addEventListener("keydown", this.handleDocumentKeydown);
+  }
 
   setLoading(): void {
     this.root.innerHTML = `<div class="results-shell" data-state="loading"><div class="results-empty">Loading results</div></div>`;
@@ -53,22 +84,25 @@ export class ResultsDashboard {
         <section class="results-grid">
           <article class="results-panel results-panel-full">
             <div class="results-panel-header">
-              <h3>Loss Component Decomposition</h3>
+              ${panelTitle("loss")}
               <div class="results-output-buttons" role="group" aria-label="Output selection">
                 ${outputButtons(outputIds, outputId)}
               </div>
+              ${hintPopover("loss")}
             </div>
             <svg class="results-chart results-loss-chart" data-results-chart="loss"></svg>
           </article>
           <article class="results-panel results-panel-wide">
             <div class="results-panel-header">
-              <h3>IC Fraction Across Problems</h3>
+              ${panelTitle("ic")}
+              ${hintPopover("ic")}
             </div>
             <svg class="results-chart results-ic-chart" data-results-chart="ic"></svg>
           </article>
           <article class="results-panel">
             <div class="results-panel-header">
-              <h3>Influence Indicator</h3>
+              ${panelTitle("indicator")}
+              ${hintPopover("indicator")}
             </div>
             <div class="results-indicator-table" data-results-table="indicator">
               ${indicatorTable(this.data, problem, outputId)}
@@ -88,9 +122,49 @@ export class ResultsDashboard {
     });
 
     const lossSvg = this.root.querySelector<SVGSVGElement>('[data-results-chart="loss"]');
-    if (lossSvg) renderLossDecompositionPlot({ svg: lossSvg, datasets: lossDatasets, outputId });
+    if (lossSvg) renderLossDecompositionPlot({ svg: lossSvg, datasets: lossDatasets, outputId, problem });
     const icSvg = this.root.querySelector<SVGSVGElement>('[data-results-chart="ic"]');
     if (icSvg) renderIcFractionComparisonPlot(icSvg, this.data);
+  }
+
+  private readonly handleRootClick = (event: MouseEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest<HTMLButtonElement>("[data-results-hint]");
+    if (button && this.root.contains(button)) {
+      this.toggleHint(button);
+      return;
+    }
+    if (!target.closest(".results-hint-popover")) this.closeHints();
+  };
+
+  private readonly handleDocumentClick = (event: MouseEvent): void => {
+    const target = event.target;
+    if (target instanceof Node && !this.root.contains(target)) this.closeHints();
+  };
+
+  private readonly handleDocumentKeydown = (event: KeyboardEvent): void => {
+    if (event.key === "Escape") this.closeHints();
+  };
+
+  private toggleHint(button: HTMLButtonElement): void {
+    const controls = button.getAttribute("aria-controls");
+    if (!button.dataset.resultsHint || !controls) return;
+    const popover = document.getElementById(controls);
+    if (!(popover instanceof HTMLElement) || !this.root.contains(popover)) return;
+    const shouldOpen = button.getAttribute("aria-expanded") !== "true";
+    this.closeHints();
+    button.setAttribute("aria-expanded", String(shouldOpen));
+    popover.hidden = !shouldOpen;
+  }
+
+  private closeHints(): void {
+    this.root.querySelectorAll<HTMLButtonElement>("[data-results-hint]").forEach((button) => {
+      button.setAttribute("aria-expanded", "false");
+    });
+    this.root.querySelectorAll<HTMLElement>(".results-hint-popover").forEach((popover) => {
+      popover.hidden = true;
+    });
   }
 
   private activeProblemId(): string | null {
@@ -119,6 +193,35 @@ export class ResultsDashboard {
     this.outputByProblem.set(problem, fallback);
     return fallback;
   }
+}
+
+function panelTitle(id: ResultsHintId): string {
+  const hint = RESULTS_HINTS[id];
+  return `
+    <div class="results-panel-title-row">
+      <h3>${escapeHtml(hint.title)}</h3>
+      <button
+        type="button"
+        class="results-hint-button"
+        data-results-hint="${id}"
+        aria-label="Explain ${escapeHtml(hint.title)}"
+        aria-expanded="false"
+        aria-controls="results-hint-${id}"
+      >?</button>
+    </div>
+  `;
+}
+
+function hintPopover(id: ResultsHintId): string {
+  const hint = RESULTS_HINTS[id];
+  return `
+    <div class="results-hint-popover" id="results-hint-${id}" role="note" aria-label="${escapeHtml(hint.title)} hint" hidden>
+      <div class="results-hint-title">${escapeHtml(hint.title)}</div>
+      <ul>
+        ${hint.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+      </ul>
+    </div>
+  `;
 }
 
 function hasResultsForProblem(data: ResultsData, problem: string): boolean {

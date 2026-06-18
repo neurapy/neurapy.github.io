@@ -780,6 +780,7 @@ canvas {
 }
 
 .results-panel {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -812,6 +813,7 @@ canvas {
 }
 
 .results-panel-header {
+  position: relative;
   min-width: 0;
   display: flex;
   align-items: flex-start;
@@ -821,12 +823,79 @@ canvas {
   border-bottom: 1px solid var(--line);
 }
 
+.results-panel-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .results-panel-header h3 {
   margin: 0;
   color: var(--accent);
   font-size: 15px;
   font-weight: 400;
   line-height: 1.15;
+}
+
+.results-hint-button {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.results-hint-button:hover,
+.results-hint-button:focus-visible,
+.results-hint-button[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.results-hint-popover {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 7px);
+  left: 12px;
+  width: min(520px, calc(100% - 24px));
+  max-height: min(300px, calc(100svh - 180px));
+  overflow: auto;
+  padding: 12px 13px 12px 15px;
+  border: 1px solid rgba(31, 130, 192, 0.42);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: #fbfdff;
+  color: var(--text-strong);
+  font-size: 12.5px;
+  line-height: 1.45;
+  box-shadow: 0 10px 26px rgba(23, 32, 42, 0.16);
+}
+
+.results-hint-title {
+  margin-bottom: 6px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.results-hint-popover ul {
+  margin: 0;
+  padding-left: 17px;
+}
+
+.results-hint-popover li + li {
+  margin-top: 4px;
 }
 
 .results-output-buttons {
@@ -1513,6 +1582,12 @@ input[type="range"]::-moz-range-thumb {
   .results-panel-header {
     flex-wrap: wrap;
     padding: 10px 9px 7px;
+  }
+
+  .results-hint-popover {
+    left: 9px;
+    width: calc(100% - 18px);
+    max-height: min(320px, calc(100svh - 140px));
   }
 
   .results-chart {

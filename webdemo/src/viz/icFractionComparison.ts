@@ -34,7 +34,7 @@ const PROBLEM_ORDER = ["allen_cahn", "burgers", "diffusion", "wave", "drift_diff
 const PROBLEM_LABELS: Record<string, string> = {
   allen_cahn: "Allen-Cahn",
   burgers: "Burgers",
-  diffusion: "Heat",
+  diffusion: "Diffusion",
   wave: "Wave",
   drift_diffusion: "Drift-Diffusion",
 };

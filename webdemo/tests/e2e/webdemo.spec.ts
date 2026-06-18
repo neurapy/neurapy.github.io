@@ -884,12 +884,49 @@ test("results tab renders dashboard charts and preserves the Playground", async 
   await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "IC Fraction Across Problems" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Influence Indicator" })).toBeVisible();
+  await expect(page.locator("#resultsWorkspace .results-panel-header .results-hint-button")).toHaveCount(3);
   await expect
     .poll(() => page.locator(".results-loss-chart .loss-fraction-area").count(), { timeout: 10_000 })
     .toBeGreaterThan(0);
   await expect
     .poll(() => page.locator('[data-results-chart="ic"] .results-ic-line').count(), { timeout: 10_000 })
     .toBeGreaterThan(0);
+  const lossLegend = page.locator(".loss-decomposition-legend");
+  await expect(lossLegend).toContainText("PDE");
+  await expect(lossLegend).toContainText("IC");
+  await expect(lossLegend).toContainText("BC");
+  await expect(lossLegend).not.toContainText(/PDE Loss|BC 0|BC 1|BC: boundary|PDE lossBC 0BC 1/i);
+  const icLegend = page.locator(".results-ic-legend");
+  await expect(icLegend).toContainText("Diffusion");
+  await expect(icLegend).not.toContainText("Heat");
+  const hintChecks = [
+    {
+      buttonName: "Explain Loss Component Decomposition",
+      popover: "#results-hint-loss",
+      text: /std|standard deviation|Cancellation κ/,
+    },
+    {
+      buttonName: "Explain IC Fraction Across Problems",
+      popover: "#results-hint-ic",
+      text: /Diffusion appears/,
+    },
+    {
+      buttonName: "Explain Influence Indicator",
+      popover: "#results-hint-indicator",
+      text: /above a baseline/,
+    },
+  ];
+  for (const hint of hintChecks) {
+    const button = page.getByRole("button", { name: hint.buttonName });
+    await expect(button).toHaveText("?");
+    await button.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator(hint.popover)).toBeVisible();
+    await expect(page.locator(hint.popover)).toContainText(hint.text);
+    await page.keyboard.press("Escape");
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(hint.popover)).toBeHidden();
+  }
   await expect(page.locator('[data-results-table="indicator"] table')).toBeVisible();
   await expect(page.locator('[data-results-chart="dominance"]')).toHaveCount(0);
 
