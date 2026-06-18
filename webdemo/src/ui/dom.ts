@@ -23,6 +23,7 @@ export interface DomRefs {
   selectedValue: HTMLElement;
   plotGrid: HTMLElement;
   mainTitle: HTMLElement;
+  modelMeta: HTMLElement;
   trainTitle: HTMLElement;
   trainRange: HTMLElement;
   mainCanvas: HTMLCanvasElement;
@@ -65,6 +66,7 @@ export function getDomRefs(): DomRefs {
     selectedValue: required("#selectedValue", HTMLElement),
     plotGrid: required("#plotGrid", HTMLElement),
     mainTitle: required("#mainTitle", HTMLElement),
+    modelMeta: required("#modelMeta", HTMLElement),
     trainTitle: required("#trainTitle", HTMLElement),
     trainRange: required("#trainRange", HTMLElement),
     mainCanvas: required("#mainCanvas", HTMLCanvasElement),

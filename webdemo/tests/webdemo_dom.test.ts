@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatDisplayLabel, formatFieldSelectLabel, formatInfluenceMatrixLabel } from "../src/ui/dom";
+import { formatResultsOutputLabel } from "../src/ui/results";
 
 describe("UI display labels", () => {
   it("formats common manifest math labels without exposing raw LaTeX", () => {
@@ -39,5 +40,12 @@ describe("UI display labels", () => {
     expect(formatFieldSelectLabel("Prediction $\\hat u$")).toBe("û");
     expect(formatFieldSelectLabel("Prediction output")).toBe("ŷ");
     expect(formatFieldSelectLabel("Total Loss")).toBe("ℒ");
+  });
+
+  it("uses result output metadata instead of generic output ids", () => {
+    expect(formatResultsOutputLabel({ id: "output_0", label: "$\\hat u$" })).toBe("û");
+    expect(formatResultsOutputLabel({ id: "output_1", label: "$\\hat v$" })).toBe("v̂");
+    expect(formatResultsOutputLabel({ id: "output_2", label: "$\\hat p$" })).toBe("p̂");
+    expect(formatResultsOutputLabel({ id: "output_3", label: "" })).toBe("Output 3");
   });
 });

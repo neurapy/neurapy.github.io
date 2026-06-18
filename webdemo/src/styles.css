@@ -72,15 +72,18 @@ button {
   height: 100svh;
   min-height: 100svh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .topbar {
+  --hhi-logo-width: clamp(136px, 12vw, 178px);
+  --topbar-link-stack-height: calc(var(--hhi-logo-width) * 72 / 258);
+  --topbar-link-gap: 4px;
   grid-row: 1;
   width: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(336px, 1fr) minmax(0, auto);
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   gap: 10px 14px;
   padding: 9px 14px;
@@ -101,7 +104,7 @@ button {
 
 .hhi-logo {
   flex: 0 0 auto;
-  width: clamp(136px, 12vw, 178px);
+  width: var(--hhi-logo-width);
   max-width: 24vw;
   display: flex;
   align-items: center;
@@ -115,9 +118,10 @@ button {
 }
 
 .topbar-copy {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   display: grid;
+  align-content: center;
   gap: 2px;
   padding-left: 12px;
   border-left: 1px solid var(--line);
@@ -132,7 +136,7 @@ p {
 
 h1 {
   color: var(--accent);
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 400;
   line-height: 1.1;
   letter-spacing: 0;
@@ -163,43 +167,53 @@ h2 {
 }
 
 .topbar-actions {
-  justify-self: end;
+  justify-self: stretch;
   min-width: 0;
+  width: 100%;
   max-width: 100%;
   display: flex;
   align-items: flex-end;
   justify-content: flex-end;
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .topbar-links {
   min-width: 0;
-  display: flex;
-  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  height: var(--topbar-link-stack-height);
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  align-self: center;
+  justify-self: end;
   flex: 0 0 auto;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-  gap: 2px;
-  min-height: 30px;
+  justify-content: stretch;
+  gap: var(--topbar-link-gap);
 }
 
 .topbar-link {
-  min-height: 28px;
+  min-height: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 7px;
-  border: 1px solid transparent;
+  padding: 0 10px;
+  border: 1px solid var(--line);
   border-radius: 0;
-  color: var(--accent);
-  font-size: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.075em;
+  letter-spacing: 0.06em;
   line-height: 1;
   text-decoration: none;
   text-transform: uppercase;
   white-space: nowrap;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .topbar-link:hover,
@@ -217,10 +231,12 @@ h2 {
 
 .topbar-controls {
   min-width: 0;
-  display: flex;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: flex-end;
+  justify-content: flex-end;
   flex: 1 1 auto;
-  flex-wrap: nowrap;
   gap: 6px;
 }
 
@@ -235,8 +251,12 @@ h2 {
   text-transform: uppercase;
 }
 
+.topbar-control[data-disabled="true"] {
+  color: var(--line-strong);
+}
+
 .problem-control {
-  flex: 1 1 clamp(150px, 15vw, 220px);
+  flex: 0 0 clamp(150px, 15vw, 220px);
   min-width: 148px;
   width: clamp(150px, 15vw, 220px);
 }
@@ -246,14 +266,21 @@ h2 {
 }
 
 .view-control {
-  flex: 0 0 276px;
+  flex: 1 1 276px;
+  justify-self: center;
+  width: 100%;
+  min-width: 230px;
+  max-width: clamp(340px, 26vw, 460px);
+  margin-inline: 0;
 }
 
 .topbar .view-switch {
-  width: 276px;
+  min-height: 40px;
+  width: 100%;
 }
 
 .topbar .view-switch button {
+  min-height: 38px;
   padding: 0 7px;
   font-size: 9.2px;
   letter-spacing: 0.02em;
@@ -312,6 +339,22 @@ select:hover {
   color: var(--hhi-green);
 }
 
+select:disabled {
+  border-color: var(--line);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--line-strong) 50%) right 13px center / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--line-strong) 50%, transparent 50%) right 8px center / 5px 5px no-repeat,
+    var(--surface-2);
+  color: var(--line-strong);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+select:disabled:hover {
+  border-color: var(--line);
+  color: var(--line-strong);
+}
+
 select:focus-visible,
 button:focus-visible,
 input[type="range"]:focus-visible {
@@ -368,6 +411,58 @@ input[type="range"]:focus-visible {
   height: 100%;
   display: block;
   padding: 12px 18px 16px;
+}
+
+.legal-footer {
+  grid-row: 4;
+  min-width: 0;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 3px 18px 4px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.legal-footer-links {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.legal-footer-link,
+.legal-footer-copyright {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.legal-footer-copyright {
+  flex: 0 0 auto;
+  color: var(--line-strong);
+  text-align: right;
+}
+
+.legal-footer-link:hover,
+.legal-footer-link:focus-visible {
+  color: var(--hhi-green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-footer-link:focus-visible {
+  outline: 2px solid var(--hhi-green);
+  outline-offset: 2px;
 }
 
 .plot-panel {
@@ -431,6 +526,21 @@ input[type="range"]:focus-visible {
   background: var(--hhi-green);
 }
 
+.segmented button:disabled {
+  color: var(--line-strong);
+  cursor: not-allowed;
+}
+
+.segmented button.active:disabled {
+  background: var(--line-strong);
+  color: #ffffff;
+}
+
+.segmented button:not(.active):disabled:hover {
+  background: transparent;
+  color: var(--line-strong);
+}
+
 .plot-grid {
   width: 100%;
   max-width: 100%;
@@ -484,6 +594,26 @@ input[type="range"]:focus-visible {
   flex: 1 1 150px;
   display: grid;
   gap: 2px;
+}
+
+.model-panel .plot-title-group {
+  min-width: 170px;
+  flex: 1.25 1 220px;
+  gap: 3px;
+}
+
+.model-meta {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--accent-strong);
+  font-size: 10.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plot-header .muted {
@@ -936,9 +1066,9 @@ canvas {
   border-left: 1px solid var(--line);
   background: var(--surface);
   color: var(--accent);
-  font-size: 10.5px;
-  letter-spacing: 0.075em;
-  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .results-output-buttons button:first-child {
@@ -1259,13 +1389,13 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 1280px) {
   h1 {
-    font-size: 20px;
+    font-size: 18.5px;
   }
 }
 
 @media (max-width: 960px) {
   h1 {
-    font-size: 19px;
+    font-size: 15.5px;
   }
 }
 
@@ -1277,7 +1407,9 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 1180px) {
   .topbar {
-    grid-template-columns: minmax(310px, 1fr) minmax(0, auto);
+    --hhi-logo-width: clamp(118px, 13vw, 150px);
+    --topbar-link-gap: 3px;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     gap: 8px 10px;
     padding: 8px 12px;
   }
@@ -1287,7 +1419,6 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .hhi-logo {
-    width: clamp(118px, 13vw, 150px);
     max-width: 20vw;
   }
 
@@ -1296,17 +1427,13 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar-actions {
-    gap: 6px;
-  }
-
-  .topbar-links {
-    gap: 1px;
+    gap: 8px;
   }
 
   .topbar-link {
-    padding: 0 4px;
-    font-size: 10px;
-    letter-spacing: 0.055em;
+    padding: 0 8px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
   }
 
   .problem-control {
@@ -1321,10 +1448,12 @@ input[type="range"]::-moz-range-thumb {
 
   .view-control {
     flex-basis: 230px;
+    max-width: none;
+    margin-inline: 0;
   }
 
   .topbar .view-switch {
-    width: 230px;
+    width: 100%;
   }
 
   .topbar .segmented.view-switch button {
@@ -1349,12 +1478,13 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 960px) {
   .topbar {
-    grid-template-columns: minmax(280px, 1fr) minmax(0, auto);
+    --hhi-logo-width: clamp(92px, 10.5vw, 108px);
+    --topbar-link-gap: 2px;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     gap: 8px;
   }
 
   .hhi-logo {
-    width: clamp(92px, 10.5vw, 108px);
     max-width: 16vw;
   }
 
@@ -1363,9 +1493,9 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar-link {
-    padding: 0 1px;
-    font-size: 8.5px;
-    letter-spacing: 0.025em;
+    padding: 0 6px;
+    font-size: 10.2px;
+    letter-spacing: 0.035em;
   }
 
   .topbar-controls {
@@ -1387,7 +1517,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar .view-switch {
-    width: 236px;
+    width: 100%;
   }
 
   .topbar .quality-switch {
@@ -1418,28 +1548,32 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 900px) {
   .topbar {
-    grid-template-columns: minmax(0, 1fr);
+    --hhi-logo-width: clamp(112px, 16vw, 132px);
+    grid-template-columns: minmax(0, auto) minmax(50px, 1fr);
     align-items: stretch;
     gap: 5px;
     padding: 7px 10px;
   }
 
   .hhi-logo {
-    width: clamp(112px, 16vw, 132px);
     max-width: 22vw;
   }
 
   .topbar-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
     justify-self: stretch;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: block;
     align-items: end;
     gap: 8px;
   }
 
   .topbar-links {
-    justify-content: flex-start;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    justify-content: stretch;
   }
 
   .topbar-controls {
@@ -1457,31 +1591,32 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 720px) {
   .app-shell {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .topbar {
+    --hhi-logo-width: clamp(84px, 24vw, 100px);
+    --topbar-link-gap: 2px;
     align-items: stretch;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
+    grid-template-columns: minmax(0, auto) minmax(50px, 1fr);
+    gap: 3px;
     min-height: 0;
-    padding: 4px 10px;
+    padding: 3px 10px;
   }
 
   .brand-lockup {
-    width: 100%;
+    width: auto;
     flex: none;
     gap: 8px;
   }
 
   .hhi-logo {
-    width: clamp(84px, 28vw, 110px);
     max-width: 30vw;
   }
 
   .topbar-copy {
     width: auto;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     grid-template-columns: minmax(0, 1fr);
     align-items: baseline;
     gap: 2px;
@@ -1489,7 +1624,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   h1 {
-    font-size: 15px;
+    font-size: clamp(9px, 3vw, 15px);
   }
 
   h2 {
@@ -1505,6 +1640,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar-actions {
+    grid-column: 1 / -1;
     width: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1514,17 +1650,14 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar-links {
-    justify-content: flex-start;
-    min-height: 20px;
-    gap: 1px;
+    justify-content: stretch;
     overflow: visible;
   }
 
   .topbar-link {
-    min-height: 20px;
-    padding: 0 5px;
-    font-size: 10px;
-    letter-spacing: 0.05em;
+    padding: 0 6px;
+    font-size: 9px;
+    letter-spacing: 0.035em;
   }
 
   .topbar-controls {
@@ -1550,6 +1683,7 @@ input[type="range"]::-moz-range-thumb {
 
   .view-control {
     grid-column: 1 / -1;
+    justify-self: stretch;
     width: auto;
     min-width: 0;
   }
@@ -1574,6 +1708,22 @@ input[type="range"]::-moz-range-thumb {
     align-self: end;
   }
 
+  .legal-footer {
+    min-height: 22px;
+    gap: 8px;
+    padding: 3px 10px;
+  }
+
+  .legal-footer-links {
+    gap: 9px;
+  }
+
+  .legal-footer-link,
+  .legal-footer-copyright {
+    font-size: 8.5px;
+    letter-spacing: 0.025em;
+  }
+
   select {
     min-height: 28px;
     padding-right: 28px;
@@ -1582,6 +1732,13 @@ input[type="range"]::-moz-range-thumb {
       linear-gradient(45deg, transparent 50%, var(--accent) 50%) right 12px center / 5px 5px no-repeat,
       linear-gradient(135deg, var(--accent) 50%, transparent 50%) right 7px center / 5px 5px no-repeat,
       var(--surface);
+  }
+
+  select:disabled {
+    background:
+      linear-gradient(45deg, transparent 50%, var(--line-strong) 50%) right 12px center / 5px 5px no-repeat,
+      linear-gradient(135deg, var(--line-strong) 50%, transparent 50%) right 7px center / 5px 5px no-repeat,
+      var(--surface-2);
   }
 
   .segmented {
@@ -1669,6 +1826,17 @@ input[type="range"]::-moz-range-thumb {
     gap: 1px;
   }
 
+  .model-panel .plot-title-group {
+    min-width: 96px;
+    flex: 1 1 126px;
+    gap: 1px;
+  }
+
+  .model-meta {
+    font-size: 9.5px;
+    letter-spacing: 0;
+  }
+
   .train-header .plot-title-group {
     min-width: 36px;
     flex: 0 1 44px;
@@ -1747,6 +1915,16 @@ input[type="range"]::-moz-range-thumb {
 
   input[type="range"] {
     height: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .topbar-copy {
+    padding-left: 6px;
+  }
+
+  h1 {
+    font-size: 9px;
   }
 }
 

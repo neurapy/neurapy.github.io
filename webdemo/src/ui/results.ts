@@ -1,11 +1,13 @@
 import type {
   DirectionalityIndicatorEntry,
   LossDecompositionData,
+  LossDecompositionOutput,
   ModelQuality,
   PaperIndicatorValue,
   ResultsData,
   TemporalIndicatorEntry,
 } from "../types";
+import { formatFieldSelectLabel } from "./dom";
 import { renderIcFractionComparisonPlot } from "../viz/icFractionComparison";
 import { renderLossDecompositionPlot } from "../viz/lossDecomposition";
 
@@ -78,6 +80,10 @@ const RESULTS_HINTS = {
   },
 } as const;
 type ResultsHintId = keyof typeof RESULTS_HINTS;
+interface ResultsOutputOption {
+  id: string;
+  label: string;
+}
 
 export class ResultsDashboard {
   private data: ResultsData | null = null;
@@ -117,7 +123,8 @@ export class ResultsDashboard {
       return;
     }
     const lossDatasets = this.lossDatasets(problem);
-    const outputIds = outputIdsFor(lossDatasets);
+    const outputOptions = outputOptionsFor(lossDatasets);
+    const outputIds = outputOptions.map((output) => output.id);
     const outputId = this.selectedOutput(problem, outputIds);
 
     this.root.innerHTML = `
@@ -127,7 +134,7 @@ export class ResultsDashboard {
             <div class="results-panel-header">
               ${panelTitle("loss")}
               <div class="results-output-buttons" role="group" aria-label="Output selection">
-                ${outputButtons(outputIds, outputId)}
+                ${outputButtons(outputOptions, outputId)}
               </div>
               ${hintPopover("loss")}
             </div>
@@ -274,25 +281,38 @@ function firstResultsProblemId(data: ResultsData): string | null {
   return data.loss_decompositions[0]?.problem ?? null;
 }
 
-function outputIdsFor(datasets: Partial<Record<ModelQuality, LossDecompositionData>>): string[] {
-  const ids = new Set<string>();
-  for (const data of Object.values(datasets)) {
-    for (const output of data?.outputs ?? []) ids.add(output.id);
+function outputOptionsFor(
+  datasets: Partial<Record<ModelQuality, LossDecompositionData>>,
+): ResultsOutputOption[] {
+  const outputsById = new Map<string, ResultsOutputOption>();
+  for (const quality of QUALITY_ORDER) {
+    for (const output of datasets[quality]?.outputs ?? []) {
+      if (!outputsById.has(output.id)) {
+        outputsById.set(output.id, { id: output.id, label: formatResultsOutputLabel(output) });
+      }
+    }
   }
-  return Array.from(ids).sort();
+  return Array.from(outputsById.values()).sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true }),
+  );
 }
 
-function outputButtons(outputIds: string[], selected: string | null): string {
-  if (outputIds.length <= 1) return "";
-  return outputIds
-    .map(
-      (id) =>
-        `<button type="button" data-results-output="${escapeHtml(id)}" class="${id === selected ? "active" : ""}">${escapeHtml(outputLabel(id))}</button>`,
-    )
+function outputButtons(outputOptions: readonly ResultsOutputOption[], selected: string | null): string {
+  if (outputOptions.length <= 1) return "";
+  return outputOptions
+    .map((output) => {
+      const id = escapeHtml(output.id);
+      const label = escapeHtml(output.label);
+      return `<button type="button" data-results-output="${id}" class="${output.id === selected ? "active" : ""}">${label}</button>`;
+    })
     .join("");
 }
 
-function outputLabel(id: string): string {
+export function formatResultsOutputLabel(output: Pick<LossDecompositionOutput, "id" | "label">): string {
+  return formatFieldSelectLabel(output.label) || outputLabelFromId(output.id);
+}
+
+function outputLabelFromId(id: string): string {
   const suffix = id.match(/(\d+)$/)?.[1];
   return suffix ? `Output ${suffix}` : id.replace(/_/g, " ");
 }

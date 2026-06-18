@@ -153,7 +153,7 @@ export class AppController {
     showMessage(this.dom.message, null);
     this.setActiveButtons(this.dom.viewButtons, this.store.state.appView, "appView");
     this.applyActiveView();
-    this.dom.runMeta.textContent = "Loading data index";
+    this.setRunMeta("Loading data index");
     try {
       this.index = await loadIndex(this.indexUrl);
       this.populateProblemSelect();
@@ -171,7 +171,8 @@ export class AppController {
       }
     } catch (error) {
       showMessage(this.dom.message, error instanceof Error ? error.message : String(error));
-      this.dom.runMeta.textContent = "Data unavailable";
+      this.setModelMeta(null);
+      this.setRunMeta("Data unavailable");
     }
   }
 
@@ -197,7 +198,7 @@ export class AppController {
     });
     this.dom.qualityButtons.addEventListener("click", (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>("button[data-model-quality]");
-      if (!button) return;
+      if (!button || button.disabled) return;
       const quality: ModelQuality = button.dataset.modelQuality === "bad" ? "bad" : "good";
       this.store.dispatch({ type: "modelQuality", modelQuality: quality });
       this.setActiveButtons(this.dom.qualityButtons, quality, "modelQuality");
@@ -286,6 +287,7 @@ export class AppController {
     this.dom.playgroundWorkspace.hidden = isExplainer || isIndicators;
     this.dom.resultsWorkspace.hidden = !isIndicators;
     this.setActiveButtons(this.dom.viewButtons, this.store.state.appView, "appView");
+    this.updateTopbarControlState();
     this.updateToplineMeta();
     if (isIndicators) {
       this.dismissModelInteractionHint();
@@ -305,6 +307,29 @@ export class AppController {
     this.refreshResponsiveLayout();
     this.schedule("main");
     this.schedule("train");
+  }
+
+  private updateTopbarControlState(): void {
+    const problemDisabled = this.store.state.appView === "explainer";
+    const qualityDisabled = this.store.state.appView !== "playground";
+
+    this.dom.problemSelect.disabled = problemDisabled;
+    this.setTopbarControlDisabled(this.dom.problemSelect.closest(".topbar-control"), problemDisabled);
+
+    this.dom.qualityButtons.setAttribute("aria-disabled", String(qualityDisabled));
+    this.dom.qualityButtons.querySelectorAll<HTMLButtonElement>("button[data-model-quality]").forEach((button) => {
+      button.disabled = qualityDisabled;
+    });
+    this.setTopbarControlDisabled(this.dom.qualityButtons.closest(".topbar-control"), qualityDisabled);
+  }
+
+  private setTopbarControlDisabled(control: Element | null, disabled: boolean): void {
+    if (!(control instanceof HTMLElement)) return;
+    if (disabled) {
+      control.dataset.disabled = "true";
+      return;
+    }
+    delete control.dataset.disabled;
   }
 
   private async ensureResultsData(): Promise<ResultsData | null> {
@@ -340,18 +365,27 @@ export class AppController {
     });
   }
 
+  private setRunMeta(text: string | null): void {
+    this.dom.runMeta.textContent = text ?? "";
+    this.dom.runMeta.hidden = !text;
+  }
+
+  private setModelMeta(text: string | null): void {
+    this.dom.modelMeta.textContent = text ?? "";
+    this.dom.modelMeta.hidden = !text;
+  }
+
   private updateToplineMeta(): void {
-    if (this.store.state.appView === "explainer") {
-      this.dom.runMeta.textContent = "Explainer";
+    this.setRunMeta(null);
+    if (this.store.state.appView === "explainer" || this.store.state.appView === "indicators") {
+      this.setModelMeta(null);
       return;
     }
-    if (this.store.state.appView === "indicators") {
-      const problemLabel = this.dom.problemSelect.selectedOptions[0]?.textContent ?? "Selected problem";
-      this.dom.runMeta.textContent = `Indicators · ${problemLabel}`;
+    if (!this.manifest) {
+      this.setModelMeta(null);
       return;
     }
-    if (!this.manifest) return;
-    this.dom.runMeta.textContent = `${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`;
+    this.setModelMeta(`${formatProblemLabel(this.manifest.display_name)} · ${qualityLabel(this.manifest.model_quality)} · ${this.manifest.n_candidate.toLocaleString()} candidate · ${this.manifest.n_train.toLocaleString()} train`);
   }
 
   private activeVariantMatchesState(): boolean {
@@ -536,7 +570,8 @@ export class AppController {
     this.lastTouchTap = null;
     this.latestAggregateRequest += 1;
     showMessage(this.dom.message, null);
-    this.dom.runMeta.textContent = `Loading ${variant.display_name} · ${qualityLabel(variant.model_quality)}`;
+    this.setModelMeta(null);
+    this.setRunMeta(`Loading ${variant.display_name} · ${qualityLabel(variant.model_quality)}`);
     this.dom.problemSelect.value = variant.problem;
     this.setActiveButtons(this.dom.qualityButtons, variant.model_quality, "modelQuality");
     try {

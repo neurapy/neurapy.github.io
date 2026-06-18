@@ -14,20 +14,13 @@
             <img src="./brand/hhi_logo_en.svg" alt="Fraunhofer HHI" />
           </a>
           <div class="topbar-copy">
-            <h1>PINNfluence Demo</h1>
+            <h1>PINNteractive PINNfluence Demo</h1>
             <p id="runMeta" class="muted">Loading static data</p>
           </div>
         </div>
         <div class="topbar-actions">
-          <nav class="topbar-links" aria-label="Project links">
-            <a class="topbar-link" href="https://arxiv.org/abs/2409.08958" target="_blank" rel="noopener noreferrer">arXiv</a>
-            <a class="topbar-link" href="https://github.com/aleks-krasowski/PINNfluence/" target="_blank" rel="noopener noreferrer">GitHub</a>
-            <a class="topbar-link" href="./legal/privacy.html">Privacy</a>
-            <a class="topbar-link" href="./legal/impressum.html">Impressum</a>
-          </nav>
           <div class="topbar-controls">
             <div class="topbar-control view-control">
-              <span>View</span>
               <div class="segmented view-switch" id="viewButtons" role="group" aria-label="Workspace view">
                 <button type="button" data-app-view="explainer">EXPLAINER</button>
                 <button type="button" data-app-view="playground" class="active">PLAYGROUND</button>
@@ -47,6 +40,10 @@
             </div>
           </div>
         </div>
+        <nav class="topbar-links" aria-label="Project links">
+          <a class="topbar-link" href="https://arxiv.org/abs/2409.08958" target="_blank" rel="noopener noreferrer">arXiv</a>
+          <a class="topbar-link" href="https://github.com/aleks-krasowski/PINNfluence/" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
       </header>
 
       <section id="message" class="message" hidden></section>
@@ -57,6 +54,7 @@
             <div class="plot-header">
               <div class="plot-title-group">
                 <h2 id="mainTitle">Model</h2>
+                <p id="modelMeta" class="model-meta" aria-live="polite" hidden></p>
               </div>
               <div class="selection-readout" aria-live="polite">
                 <span class="readout-item readout-point">
@@ -140,6 +138,14 @@
           <div class="results-empty">Loading indicators</div>
         </div>
       </section>
+
+      <footer class="legal-footer" aria-label="Legal information">
+        <nav class="legal-footer-links" aria-label="Legal links">
+          <a class="legal-footer-link" href="./legal/privacy.html">Privacy</a>
+          <a class="legal-footer-link" href="./legal/impressum.html">Legal Notice</a>
+        </nav>
+        <span class="legal-footer-copyright">© Fraunhofer HHI</span>
+      </footer>
     </main>
     <script src="/src/main.ts" type="module"></script>
   </body>

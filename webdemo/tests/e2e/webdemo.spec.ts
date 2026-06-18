@@ -541,10 +541,19 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
 async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise<void> {
   await expectTopbarControlsFit(page);
   await expectTopbarProjectLinks(page);
+  await expectLegalFooter(page);
+  await expectLegalFooterFits(page);
 
   const metrics = await page.locator(".topbar").evaluate((topbar) => {
     const title = topbar.querySelector<HTMLElement>("h1");
+    const logo = topbar.querySelector<HTMLElement>(".hhi-logo");
+    const linkStack = topbar.querySelector<HTMLElement>(".topbar-links");
+    const actions = topbar.querySelector<HTMLElement>(".topbar-actions");
+    const viewSwitch = topbar.querySelector<HTMLElement>(".view-switch");
+    const problemControl = topbar.querySelector<HTMLElement>(".problem-control");
+    const qualityControl = topbar.querySelector<HTMLElement>(".quality-control");
     const links = Array.from(topbar.querySelectorAll<HTMLElement>(".topbar-link"));
+    const topbarBox = topbar.getBoundingClientRect();
     const titleRange = document.createRange();
     if (title) titleRange.selectNodeContents(title);
     const titleRects = title
@@ -553,6 +562,11 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
         )
       : [];
     const titleBox = title?.getBoundingClientRect() ?? null;
+    const linkStackBox = linkStack?.getBoundingClientRect() ?? null;
+    const actionsBox = actions?.getBoundingClientRect() ?? null;
+    const viewSwitchBox = viewSwitch?.getBoundingClientRect() ?? null;
+    const problemControlBox = problemControl?.getBoundingClientRect() ?? null;
+    const qualityControlBox = qualityControl?.getBoundingClientRect() ?? null;
     const linkRects = links
       .map((link) => link.getBoundingClientRect())
       .filter((rect) => rect.width > 1 && rect.height > 1);
@@ -563,14 +577,49 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
       titleRects.length > 0 &&
       Math.min(...titleRects.map((rect) => rect.left)) >= titleBox.left - 1 &&
       Math.max(...titleRects.map((rect) => rect.right)) <= titleBox.right + 1;
+    const linksShareControlsRow =
+      linkStackBox !== null &&
+      actionsBox !== null &&
+      linkStackBox.bottom > actionsBox.top + 1 &&
+      actionsBox.bottom > linkStackBox.top + 1;
+    const controlsBetweenTitleAndLinks =
+      !linksShareControlsRow ||
+      (titleBox !== null &&
+        linkStackBox !== null &&
+        actionsBox !== null &&
+        actionsBox.left > titleBox.right + 4 &&
+        actionsBox.right < linkStackBox.left - 4);
+    const viewExpandsWhenWide =
+      topbarBox.width < 1200 || (viewSwitchBox !== null && viewSwitchBox.width > 300);
+    const dataControlsStayRight =
+      !linksShareControlsRow ||
+      (qualityControlBox !== null &&
+        linkStackBox !== null &&
+        linkStackBox.left - qualityControlBox.right <= 36);
+    const viewCenteredBetweenTitleAndProblem =
+      !linksShareControlsRow ||
+      topbarBox.width < 1200 ||
+      (titleBox !== null &&
+        viewSwitchBox !== null &&
+        problemControlBox !== null &&
+        Math.abs(
+          (viewSwitchBox.left + viewSwitchBox.right) / 2 -
+            (titleBox.right + problemControlBox.left) / 2,
+        ) <= 16);
 
     return {
-      height: topbar.getBoundingClientRect().height,
+      dataControlsStayRight,
+      height: topbarBox.height,
       linkLineCount: lineCount(linkRects),
+      linkStackHeight: linkStack?.getBoundingClientRect().height ?? 0,
+      controlsBetweenTitleAndLinks,
       linksVisible: linkRects.length === links.length,
+      logoHeight: logo?.getBoundingClientRect().height ?? 0,
       overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       titleFits,
       titleLineCount: lineCount(titleRects),
+      viewCenteredBetweenTitleAndProblem,
+      viewExpandsWhenWide,
     };
   });
 
@@ -578,15 +627,18 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
   expect(metrics.titleLineCount).toBe(1);
   expect(metrics.titleFits).toBe(true);
   expect(metrics.linksVisible).toBe(true);
-  expect(metrics.linkLineCount).toBe(1);
+  expect(metrics.linkLineCount).toBe(2);
+  expect(metrics.controlsBetweenTitleAndLinks).toBe(true);
+  expect(metrics.dataControlsStayRight).toBe(true);
+  expect(Math.abs(metrics.linkStackHeight - metrics.logoHeight)).toBeLessThanOrEqual(1);
+  expect(metrics.viewCenteredBetweenTitleAndProblem).toBe(true);
+  expect(metrics.viewExpandsWhenWide).toBe(true);
   expect(metrics.overflowX).toBeLessThanOrEqual(1);
 }
 
 async function expectTopbarProjectLinks(page: Page): Promise<void> {
   const paperLink = page.locator(".topbar").getByRole("link", { name: "arXiv" });
   const githubLink = page.locator(".topbar").getByRole("link", { name: "GitHub" });
-  const privacyLink = page.locator(".topbar").getByRole("link", { name: "Privacy" });
-  const impressumLink = page.locator(".topbar").getByRole("link", { name: "Impressum" });
 
   await expect(paperLink).toBeVisible();
   await expect(paperLink).toHaveAttribute("href", "https://arxiv.org/abs/2409.08958");
@@ -599,11 +651,48 @@ async function expectTopbarProjectLinks(page: Page): Promise<void> {
   await expect(githubLink).toHaveAttribute("target", "_blank");
   await expect(githubLink).toHaveAttribute("rel", /noopener/);
   await expect(githubLink).toHaveAttribute("rel", /noreferrer/);
+}
 
+async function expectLegalFooter(page: Page): Promise<void> {
+  const footer = page.locator(".legal-footer");
+  const privacyLink = footer.getByRole("link", { name: "Privacy" });
+  const legalNoticeLink = footer.getByRole("link", { name: "Legal Notice" });
+  const copyright = footer.locator(".legal-footer-copyright");
+
+  await expect(footer).toBeVisible();
   await expect(privacyLink).toBeVisible();
   await expect(privacyLink).toHaveAttribute("href", "./legal/privacy.html");
-  await expect(impressumLink).toBeVisible();
-  await expect(impressumLink).toHaveAttribute("href", "./legal/impressum.html");
+  await expect(legalNoticeLink).toBeVisible();
+  await expect(legalNoticeLink).toHaveAttribute("href", "./legal/impressum.html");
+  await expect(copyright).toHaveText("© Fraunhofer HHI");
+  await expect(copyright).toBeVisible();
+}
+
+async function expectLegalFooterFits(page: Page): Promise<void> {
+  const leaks = await page.locator(".legal-footer").evaluate((footer) => {
+    const footerRect = footer.getBoundingClientRect();
+    const viewportRight = document.documentElement.clientWidth;
+    const elements = footer.querySelectorAll<HTMLElement>(
+      [".legal-footer-links", ".legal-footer-link", ".legal-footer-copyright"].join(", "),
+    );
+    return Array.from(elements)
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && rect.height > 0;
+      })
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return (
+          rect.left < footerRect.left - 1 ||
+          rect.right > Math.min(footerRect.right, viewportRight) + 1 ||
+          rect.top < footerRect.top - 1 ||
+          rect.bottom > footerRect.bottom + 1
+        );
+      })
+      .map((element) => element.className);
+  });
+  expect(leaks).toEqual([]);
 }
 
 async function tapMainPoint(page: Page): Promise<void> {
@@ -655,7 +744,7 @@ async function touchDragMainRegion(page: Page): Promise<void> {
   });
 }
 
-test("topbar stays compact while keeping title and project links inline", async ({
+test("topbar stays compact with controls before project links", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "desktop-only responsive topbar coverage");
@@ -713,6 +802,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   await page.goto(FIXTURE_URL);
 
   await expectTopbarProjectLinks(page);
+  await expect(page.getByRole("heading", { name: "PINNteractive PINNfluence Demo", level: 1 })).toBeVisible();
   await expect(page.locator("#problemSelect option")).toHaveText([
     "Fixture",
     "Shifted Fixture",
@@ -721,7 +811,8 @@ test("desktop renders two plots and continues background prefetching", async ({ 
     "Navier Stokes",
   ]);
   await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toBeHidden();
+  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
   await expectTopbarControlsFit(page);
   await expect(page.locator(".control-panel")).toHaveCount(0);
   await expect(page.locator(".control-group")).toHaveCount(0);
@@ -745,7 +836,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   const goodMainSignature = await canvasSignature(page, "#mainCanvas");
   await page.locator("button[data-model-quality='bad']").click();
   await expect(page.locator("button[data-model-quality='bad']")).toHaveClass(/active/);
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
   await expect.poll(() => canvasSignature(page, "#mainCanvas")).not.toBe(goodMainSignature);
@@ -876,16 +967,23 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("#explainerWorkspace")).toBeVisible();
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
-  await expect(page.locator("#runMeta")).toHaveText("Explainer");
+  await expect(page.locator("#runMeta")).toBeHidden();
+  await expect(page.locator("#problemSelect")).toBeDisabled();
+  await expect(page.locator("button[data-model-quality='good']")).toBeDisabled();
+  await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
 
   await page.locator("button[data-app-view='indicators']").click();
+  await expect(page.locator("#problemSelect")).toBeEnabled();
+  await expect(page.locator("button[data-model-quality='good']")).toBeDisabled();
+  await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
+  await expect(page.locator(".quality-control")).toHaveAttribute("data-disabled", "true");
   await page.locator("#problemSelect").selectOption("burgers");
 
   await expect(page.locator("#resultsWorkspace")).toBeVisible();
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#explainerWorkspace")).toBeHidden();
   await expect(page.locator("#resetButton")).toHaveCount(0);
-  await expect(page.locator("#runMeta")).toHaveText("Indicators · Burgers");
+  await expect(page.locator("#runMeta")).toBeHidden();
   await expect(page.locator("#resultsWorkspace .results-panel")).toHaveCount(3);
   await expect(page.locator("#resultsWorkspace [data-results-chart]")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
@@ -938,14 +1036,17 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator('[data-results-chart="dominance"]')).toHaveCount(0);
 
   const resultsBeforeQualitySwitch = await page.locator("#resultsWorkspace").innerHTML();
-  await page.locator("button[data-model-quality='bad']").click();
-  await expect(page.locator("#runMeta")).toHaveText("Indicators · Burgers");
+  await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
+  await expect(page.locator("#runMeta")).toBeHidden();
   expect(await page.locator("#resultsWorkspace").innerHTML()).toBe(resultsBeforeQualitySwitch);
 
   await page.locator("button[data-app-view='playground']").click();
   await expect(page.locator("#playgroundWorkspace")).toBeVisible();
   await expect(page.locator("#explainerWorkspace")).toBeHidden();
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
+  await expect(page.locator("#problemSelect")).toBeEnabled();
+  await expect(page.locator("button[data-model-quality='good']")).toBeEnabled();
+  await expect(page.locator("button[data-model-quality='bad']")).toBeEnabled();
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 });
@@ -1054,7 +1155,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   const selectedBeforeModelSwitch = await page.locator("#selectedPoint").textContent();
 
   await page.locator("button[data-model-quality='bad']").click();
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
@@ -1065,7 +1166,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await page.locator("#problemSelect").selectOption("shifted_fixture");
-  await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_residual");
   await expect(page.locator("#matrixSelect")).toHaveValue("m_shifted");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
@@ -1082,7 +1183,7 @@ test("drift diffusion uses a square physical pi axis", async ({ page }, testInfo
   await page.goto(FIXTURE_URL);
 
   await page.locator("#problemSelect").selectOption("drift_diffusion");
-  await expect(page.locator("#runMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
@@ -1155,7 +1256,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
   await page.locator("#problemSelect").selectOption("burgers");
-  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const burgersFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(burgersFrame.frameWidth).toBeGreaterThan(310);
@@ -1163,7 +1264,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(burgersFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("navier_stokes_nd");
-  await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const navierFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(navierFrame.frameWidth).toBeGreaterThan(310);
@@ -1172,7 +1273,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(navierFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("fixture");
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#modelMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
