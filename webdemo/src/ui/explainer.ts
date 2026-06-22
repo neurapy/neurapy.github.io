@@ -80,9 +80,15 @@ const DEFAULT_TOKEN_ID: ExplainerTokenId = "score";
 const TOKEN_BY_ID: ReadonlyMap<string, ExplainerToken> = new Map(
   EXPLAINER_TOKENS.map((token) => [token.id, token]),
 );
+const READ_DIRECTION_HINT_VISIBLE_MS = 2500;
+const READ_DIRECTION_HINT_HIDE_MS = 440;
 
 export class ExplainerView {
   private activeTokenId: ExplainerTokenId = DEFAULT_TOKEN_ID;
+  private readDirectionHintShown = false;
+  private readDirectionHintAutoTimer = 0;
+  private readDirectionHintHideTimer = 0;
+  private readDirectionHintShowFrame = 0;
 
   constructor(private readonly root: HTMLElement) {
     this.render();
@@ -100,6 +106,12 @@ export class ExplainerView {
     if (!(target instanceof Element)) return;
     const button = target.closest<HTMLButtonElement>("[data-explainer-token]");
     if (!button || !this.root.contains(button)) return;
+    if (
+      (event.type === "pointerover" || event.type === "focusin") &&
+      button.closest(".explainer-formula")
+    ) {
+      this.maybeShowReadDirectionHint();
+    }
     const id = button.dataset.explainerToken;
     if (id) this.setActiveToken(id);
   };
@@ -148,7 +160,6 @@ export class ExplainerView {
               <h2 id="explainer-formula-title">Influence as local sensitivity</h2>
             </div>
             <div class="explainer-read-direction" aria-label="Formula reading order">
-              <span class="explainer-read-direction-badge">Read the product from right to left!</span>
               <span class="explainer-read-direction-chain" aria-hidden="true">
                 <span class="explainer-read-direction-chip explainer-read-direction-chip-result">change in f</span>
                 <span class="explainer-read-direction-pair">
@@ -165,6 +176,13 @@ export class ExplainerView {
           </div>
           <div class="explainer-formula-workbench">
             <div class="explainer-formula-scroll" aria-label="PINNfluence influence function">
+              <div
+                id="explainerReadDirectionHint"
+                class="model-interaction-hint explainer-read-direction-tooltip"
+                data-state="hidden"
+                aria-hidden="true"
+                hidden
+              >Read the product from right to left.</div>
               <div class="explainer-formula" aria-describedby="explainer-token-body">
                 <span class="explainer-formula-lhs">
                   <span class="explainer-symbol-stack">
@@ -269,6 +287,57 @@ export class ExplainerView {
     const body = this.root.querySelector<HTMLElement>("#explainer-token-body");
     if (title) title.textContent = token.title;
     if (body) body.textContent = token.body;
+  }
+
+  private maybeShowReadDirectionHint(): void {
+    if (this.readDirectionHintShown) return;
+    this.readDirectionHintShown = true;
+    this.showReadDirectionHint();
+  }
+
+  private showReadDirectionHint(): void {
+    const hint = this.root.querySelector<HTMLElement>("#explainerReadDirectionHint");
+    if (!hint) return;
+    this.clearReadDirectionHintTimers();
+    hint.hidden = false;
+    hint.setAttribute("aria-hidden", "false");
+    hint.dataset.state = "hidden";
+
+    this.readDirectionHintShowFrame = requestAnimationFrame(() => {
+      this.readDirectionHintShowFrame = 0;
+      hint.dataset.state = "visible";
+      this.readDirectionHintAutoTimer = window.setTimeout(
+        () => this.dismissReadDirectionHint(),
+        READ_DIRECTION_HINT_VISIBLE_MS,
+      );
+    });
+  }
+
+  private dismissReadDirectionHint(): void {
+    const hint = this.root.querySelector<HTMLElement>("#explainerReadDirectionHint");
+    if (!hint || (hint.hidden && !this.readDirectionHintShowFrame)) return;
+    this.clearReadDirectionHintTimers();
+    hint.dataset.state = "hidden";
+    hint.setAttribute("aria-hidden", "true");
+    this.readDirectionHintHideTimer = window.setTimeout(() => {
+      this.readDirectionHintHideTimer = 0;
+      hint.hidden = true;
+    }, READ_DIRECTION_HINT_HIDE_MS);
+  }
+
+  private clearReadDirectionHintTimers(): void {
+    if (this.readDirectionHintShowFrame) {
+      cancelAnimationFrame(this.readDirectionHintShowFrame);
+      this.readDirectionHintShowFrame = 0;
+    }
+    if (this.readDirectionHintAutoTimer) {
+      window.clearTimeout(this.readDirectionHintAutoTimer);
+      this.readDirectionHintAutoTimer = 0;
+    }
+    if (this.readDirectionHintHideTimer) {
+      window.clearTimeout(this.readDirectionHintHideTimer);
+      this.readDirectionHintHideTimer = 0;
+    }
   }
 }
 

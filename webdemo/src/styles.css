@@ -1278,10 +1278,15 @@ canvas {
 }
 
 .explainer-formula-scroll {
+  position: relative;
   min-width: 0;
   overflow: hidden;
   container-type: inline-size;
   background: var(--plot-bg);
+}
+
+.explainer-formula-scroll > .explainer-read-direction-tooltip {
+  top: clamp(10px, 8%, 18px);
 }
 
 .explainer-formula {
@@ -1731,6 +1736,20 @@ canvas {
     padding: 14px;
   }
 
+  .explainer-read-direction {
+    width: 100%;
+    justify-items: center;
+  }
+
+  .explainer-read-direction-badge {
+    justify-self: center;
+    text-align: center;
+  }
+
+  .explainer-read-direction-chain {
+    justify-content: center;
+  }
+
   .explainer-formula {
     min-height: clamp(112px, 30cqw, 166px);
     flex-wrap: wrap;
@@ -1755,6 +1774,62 @@ canvas {
   .explainer-caveat {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+@media (max-width: 520px) {
+  .explainer-read-direction-chain {
+    display: grid;
+    grid-template-columns: minmax(0, max-content);
+    grid-template-areas:
+      "result"
+      "arrow-landscape"
+      "landscape"
+      "arrow-push"
+      "push";
+    gap: 3px;
+    justify-items: center;
+  }
+
+  .explainer-read-direction-chip-result {
+    grid-area: result;
+  }
+
+  .explainer-read-direction-pair {
+    display: contents;
+  }
+
+  .explainer-read-direction-pair:nth-child(2) > .explainer-read-direction-arrow {
+    grid-area: arrow-landscape;
+  }
+
+  .explainer-read-direction-pair:nth-child(2) > .explainer-read-direction-chip {
+    grid-area: landscape;
+  }
+
+  .explainer-read-direction-pair:nth-child(3) > .explainer-read-direction-arrow {
+    grid-area: arrow-push;
+  }
+
+  .explainer-read-direction-pair:nth-child(3) > .explainer-read-direction-chip {
+    grid-area: push;
+  }
+
+  .explainer-read-direction-arrow {
+    display: inline-flex;
+    width: 100%;
+    min-height: 10px;
+    align-items: center;
+    justify-content: center;
+    color: rgba(31, 130, 192, 0.5);
+    font-size: 0;
+  }
+
+  .explainer-read-direction-arrow::before {
+    content: "↑";
+    font-size: 14px;
+    line-height: 1;
+  }
+
 }
 
 .results-workspace {
