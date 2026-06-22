@@ -1041,7 +1041,7 @@ test("explainer tab renders an interactive formula guide", async ({ page }) => {
 
   await page.locator("[data-explainer-token='hessian']").click();
   await expect(page.locator("#explainer-token-title")).toHaveText("Local Training Geometry");
-  await expect(page.locator("#explainer-token-body")).toContainText("inverse-Hessian vector products");
+  await expect(page.locator("#explainer-token-body")).toContainText("reverse map");
   await expect(page.locator("[data-explainer-token='hessian']")).toHaveAttribute("aria-pressed", "true");
 
   await page.locator("[data-explainer-token='train-point']").focus();

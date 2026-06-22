@@ -39,13 +39,13 @@ export const EXPLAINER_TOKENS = [
     id: "grad-f",
     title: "Sensitivity of f",
     body:
-      "This gradient describes how the inspected quantity changes when the trained parameters move. It points from the model output back into parameter space.",
+      "After H⁻¹ turns the loss push into a parameter shift, this left term projects that shift into the final change of f at z.",
   },
   {
     id: "hessian",
     title: "Local Training Geometry",
     body:
-      "The inverse Hessian transfers a small loss perturbation through the trained loss landscape. Practically, it is approximated with inverse-Hessian vector products instead of forming a dense inverse.",
+      "The Hessian maps parameter-space movement to loss-gradient change. PINNfluence needs the reverse: given the tiny loss push from x, what parameter shift would the trained landscape allow? H⁻¹ applies that reverse map; steep directions shrink, flat directions carry more.",
   },
   {
     id: "grad-loss",
@@ -149,8 +149,8 @@ export class ExplainerView {
               <h2 id="explainer-formula-title">Influence as local sensitivity</h2>
             </div>
             <p>
-              The formula combines the pull from one training point with the sensitivity of a prediction
-              or loss at the evaluation point.
+              Read the product from right to left: training-point push, landscape response, then
+              the resulting change in the inspected prediction or loss.
             </p>
           </div>
           <div class="explainer-formula-workbench">
