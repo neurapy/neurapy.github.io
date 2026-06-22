@@ -1526,6 +1526,13 @@ canvas {
   line-height: 1.45;
 }
 
+.explainer-inline-math {
+  margin-inline: 0.08em;
+  color: var(--text-strong);
+  font-family: "Cambria Math", "STIX Two Text", "Times New Roman", Georgia, serif;
+  font-size: 1.12em;
+}
+
 .explainer-split-content {
   grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
   background: var(--plot-bg);

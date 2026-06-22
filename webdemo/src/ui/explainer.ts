@@ -1,75 +1,121 @@
+const MATH_X = inlineMath("x", "<mi>x</mi>");
+const MATH_Z = inlineMath("z", "<mi>z</mi>");
+const MATH_F = inlineMath("f", "<mi>f</mi>");
+const MATH_L = inlineMath("L", "<mi>L</mi>");
+const MATH_H_INV = inlineMath(
+  "H inverse",
+  "<msup><mi>H</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup>",
+);
+const MATH_GRAD_LOSS = inlineMath(
+  "gradient theta L of x at theta zero",
+  `<mrow>
+    <msub><mo>∇</mo><mi>θ</mi></msub>
+    <mi>L</mi><mo>(</mo><mi>x</mi><mo>;</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>)</mo>
+  </mrow>`,
+);
+const MATH_MINUS_H_INV_GRAD_LOSS = inlineMath(
+  "minus H inverse gradient theta L of x at theta zero",
+  `<mrow>
+    <mo>−</mo>
+    <msup><mi>H</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup>
+    <msub><mo>∇</mo><mi>θ</mi></msub>
+    <mi>L</mi><mo>(</mo><mi>x</mi><mo>;</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>)</mo>
+  </mrow>`,
+);
+const MATH_ABS_I_I = inlineMath(
+  "absolute influence I i",
+  "<mrow><mo>|</mo><msub><mi>I</mi><mi>i</mi></msub><mo>|</mo></mrow>",
+);
+const MATH_SUM_ABS_I_J = inlineMath(
+  "sum over j of absolute influence I j",
+  "<mrow><msub><mo>Σ</mo><mi>j</mi></msub><mo>|</mo><msub><mi>I</mi><mi>j</mi></msub><mo>|</mo></mrow>",
+);
+const MATH_KAPPA = inlineMath("kappa", "<mi>κ</mi>");
+
 export const EXPLAINER_TOKENS = [
   {
     id: "score",
     title: "Influence Score",
     body:
       "The score estimates how much a training point x changes the quantity f at location z when that point is perturbed. Large absolute values mean the trained PINN is locally sensitive to that training point.",
+    bodyHtml: `The score estimates how much a training point ${MATH_X} changes the quantity ${MATH_F} at location ${MATH_Z} when that point is perturbed. Large absolute values mean the trained PINN is locally sensitive to that training point.`,
   },
   {
     id: "loss",
     title: "Training Loss L",
     body:
       "L is the training objective. In a PINN it is a composite loss made from the PDE residual, initial-condition terms, boundary-condition terms, and any extra measurement terms.",
+    bodyHtml: `${MATH_L} is the training objective. In a PINN it is a composite loss made from the PDE residual, initial-condition terms, boundary-condition terms, and any extra measurement terms.`,
   },
   {
     id: "quantity",
     title: "Quantity f",
     body:
       "f is what we inspect after training. In the demo this is usually a prediction field or a loss value at a candidate location.",
+    bodyHtml: `${MATH_F} is what we inspect after training. In the demo this is usually a prediction field or a loss value at a candidate location.`,
   },
   {
     id: "train-point",
     title: "Training Point x",
     body:
       "x is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were changed.",
+    bodyHtml: `${MATH_X} is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were changed.`,
   },
   {
     id: "test-point",
     title: "Evaluation Point z",
     body:
       "z is the candidate location where we observe the trained model. One fixed z produces a map over influential training points.",
+    bodyHtml: `${MATH_Z} is the candidate location where we observe the trained model. One fixed ${MATH_Z} produces a map over influential training points.`,
   },
   {
     id: "sign",
     title: "Why the Minus?",
     body:
       "If training point x is upweighted, it adds a small extra loss push on the parameters. To settle into a nearby optimum again, the model moves in the opposite response direction −H⁻¹∇θL(x; θ₀). That opposite response is the leading minus.",
+    bodyHtml: `If training point ${MATH_X} is upweighted, it adds a small extra loss push on the parameters. To settle into a nearby optimum again, the model moves in the opposite response direction ${MATH_MINUS_H_INV_GRAD_LOSS}. That opposite response is the leading minus.`,
   },
   {
     id: "grad-f",
     title: "Sensitivity of f",
     body:
       "After H⁻¹ turns the loss push into a parameter shift, this left term projects that shift into the final change of f at z.",
+    bodyHtml: `After ${MATH_H_INV} turns the loss push into a parameter shift, this left term projects that shift into the final change of ${MATH_F} at ${MATH_Z}.`,
   },
   {
     id: "hessian",
     title: "Local Training Geometry",
     body:
       "The Hessian maps parameter-space movement to loss-gradient change. PINNfluence needs the reverse: given the tiny loss push from x, what parameter shift would the trained landscape allow? H⁻¹ applies that reverse map; steep directions shrink, flat directions carry more.",
+    bodyHtml: `The Hessian maps parameter-space movement to loss-gradient change. PINNfluence needs the reverse: given the tiny loss push from ${MATH_X}, what parameter shift would the trained landscape allow? ${MATH_H_INV} applies that reverse map; steep directions shrink, flat directions carry more.`,
   },
   {
     id: "grad-loss",
     title: "Training-Point Gradient",
     body:
       "This gradient describes how the selected training point pulls on the model parameters through its loss contribution.",
+    bodyHtml: `The gradient ${MATH_GRAD_LOSS} describes how the selected training point pulls on the model parameters through its loss contribution.`,
   },
   {
     id: "loss-fraction",
     title: "Loss-Term Fraction",
     body:
       "A term fraction measures how much of the absolute influence comes from one loss component, such as the PDE, IC, or BC term.",
+    bodyHtml: `A term fraction uses ${MATH_ABS_I_I} to measure how much of the absolute influence comes from one loss component, such as the PDE, IC, or BC term.`,
   },
   {
     id: "loss-normalizer",
     title: "All Loss Terms",
     body:
       "The denominator sums absolute influence over all loss components. This makes the fractions comparable and keeps them between 0 and 1.",
+    bodyHtml: `The denominator ${MATH_SUM_ABS_I_J} sums absolute influence over all loss components. This makes the fractions comparable and keeps them between 0 and 1.`,
   },
   {
     id: "cancellation",
     title: "Cancellation κ",
     body:
       "Cancellation rises when signed loss-term influences oppose each other. High cancellation means the fractions should be read together with the signed effects.",
+    bodyHtml: `Cancellation ${MATH_KAPPA} rises when signed loss-term influences oppose each other. High cancellation means the fractions should be read together with the signed effects.`,
   },
 ] as const;
 
@@ -286,7 +332,7 @@ export class ExplainerView {
     const title = this.root.querySelector<HTMLElement>("#explainer-token-title");
     const body = this.root.querySelector<HTMLElement>("#explainer-token-body");
     if (title) title.textContent = token.title;
-    if (body) body.textContent = token.body;
+    if (body) body.innerHTML = token.bodyHtml;
   }
 
   private maybeShowReadDirectionHint(): void {
@@ -343,6 +389,10 @@ export class ExplainerView {
 
 function formulaToken(id: ExplainerTokenId, label: string, variant = ""): string {
   return formulaTokenMarkup(id, escapeHtml(label), variant, label);
+}
+
+function inlineMath(label: string, markup: string): string {
+  return `<math class="explainer-inline-math" aria-label="${escapeHtml(label)}">${markup}</math>`;
 }
 
 function formulaTokenMarkup(id: ExplainerTokenId, html: string, variant = "", fallbackLabel = ""): string {
