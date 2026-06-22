@@ -1211,33 +1211,90 @@ canvas {
   min-height: 188px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 24px;
+  gap: 0;
+  padding: 26px 30px;
   color: var(--text-strong);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(24px, 3.1vw, 43px);
-  line-height: 1.2;
+  font-family: "Cambria Math", "STIX Two Text", "Times New Roman", Georgia, serif;
+  font-size: clamp(24px, 2.9vw, 40px);
+  font-variant-numeric: lining-nums;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.explainer-formula sup,
-.explainer-formula sub {
+.explainer-formula-lhs,
+.explainer-formula-rhs,
+.explainer-arguments,
+.explainer-formula-factor {
+  min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+}
+
+.explainer-formula-rhs {
+  column-gap: 0.22em;
+}
+
+.explainer-symbol-stack {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  margin-right: 0.06em;
+}
+
+.explainer-symbol-stack > .explainer-formula-token-symbol {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  align-self: center;
+}
+
+.explainer-symbol-sup {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.06em;
+  color: var(--text-strong);
+  font-size: 0.46em;
   line-height: 1;
+  transform: translate(-0.02em, 0.16em);
 }
 
-.explainer-formula sup {
+.explainer-symbol-sub {
+  grid-row: 2;
+  grid-column: 2;
+  align-self: start;
+  color: var(--text);
+  font-size: 0.44em;
+  font-style: italic;
+  line-height: 1;
+  transform: translate(-0.03em, -0.08em);
+}
+
+.explainer-script-arrow,
+.explainer-formula-paren,
+.explainer-formula-comma,
+.explainer-formula-equals,
+.explainer-transpose {
+  color: var(--text-strong);
+  font-style: normal;
+}
+
+.explainer-formula-comma {
+  margin: 0 0.12em 0 0.03em;
+}
+
+.explainer-formula-equals {
+  margin: 0 0.42em;
+}
+
+.explainer-transpose {
   align-self: flex-start;
-  margin-left: -7px;
-  font-size: 0.42em;
-}
-
-.explainer-formula sub {
-  align-self: flex-end;
-  margin-left: -9px;
-  font-size: 0.42em;
+  margin-left: -0.04em;
+  font-size: 0.5em;
+  line-height: 1;
+  transform: translateY(-0.36em);
 }
 
 .explainer-formula-token,
@@ -1256,16 +1313,86 @@ canvas {
 }
 
 .explainer-formula-token {
-  padding: 2px 5px;
+  display: inline-flex;
+  align-items: baseline;
+  margin: 0 -0.03em;
+  padding: 0.03em 0.06em 0.06em;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-strong);
+  font-style: italic;
+  line-height: 1;
 }
 
 .explainer-formula-token-wide {
-  padding: 5px 8px;
+  padding: 0.08em 0.12em 0.1em;
+}
+
+.explainer-formula-token-script {
+  padding: 0 0.04em 0.02em;
+}
+
+.explainer-formula-token-operator {
+  margin: 0;
+  padding-inline: 0.04em;
+  font-style: normal;
+}
+
+.explainer-formula-token-atom {
+  align-items: center;
+}
+
+.explainer-formula-token sub,
+.explainer-formula-token sup {
+  font-size: 0.58em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.explainer-formula-token sub {
+  bottom: -0.24em;
+}
+
+.explainer-formula-token sup {
+  top: -0.62em;
+}
+
+.explainer-math-atom {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  padding-right: 0.08em;
+}
+
+.explainer-atom-base {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  align-self: center;
+}
+
+.explainer-atom-sup {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: end;
+  font-size: 0.56em;
+  font-style: normal;
+  line-height: 1;
+  transform: translate(-0.03em, 0.2em);
+}
+
+.explainer-atom-sub {
+  grid-row: 2;
+  grid-column: 2;
+  align-self: start;
+  font-size: 0.52em;
+  line-height: 1;
+  transform: translate(-0.04em, -0.12em);
 }
 
 .explainer-formula-token:hover,
 .explainer-formula-token:focus-visible,
-.explainer-formula-token.active,
 .explainer-cancellation:hover,
 .explainer-cancellation:focus-visible,
 .explainer-cancellation.active {
@@ -1274,13 +1401,15 @@ canvas {
   color: var(--hhi-green);
 }
 
-.explainer-formula-token.active,
-.explainer-cancellation.active {
-  box-shadow: inset 0 -3px 0 var(--hhi-green);
+.explainer-formula-token.active {
+  border-color: transparent;
+  background: transparent;
+  color: var(--hhi-green);
+  box-shadow: inset 0 -0.08em 0 var(--hhi-green);
 }
 
-.explainer-formula-equals {
-  padding: 0 4px;
+.explainer-cancellation.active {
+  box-shadow: inset 0 -3px 0 var(--hhi-green);
 }
 
 .explainer-token-detail {

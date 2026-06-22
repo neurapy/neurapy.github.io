@@ -155,14 +155,34 @@ export class ExplainerView {
           <div class="explainer-formula-workbench">
             <div class="explainer-formula-scroll" aria-label="PINNfluence influence function">
               <div class="explainer-formula" aria-describedby="explainer-token-body">
-                ${formulaToken("score", "I")}
-                <sup>${formulaToken("loss", "L")}→${formulaToken("quantity", "f")}</sup><sub>θ₀</sub>
-                <span class="explainer-formula-paren">(</span>${formulaToken("train-point", "x")}<span>,</span>${formulaToken("test-point", "z")}<span class="explainer-formula-paren">)</span>
+                <span class="explainer-formula-lhs">
+                  <span class="explainer-symbol-stack">
+                    ${formulaToken("score", "I", "symbol")}
+                    <span class="explainer-symbol-sup">
+                      ${formulaToken("loss", "L", "script")}
+                      <span class="explainer-script-arrow">→</span>
+                      ${formulaToken("quantity", "f", "script")}
+                    </span>
+                    <span class="explainer-symbol-sub">θ₀</span>
+                  </span>
+                  <span class="explainer-arguments">
+                    <span class="explainer-formula-paren">(</span>
+                    ${formulaToken("train-point", "x", "variable")}
+                    <span class="explainer-formula-comma">,</span>
+                    ${formulaToken("test-point", "z", "variable")}
+                    <span class="explainer-formula-paren">)</span>
+                  </span>
+                </span>
                 <span class="explainer-formula-equals">=</span>
-                ${formulaToken("sign", "−")}
-                ${formulaToken("grad-f", "∇θ f(z; θ₀)", "wide")}<sup>T</sup>
-                ${formulaToken("hessian", "H⁻¹θ₀", "wide")}
-                ${formulaToken("grad-loss", "∇θ L(x; θ₀)", "wide")}
+                <span class="explainer-formula-rhs">
+                  ${formulaToken("sign", "−", "operator")}
+                  <span class="explainer-formula-factor">
+                    ${formulaTokenMarkup("grad-f", "∇<sub>θ</sub> f(z; θ₀)", "wide")}
+                    <sup class="explainer-transpose">T</sup>
+                  </span>
+                  ${formulaTokenMarkup("hessian", '<span class="explainer-math-atom"><span class="explainer-atom-base">H</span><span class="explainer-atom-sup">−1</span><span class="explainer-atom-sub">θ₀</span></span>', "wide atom")}
+                  ${formulaTokenMarkup("grad-loss", "∇<sub>θ</sub> L(x; θ₀)", "wide")}
+                </span>
               </div>
             </div>
             <aside class="explainer-token-detail" aria-live="polite">
@@ -240,18 +260,26 @@ export class ExplainerView {
 }
 
 function formulaToken(id: ExplainerTokenId, label: string, variant = ""): string {
+  return formulaTokenMarkup(id, escapeHtml(label), variant, label);
+}
+
+function formulaTokenMarkup(id: ExplainerTokenId, html: string, variant = "", fallbackLabel = ""): string {
   const token = TOKEN_BY_ID.get(id);
-  const classes = ["explainer-formula-token", variant ? `explainer-formula-token-${variant}` : ""]
-    .filter(Boolean)
-    .join(" ");
+  const classes = [
+    "explainer-formula-token",
+    ...variant
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((name) => `explainer-formula-token-${name}`),
+  ].join(" ");
   return `
     <button
       type="button"
       class="${classes}"
       data-explainer-token="${escapeHtml(id)}"
-      aria-label="${escapeHtml(token?.title ?? label)}"
+      aria-label="${escapeHtml(token?.title ?? fallbackLabel)}"
       aria-pressed="false"
-    >${escapeHtml(label)}</button>
+    >${html}</button>
   `;
 }
 
