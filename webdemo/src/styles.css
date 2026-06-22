@@ -1321,7 +1321,7 @@ canvas {
   display: inline-flex;
   align-items: baseline;
   margin: 0 0.01em;
-  padding: 0.04em 0.08em 0.07em;
+  padding: 0.04em 0.08em 0.12em;
   border-color: rgba(13, 95, 144, 0.08);
   border-radius: 3px;
   background: var(--plot-bg);
@@ -1340,11 +1340,11 @@ canvas {
 }
 
 .explainer-formula-token-wide {
-  padding: 0.09em 0.18em 0.11em;
+  padding: 0.09em 0.18em 0.16em;
 }
 
 .explainer-formula-token-script {
-  padding: 0.01em 0.05em 0.03em;
+  padding: 0.01em 0.05em 0.07em;
 }
 
 .explainer-formula-token-operator {
