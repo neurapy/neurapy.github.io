@@ -33,3 +33,7 @@ How does the selected training point pull on the model parameters through its lo
 --- Wait: In Indicators: woher kommen die Influence Indicator zahlen her
 ****
 ****
+
+Letzter Satz hinzufügen:
+It also applies only to the equilibrium the Model found.
+Retraining without the Training-Point in question could push the Model into an entierly different equilibrium.
