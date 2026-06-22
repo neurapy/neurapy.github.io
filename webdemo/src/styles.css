@@ -1231,13 +1231,20 @@ canvas {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: 5px 8px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.15;
 }
 
-.explainer-read-direction-chain span {
+.explainer-read-direction-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.explainer-read-direction-chip {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
@@ -1248,16 +1255,16 @@ canvas {
   white-space: nowrap;
 }
 
-.explainer-read-direction-chain span:first-child {
+.explainer-read-direction-chip-result {
   border-color: rgba(31, 130, 192, 0.2);
   background: rgba(31, 130, 192, 0.06);
   color: var(--accent-strong);
 }
 
-.explainer-read-direction-chain i {
+.explainer-read-direction-arrow {
   color: rgba(31, 130, 192, 0.58);
   font-family: "Cambria Math", "STIX Two Text", "Times New Roman", Georgia, serif;
-  font-size: 14px;
+  font-size: 16px;
   font-style: normal;
   line-height: 1;
 }

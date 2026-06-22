@@ -150,11 +150,15 @@ export class ExplainerView {
             <div class="explainer-read-direction" aria-label="Formula reading order">
               <span class="explainer-read-direction-badge">Read the product from right to left!</span>
               <span class="explainer-read-direction-chain" aria-hidden="true">
-                <span>change in f</span>
-                <i>&lt;-</i>
-                <span>landscape response</span>
-                <i>&lt;-</i>
-                <span>training-point push</span>
+                <span class="explainer-read-direction-chip explainer-read-direction-chip-result">change in f</span>
+                <span class="explainer-read-direction-pair">
+                  <i class="explainer-read-direction-arrow">←</i>
+                  <span class="explainer-read-direction-chip">landscape response</span>
+                </span>
+                <span class="explainer-read-direction-pair">
+                  <i class="explainer-read-direction-arrow">←</i>
+                  <span class="explainer-read-direction-chip">training-point push</span>
+                </span>
               </span>
               <span class="sr-only">change in f from landscape response from training-point push</span>
             </div>
