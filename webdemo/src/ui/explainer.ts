@@ -147,10 +147,17 @@ export class ExplainerView {
               <p class="explainer-eyebrow">Core estimate</p>
               <h2 id="explainer-formula-title">Influence as local sensitivity</h2>
             </div>
-            <p>
-              Read the product from right to left: training-point push, landscape response, then
-              the resulting change in the inspected prediction or loss.
-            </p>
+            <div class="explainer-read-direction" aria-label="Formula reading order">
+              <span class="explainer-read-direction-badge">Read the product from right to left!</span>
+              <span class="explainer-read-direction-chain" aria-hidden="true">
+                <span>change in f</span>
+                <i>&lt;-</i>
+                <span>landscape response</span>
+                <i>&lt;-</i>
+                <span>training-point push</span>
+              </span>
+              <span class="sr-only">change in f from landscape response from training-point push</span>
+            </div>
           </div>
           <div class="explainer-formula-workbench">
             <div class="explainer-formula-scroll" aria-label="PINNfluence influence function">

@@ -40,6 +40,16 @@
   display: none !important;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 body {
   margin: 0;
   min-height: 100svh;
@@ -1191,6 +1201,67 @@ canvas {
   gap: 7px;
 }
 
+.explainer-read-direction {
+  min-width: 0;
+  justify-self: end;
+  display: grid;
+  gap: 7px;
+  align-self: center;
+  justify-items: end;
+}
+
+.explainer-read-direction-badge {
+  justify-self: end;
+  padding: 6px 10px;
+  border: 1px solid rgba(31, 130, 192, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent),
+    var(--accent-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 1px 2px rgba(23, 32, 42, 0.04);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+
+.explainer-read-direction-chain {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.explainer-read-direction-chain span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 4px 7px;
+  border: 1px solid rgba(199, 202, 204, 0.8);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 1px rgba(23, 32, 42, 0.03);
+  white-space: nowrap;
+}
+
+.explainer-read-direction-chain span:first-child {
+  border-color: rgba(31, 130, 192, 0.2);
+  background: rgba(31, 130, 192, 0.06);
+  color: var(--accent-strong);
+}
+
+.explainer-read-direction-chain i {
+  color: rgba(31, 130, 192, 0.58);
+  font-family: "Cambria Math", "STIX Two Text", "Times New Roman", Georgia, serif;
+  font-size: 14px;
+  font-style: normal;
+  line-height: 1;
+}
+
 .explainer-formula-workbench,
 .explainer-split-content {
   min-width: 0;
@@ -1595,6 +1666,15 @@ canvas {
   .explainer-token-detail {
     border-top: 1px solid var(--line);
     border-left: 0;
+  }
+
+  .explainer-read-direction {
+    justify-self: start;
+    justify-items: start;
+  }
+
+  .explainer-read-direction-chain {
+    justify-content: flex-start;
   }
 
   .explainer-mini-formula {
