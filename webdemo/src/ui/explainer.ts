@@ -31,9 +31,9 @@ export const EXPLAINER_TOKENS = [
   },
   {
     id: "sign",
-    title: "Direction of Change",
+    title: "Leading Minus",
     body:
-      "The sign tells whether upweighting the training point tends to increase or decrease f at z. The app often uses absolute influence because signed effects can be noisy and can cancel.",
+      "The minus is the upweighting convention from the influence derivation. If the loss contribution of x is made slightly larger, the trained optimum shifts by −H⁻¹∇θL(x; θ₀); removing or downweighting x flips that direction.",
   },
   {
     id: "grad-f",
