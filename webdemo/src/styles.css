@@ -1279,22 +1279,23 @@ canvas {
 
 .explainer-formula-scroll {
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
+  container-type: inline-size;
   background: var(--plot-bg);
 }
 
 .explainer-formula {
-  width: max-content;
-  min-width: 100%;
-  min-height: 206px;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(116px, 22.5cqw, 206px);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0;
-  padding: 28px 32px;
+  padding: clamp(10px, 2.4cqw, 28px);
   color: var(--text-strong);
   font-family: "Cambria Math", "STIX Two Text", "Times New Roman", Georgia, serif;
-  font-size: clamp(29px, 3.7vw, 52px);
+  font-size: clamp(14.5px, 5.15cqw, 52px);
   font-variant-numeric: lining-nums;
   line-height: 1;
   white-space: nowrap;
@@ -1731,9 +1732,12 @@ canvas {
   }
 
   .explainer-formula {
-    min-height: 166px;
-    padding: 20px 16px;
-    font-size: 29px;
+    min-height: clamp(112px, 30cqw, 166px);
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 0.2em;
+    font-size: clamp(18px, 6.45cqw, 28px);
+    white-space: normal;
   }
 
   .explainer-token-detail,
