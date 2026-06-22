@@ -1283,19 +1283,23 @@ canvas {
 }
 
 .explainer-formula-comma {
-  margin: 0 0.12em 0 0.03em;
+  margin: 0 0.16em 0 0.08em;
 }
 
 .explainer-formula-equals {
   margin: 0 0.42em;
 }
 
+.explainer-formula-paren {
+  padding-inline: 0.05em;
+}
+
 .explainer-transpose {
   align-self: flex-start;
-  margin-left: -0.04em;
+  margin-left: 0.08em;
   font-size: 0.5em;
   line-height: 1;
-  transform: translateY(-0.36em);
+  transform: translateY(-0.42em);
 }
 
 .explainer-formula-token,
@@ -1316,7 +1320,7 @@ canvas {
 .explainer-formula-token {
   display: inline-flex;
   align-items: baseline;
-  margin: 0 -0.03em;
+  margin: 0 0.01em;
   padding: 0.04em 0.08em 0.07em;
   border-color: rgba(13, 95, 144, 0.08);
   border-radius: 3px;
@@ -1336,7 +1340,7 @@ canvas {
 }
 
 .explainer-formula-token-wide {
-  padding: 0.09em 0.14em 0.11em;
+  padding: 0.09em 0.18em 0.11em;
 }
 
 .explainer-formula-token-script {
