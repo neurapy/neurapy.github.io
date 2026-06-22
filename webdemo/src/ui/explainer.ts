@@ -235,7 +235,9 @@ export class ExplainerView {
           <strong>Read as sensitivity.</strong>
           <span>
             PINNfluence is a first-order, local approximation around the trained parameters. Large influence
-            identifies sensitivity to a training point or constraint, not a formal causal guarantee.
+            identifies sensitivity to a training point or constraint, not a formal causal guarantee. It also
+            applies only to the equilibrium the model found. Retraining without the training point in question
+            could push the model into an entirely different equilibrium.
           </span>
         </section>
       </div>
