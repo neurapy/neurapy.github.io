@@ -31,9 +31,9 @@ export const EXPLAINER_TOKENS = [
   },
   {
     id: "sign",
-    title: "Leading Minus",
+    title: "Why the Minus?",
     body:
-      "The minus is the upweighting convention from the influence derivation. If the loss contribution of x is made slightly larger, the trained optimum shifts by −H⁻¹∇θL(x; θ₀); removing or downweighting x flips that direction.",
+      "If training point x is upweighted, it adds a small extra loss push on the parameters. To settle into a nearby optimum again, the model moves in the opposite response direction −H⁻¹∇θL(x; θ₀). That opposite response is the leading minus.",
   },
   {
     id: "grad-f",
