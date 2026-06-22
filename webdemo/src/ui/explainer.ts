@@ -137,8 +137,7 @@ export class ExplainerView {
           <ol class="explainer-flow">
             ${flowStep("1", "Train", "Fit the PINN on PDE, IC, and BC losses.")}
             ${flowStep("2", "Perturb", "Ask what changes if one training point is upweighted or removed.")}
-            ${flowStep("3", "Approximate", "Use gradients and local loss geometry instead of retraining.")}
-            ${flowStep("4", "Diagnose", "Turn scores into maps, fractions, regions, and indicators.")}
+            ${flowStep("3", "Diagnose", "Use local sensitivities to turn scores into maps, fractions, regions, and indicators.")}
           </ol>
         </section>
 

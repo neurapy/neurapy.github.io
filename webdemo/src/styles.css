@@ -1132,7 +1132,7 @@ canvas {
 .explainer-flow {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1439,17 +1439,8 @@ canvas {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .explainer-flow,
   .explainer-diagnostics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .explainer-flow li:nth-child(odd) {
-    border-left: 0;
-  }
-
-  .explainer-flow li:nth-child(n + 3) {
-    border-top: 1px solid var(--line);
   }
 
   .explainer-token-detail {
