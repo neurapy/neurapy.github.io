@@ -459,10 +459,10 @@ function domainPoints(): string {
     ["ic", 38, 86],
     ["ic", 58, 86],
     ["ic", 78, 86],
-    ["bc", 8, 30],
-    ["bc", 8, 58],
-    ["bc", 92, 34],
-    ["bc", 92, 66],
+    ["bc", 9, 30],
+    ["bc", 9, 58],
+    ["bc", 91, 34],
+    ["bc", 91, 66],
   ] as const;
   return points
     .map(

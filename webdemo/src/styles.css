@@ -25,6 +25,10 @@
   --hhi-green-soft: #ebf5f5;
   --hhi-logo-green: #179c7d;
   --danger: #a52731;
+  --explainer-domain-color: rgba(197, 14, 31, 0.82);
+  --explainer-domain-color-soft: rgba(197, 14, 31, 0.41);
+  --explainer-boundary-color: rgba(247, 144, 17, 0.82);
+  --explainer-ic-color: rgba(31, 119, 180, 0.82);
   --shadow: none;
   --shadow-soft: none;
   font-family:
@@ -1033,7 +1037,7 @@ canvas {
   content: "";
   position: absolute;
   inset: 13% 9% 13% 9%;
-  border: 1px solid rgba(31, 130, 192, 0.5);
+  border: 1px solid var(--explainer-domain-color-soft);
   background: rgba(255, 255, 255, 0.58);
 }
 
@@ -1056,7 +1060,7 @@ canvas {
   right: 9%;
   bottom: 13%;
   height: 20px;
-  color: var(--hhi-green);
+  color: var(--explainer-ic-color);
 }
 
 .explainer-domain-band-bc-left,
@@ -1064,7 +1068,7 @@ canvas {
   top: 13%;
   bottom: 13%;
   width: 22px;
-  color: var(--accent);
+  color: var(--explainer-boundary-color);
   writing-mode: vertical-rl;
 }
 
@@ -1095,17 +1099,17 @@ canvas {
 
 .explainer-domain-point-pde,
 .explainer-dot-pde {
-  background: var(--accent);
+  background: var(--explainer-domain-color);
 }
 
 .explainer-domain-point-ic,
 .explainer-dot-ic {
-  background: var(--hhi-green);
+  background: var(--explainer-ic-color);
 }
 
 .explainer-domain-point-bc,
 .explainer-dot-bc {
-  background: var(--danger);
+  background: var(--explainer-boundary-color);
 }
 
 .explainer-domain-query {
@@ -1610,15 +1614,15 @@ canvas {
 }
 
 .explainer-loss-fill-pde {
-  background: var(--accent);
+  background: var(--explainer-domain-color);
 }
 
 .explainer-loss-fill-ic {
-  background: var(--hhi-green);
+  background: var(--explainer-ic-color);
 }
 
 .explainer-loss-fill-bc {
-  background: var(--danger);
+  background: var(--explainer-boundary-color);
 }
 
 .explainer-cancellation {

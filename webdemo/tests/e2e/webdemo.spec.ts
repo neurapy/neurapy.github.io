@@ -1069,6 +1069,24 @@ test("explainer tab renders an interactive formula guide", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "How one training point shapes a PINN prediction" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Influence as local sensitivity" })).toBeVisible();
   await expect(page.locator("[data-explainer-token]")).toHaveCount(12);
+  await expect(page.locator(".explainer-domain-point-pde").first()).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
+  await expect(page.locator(".explainer-loss-fill-pde")).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
+  await expect(page.locator(".explainer-domain-point-ic").first()).toHaveCSS("background-color", "rgba(31, 119, 180, 0.82)");
+  await expect(page.locator(".explainer-loss-fill-ic")).toHaveCSS("background-color", "rgba(31, 119, 180, 0.82)");
+  await expect(page.locator(".explainer-domain-point-bc").first()).toHaveCSS("background-color", "rgba(247, 144, 17, 0.82)");
+  await expect(page.locator(".explainer-loss-fill-bc")).toHaveCSS("background-color", "rgba(247, 144, 17, 0.82)");
+  const bcEdgeOffsets = await page.locator(".explainer-domain-stage").evaluate((stage) => {
+    const stageBox = stage.getBoundingClientRect();
+    const points = Array.from(stage.querySelectorAll<HTMLElement>(".explainer-domain-point-bc"));
+    return points.map((point) => {
+      const pointBox = point.getBoundingClientRect();
+      const centerX = pointBox.left + pointBox.width / 2;
+      const leftEdge = stageBox.left + stageBox.width * 0.09;
+      const rightEdge = stageBox.left + stageBox.width * 0.91;
+      return Math.min(Math.abs(centerX - leftEdge), Math.abs(centerX - rightEdge));
+    });
+  });
+  expect(Math.max(...bcEdgeOffsets)).toBeLessThanOrEqual(1);
   await expect(page.locator("#explainer-token-title")).toHaveText("Influence Score");
   await expect(page.locator("#explainer-token-body")).toContainText("locally sensitive");
   await expectNoDocumentHorizontalOverflow(page);
