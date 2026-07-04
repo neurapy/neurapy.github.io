@@ -1069,6 +1069,22 @@ test("explainer tab renders an interactive formula guide", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "How one training point shapes a PINN prediction" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Influence as local sensitivity" })).toBeVisible();
   await expect(page.locator("[data-explainer-token]")).toHaveCount(12);
+  await expect(page.locator("[data-explainer-token='score']")).toHaveText("Inf");
+  await expect(page.locator(".explainer-transpose")).toHaveText("⊤");
+  const formulaOverflow = await page.locator(".explainer-formula-scroll").evaluate((container) => {
+    const formula = container.querySelector<HTMLElement>(".explainer-formula .katex");
+    if (!formula) return ["missing-formula"];
+    const containerBox = container.getBoundingClientRect();
+    const formulaBox = formula.getBoundingClientRect();
+    return [
+      formulaBox.left < containerBox.left - 1 ? "left" : "",
+      formulaBox.right > containerBox.right + 1 ? "right" : "",
+      formulaBox.top < containerBox.top - 1 ? "top" : "",
+      formulaBox.bottom > containerBox.bottom + 1 ? "bottom" : "",
+      container.scrollWidth > container.clientWidth + 1 ? "scroll-width" : "",
+    ].filter(Boolean);
+  });
+  expect(formulaOverflow).toEqual([]);
   await expect(page.locator(".explainer-domain-point-pde").first()).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
   await expect(page.locator(".explainer-loss-fill-pde")).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
   await expect(page.locator(".explainer-domain-point-ic").first()).toHaveCSS("background-color", "rgba(31, 119, 180, 0.82)");

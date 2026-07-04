@@ -1,3 +1,23 @@
+import { renderToString } from "katex";
+
+const KATEX_OPTIONS = {
+  displayMode: false,
+  output: "html",
+  strict: "ignore",
+  throwOnError: false,
+  trust: true,
+} as const;
+
+const CORE_FORMULA_LATEX = String.raw`
+  \htmlData{explainer-token=score}{\operatorname{Inf}}_{\theta_0}^{\htmlData{explainer-token=loss}{L}\to\htmlData{explainer-token=quantity}{f}}
+  \left(\htmlData{explainer-token=train-point}{x},\htmlData{explainer-token=test-point}{z}\right)
+  =
+  \htmlData{explainer-token=sign}{-}
+  \htmlData{explainer-token=grad-f}{\nabla_{\theta} f(z;\theta_0)}^{\htmlClass{explainer-transpose}{\top}}
+  \htmlData{explainer-token=hessian}{H_{\theta_0}^{-1}}
+  \htmlData{explainer-token=grad-loss}{\nabla_{\theta} L(x;\theta_0)}
+`;
+
 const MATH_X = inlineMath("x", "<mi>x</mi>");
 const MATH_Z = inlineMath("z", "<mi>z</mi>");
 const MATH_F = inlineMath("f", "<mi>f</mi>");
@@ -22,13 +42,10 @@ const MATH_MINUS_H_INV_GRAD_LOSS = inlineMath(
     <mi>L</mi><mo>(</mo><mi>x</mi><mo>;</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>)</mo>
   </mrow>`,
 );
-const MATH_ABS_I_I = inlineMath(
-  "absolute influence I i",
-  "<mrow><mo>|</mo><msub><mi>I</mi><mi>i</mi></msub><mo>|</mo></mrow>",
-);
-const MATH_SUM_ABS_I_J = inlineMath(
-  "sum over j of absolute influence I j",
-  "<mrow><msub><mo>Σ</mo><mi>j</mi></msub><mo>|</mo><msub><mi>I</mi><mi>j</mi></msub><mo>|</mo></mrow>",
+const MATH_ABS_INF_I = inlineLatex("absolute influence Inf i", "\\left|\\operatorname{Inf}_i\\right|");
+const MATH_SUM_ABS_INF_J = inlineLatex(
+  "sum over j of absolute influence Inf j",
+  "\\sum_j \\left|\\operatorname{Inf}_j\\right|",
 );
 const MATH_KAPPA = inlineMath("kappa", "<mi>κ</mi>");
 
@@ -101,14 +118,14 @@ export const EXPLAINER_TOKENS = [
     title: "Loss-Term Fraction",
     body:
       "A term fraction measures how much of the absolute influence comes from one loss component, such as the PDE, IC, or BC term.",
-    bodyHtml: `A term fraction uses ${MATH_ABS_I_I} to measure how much of the absolute influence comes from one loss component, such as the PDE, IC, or BC term.`,
+    bodyHtml: `A term fraction uses ${MATH_ABS_INF_I} to measure how much of the absolute influence comes from one loss component, such as the PDE, IC, or BC term.`,
   },
   {
     id: "loss-normalizer",
     title: "All Loss Terms",
     body:
       "The denominator sums absolute influence over all loss components. This makes the fractions comparable and keeps them between 0 and 1.",
-    bodyHtml: `The denominator ${MATH_SUM_ABS_I_J} sums absolute influence over all loss components. This makes the fractions comparable and keeps them between 0 and 1.`,
+    bodyHtml: `The denominator ${MATH_SUM_ABS_INF_J} sums absolute influence over all loss components. This makes the fractions comparable and keeps them between 0 and 1.`,
   },
   {
     id: "cancellation",
@@ -140,6 +157,7 @@ export class ExplainerView {
     this.render();
     this.root.addEventListener("click", this.handleTokenEvent);
     this.root.addEventListener("focusin", this.handleTokenEvent);
+    this.root.addEventListener("keydown", this.handleTokenKeydown);
     this.root.addEventListener("pointerover", this.handleTokenEvent);
   }
 
@@ -150,15 +168,32 @@ export class ExplainerView {
   private readonly handleTokenEvent = (event: Event): void => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest<HTMLButtonElement>("[data-explainer-token]");
-    if (!button || !this.root.contains(button)) return;
+    const tokenElement = target.closest<HTMLElement>("[data-explainer-token]");
+    if (!tokenElement || !this.root.contains(tokenElement)) return;
     if (
       (event.type === "pointerover" || event.type === "focusin") &&
-      button.closest(".explainer-formula")
+      tokenElement.closest(".explainer-formula")
     ) {
       this.maybeShowReadDirectionHint();
     }
-    const id = button.dataset.explainerToken;
+    const id = tokenElement.dataset.explainerToken;
+    if (id) this.setActiveToken(id);
+  };
+
+  private readonly handleTokenKeydown = (event: KeyboardEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const tokenElement = target.closest<HTMLElement>("[data-explainer-token]");
+    if (
+      !tokenElement ||
+      !this.root.contains(tokenElement) ||
+      tokenElement instanceof HTMLButtonElement ||
+      (event.key !== "Enter" && event.key !== " ")
+    ) {
+      return;
+    }
+    event.preventDefault();
+    const id = tokenElement.dataset.explainerToken;
     if (id) this.setActiveToken(id);
   };
 
@@ -230,34 +265,7 @@ export class ExplainerView {
                 hidden
               >Read the product from right to left.</div>
               <div class="explainer-formula" aria-describedby="explainer-token-body">
-                <span class="explainer-formula-lhs">
-                  <span class="explainer-symbol-stack">
-                    ${formulaToken("score", "I", "symbol")}
-                    <span class="explainer-symbol-sup">
-                      ${formulaToken("loss", "L", "script")}
-                      <span class="explainer-script-arrow">→</span>
-                      ${formulaToken("quantity", "f", "script")}
-                    </span>
-                    <span class="explainer-symbol-sub">θ₀</span>
-                  </span>
-                  <span class="explainer-arguments">
-                    <span class="explainer-formula-paren">(</span>
-                    ${formulaToken("train-point", "x", "variable")}
-                    <span class="explainer-formula-comma">,</span>
-                    ${formulaToken("test-point", "z", "variable")}
-                    <span class="explainer-formula-paren">)</span>
-                  </span>
-                </span>
-                <span class="explainer-formula-equals">=</span>
-                <span class="explainer-formula-rhs">
-                  ${formulaToken("sign", "−", "operator")}
-                  <span class="explainer-formula-factor">
-                    ${formulaTokenMarkup("grad-f", "∇<sub>θ</sub> f(z; θ₀)", "wide")}
-                    <sup class="explainer-transpose">T</sup>
-                  </span>
-                  ${formulaTokenMarkup("hessian", '<span class="explainer-math-atom"><span class="explainer-atom-base">H</span><span class="explainer-atom-sup">−1</span><span class="explainer-atom-sub">θ₀</span></span>', "wide atom")}
-                  ${formulaTokenMarkup("grad-loss", "∇<sub>θ</sub> L(x; θ₀)", "wide")}
-                </span>
+                ${latexMarkup(CORE_FORMULA_LATEX)}
               </div>
             </div>
             <aside class="explainer-token-detail" aria-live="polite">
@@ -284,8 +292,8 @@ export class ExplainerView {
               <span>r<sub>Li</sub></span>
               <span>=</span>
               <span class="explainer-fraction">
-                <span>${formulaToken("loss-fraction", "|Iᵢ|")}</span>
-                <span>${formulaToken("loss-normalizer", "Σⱼ |Iⱼ|")}</span>
+                <span>${latexToken("loss-fraction", "\\left|\\operatorname{Inf}_i\\right|", "", "|Inf_i|")}</span>
+                <span>${latexToken("loss-normalizer", "\\sum_j \\left|\\operatorname{Inf}_j\\right|", "", "sum_j |Inf_j|")}</span>
               </span>
             </div>
             <div class="explainer-loss-bars" aria-label="Example loss-term influence fractions">
@@ -317,17 +325,30 @@ export class ExplainerView {
         </section>
       </div>
     `;
+    this.initializeFormulaTokens();
     this.setActiveToken(this.activeTokenId);
+  }
+
+  private initializeFormulaTokens(): void {
+    this.root.querySelectorAll<HTMLElement>("[data-explainer-token]").forEach((element) => {
+      const token = TOKEN_BY_ID.get(element.dataset.explainerToken ?? "");
+      if (!(element instanceof HTMLButtonElement)) {
+        element.setAttribute("role", "button");
+        element.tabIndex = 0;
+      }
+      if (token) element.setAttribute("aria-label", token.title);
+      element.setAttribute("aria-pressed", "false");
+    });
   }
 
   private setActiveToken(id: string): void {
     const token = TOKEN_BY_ID.get(id);
     if (!token) return;
     this.activeTokenId = token.id;
-    this.root.querySelectorAll<HTMLButtonElement>("[data-explainer-token]").forEach((button) => {
-      const active = button.dataset.explainerToken === token.id;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
+    this.root.querySelectorAll<HTMLElement>("[data-explainer-token]").forEach((element) => {
+      const active = element.dataset.explainerToken === token.id;
+      element.classList.toggle("active", active);
+      element.setAttribute("aria-pressed", String(active));
     });
     const title = this.root.querySelector<HTMLElement>("#explainer-token-title");
     const body = this.root.querySelector<HTMLElement>("#explainer-token-body");
@@ -387,12 +408,25 @@ export class ExplainerView {
   }
 }
 
-function formulaToken(id: ExplainerTokenId, label: string, variant = ""): string {
-  return formulaTokenMarkup(id, escapeHtml(label), variant, label);
-}
-
 function inlineMath(label: string, markup: string): string {
   return `<math class="explainer-inline-math" aria-label="${escapeHtml(label)}">${markup}</math>`;
+}
+
+function inlineLatex(label: string, latex: string): string {
+  return `<span class="explainer-inline-math" aria-label="${escapeHtml(label)}">${latexMarkup(latex)}</span>`;
+}
+
+function latexToken(
+  id: ExplainerTokenId,
+  latex: string,
+  variant = "",
+  fallbackLabel = latex,
+): string {
+  return formulaTokenMarkup(id, latexMarkup(latex), variant, fallbackLabel);
+}
+
+function latexMarkup(latex: string): string {
+  return renderToString(latex, KATEX_OPTIONS);
 }
 
 function formulaTokenMarkup(id: ExplainerTokenId, html: string, variant = "", fallbackLabel = ""): string {
