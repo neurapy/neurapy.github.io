@@ -76,7 +76,7 @@
         "bad_baseline": 0.41,
         "baseline": 0.46,
         "display_name": "Diffusion",
-        "note": "Poorly-trained model uses a different sampling baseline.",
+        "note": "Poorly-Trained model uses a different sampling baseline.",
         "problem": "diffusion",
         "values": {
           "bad": {

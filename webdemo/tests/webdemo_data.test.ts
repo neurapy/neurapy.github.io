@@ -357,7 +357,7 @@ describe("typed array validation", () => {
     expect(output.terms[1].binned_fraction_std).toEqual([0.029999999329447746, 0.03999999910593033]);
   });
 
-  it("formats problem labels and resolves active Good/Bad variants", () => {
+  it("formats problem labels and resolves active Well-Trained/Poorly-Trained variants", () => {
     expect(formatProblemLabel("navier_stokes_nd")).toBe("Navier Stokes");
     expect(formatProblemLabel("navier_stokes_nd_float64_bad")).toBe("Navier Stokes");
     expect(resolveProblemVariant(index, "fixture", "good")).toBe(goodVariant);

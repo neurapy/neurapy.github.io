@@ -534,7 +534,7 @@ def temporal_entry(
     }
     if bad_baseline is not None:
         entry["bad_baseline"] = bad_baseline
-        entry["note"] = "Poorly-trained model uses a different sampling baseline."
+        entry["note"] = "Poorly-Trained model uses a different sampling baseline."
     return entry
 
 

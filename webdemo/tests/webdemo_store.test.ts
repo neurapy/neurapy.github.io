@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_TOP_K, initialState, reduceState } from "../src/state/store";
 
 describe("app state reducer", () => {
-  it("defaults to the Good model quality", () => {
+  it("defaults to the Well-Trained model quality", () => {
     expect(initialState.modelQuality).toBe("good");
     expect(initialState.appView).toBe("playground");
   });

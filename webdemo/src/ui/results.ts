@@ -73,8 +73,8 @@ const RESULTS_HINTS = {
       "The fraction is computed for each z and then averaged over R; because of the 1 - term, lower η means stronger earlier/upstream influence.",
       "Temporal η uses earlier times; spatial η uses the analogous upstream direction in space.",
       "Baseline is the value expected from the training-point layout alone, before considering the model's learned influence pattern.",
-      "Well-trained and poorly-trained rows report mean ± standard deviation across runs.",
-      "Compare well-trained and poorly-trained values against the listed baseline before judging a model.",
+      "Well-Trained and Poorly-Trained rows report mean ± standard deviation across runs.",
+      "Compare Well-Trained and Poorly-Trained values against the listed baseline before judging a model.",
       "Values above baseline are prompts for inspection, not automatic proof that a model is better.",
     ],
   },
@@ -335,8 +335,8 @@ function indicatorTable(data: ResultsData, problem: string, outputId: string | n
 function temporalIndicatorTable(entry: TemporalIndicatorEntry): string {
   return paperIndicatorTable("Temporal η", [
     ["Sampling baseline", formatScalar(entry.baseline)],
-    ...(entry.bad_baseline == null ? [] : [["Poor-model baseline", formatScalar(entry.bad_baseline)] as const]),
-    ["Well-trained", formatMeanStd(entry.values.good)],
+    ...(entry.bad_baseline == null ? [] : [["Poorly-Trained baseline", formatScalar(entry.bad_baseline)] as const]),
+    ["Well-Trained", formatMeanStd(entry.values.good)],
     ["Poorly-Trained", formatMeanStd(entry.values.bad)],
   ]);
 }
@@ -344,7 +344,7 @@ function temporalIndicatorTable(entry: TemporalIndicatorEntry): string {
 function directionalityIndicatorTable(entry: DirectionalityIndicatorEntry): string {
   return paperIndicatorTable(`${escapeHtml(entry.output_label)} η`, [
     ["Spatial baseline", formatScalar(entry.baseline)],
-    ["Well-trained", formatMeanStd(entry.values.good)],
+    ["Well-Trained", formatMeanStd(entry.values.good)],
     ["Poorly-Trained", formatMeanStd(entry.values.bad)],
   ]);
 }

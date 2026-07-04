@@ -27,7 +27,7 @@ interface LinePoint {
 
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
 const QUALITY_LABELS: Record<ModelQuality, string> = {
-  good: "Well-trained",
+  good: "Well-Trained",
   bad: "Poorly-Trained",
 };
 const PROBLEM_ORDER = ["allen_cahn", "burgers", "diffusion", "wave", "drift_diffusion"];

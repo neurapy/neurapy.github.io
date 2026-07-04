@@ -89,6 +89,10 @@ button {
   --hhi-logo-width: clamp(136px, 12vw, 178px);
   --topbar-link-stack-height: calc(var(--hhi-logo-width) * 72 / 258);
   --topbar-link-gap: 4px;
+  --quality-switch-width: 224px;
+  --quality-switch-font-size: 10px;
+  --quality-switch-letter-spacing: 0.015em;
+  --quality-switch-padding-x: 6px;
   grid-row: 1;
   width: 100%;
   min-height: 0;
@@ -272,7 +276,8 @@ h2 {
 }
 
 .quality-control {
-  flex: 0 0 118px;
+  flex: 0 0 var(--quality-switch-width);
+  width: var(--quality-switch-width);
 }
 
 .view-control {
@@ -298,7 +303,15 @@ h2 {
 }
 
 .topbar .quality-switch {
-  width: 118px;
+  width: var(--quality-switch-width);
+}
+
+.topbar .quality-switch button {
+  padding: 0 var(--quality-switch-padding-x);
+  font-size: var(--quality-switch-font-size);
+  letter-spacing: var(--quality-switch-letter-spacing);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .topbar select {
@@ -2363,6 +2376,10 @@ input[type="range"]::-moz-range-thumb {
   .topbar {
     --hhi-logo-width: clamp(118px, 13vw, 150px);
     --topbar-link-gap: 3px;
+    --quality-switch-width: 210px;
+    --quality-switch-font-size: 9.4px;
+    --quality-switch-letter-spacing: 0.005em;
+    --quality-switch-padding-x: 5px;
     grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     gap: 8px 10px;
     padding: 8px 12px;
@@ -2397,7 +2414,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .quality-control {
-    flex-basis: 112px;
+    flex-basis: var(--quality-switch-width);
   }
 
   .view-control {
@@ -2417,7 +2434,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar .quality-switch {
-    width: 112px;
+    width: var(--quality-switch-width);
   }
 
   .topbar .segmented button {
@@ -2434,6 +2451,10 @@ input[type="range"]::-moz-range-thumb {
   .topbar {
     --hhi-logo-width: clamp(92px, 10.5vw, 108px);
     --topbar-link-gap: 2px;
+    --quality-switch-width: 158px;
+    --quality-switch-font-size: 8.2px;
+    --quality-switch-letter-spacing: 0;
+    --quality-switch-padding-x: 3px;
     grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     gap: 8px;
   }
@@ -2463,11 +2484,12 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .quality-control {
-    flex-basis: 72px;
+    flex-basis: var(--quality-switch-width);
   }
 
   .view-control {
     flex-basis: 236px;
+    min-width: 192px;
   }
 
   .topbar .view-switch {
@@ -2475,7 +2497,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar .quality-switch {
-    width: 72px;
+    width: var(--quality-switch-width);
   }
 
   .topbar .segmented.view-switch button {
@@ -2485,9 +2507,9 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .topbar .quality-switch button {
-    padding: 0 3px;
-    font-size: 9px;
-    letter-spacing: 0.025em;
+    padding: 0 var(--quality-switch-padding-x);
+    font-size: var(--quality-switch-font-size);
+    letter-spacing: var(--quality-switch-letter-spacing);
   }
 
   .topbar .segmented button {
@@ -2544,6 +2566,10 @@ input[type="range"]::-moz-range-thumb {
   .topbar {
     --hhi-logo-width: clamp(84px, 24vw, 100px);
     --topbar-link-gap: 2px;
+    --quality-switch-width: 170px;
+    --quality-switch-font-size: 8.2px;
+    --quality-switch-letter-spacing: 0;
+    --quality-switch-padding-x: 3px;
     align-items: stretch;
     grid-template-columns: minmax(0, auto) minmax(50px, 1fr);
     gap: 3px;
@@ -2609,7 +2635,7 @@ input[type="range"]::-moz-range-thumb {
 
   .topbar-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 108px;
+    grid-template-columns: minmax(0, 1fr) var(--quality-switch-width);
     align-items: end;
     gap: 4px;
   }
@@ -2644,11 +2670,17 @@ input[type="range"]::-moz-range-thumb {
   }
 
   .quality-control {
-    width: 108px;
+    width: var(--quality-switch-width);
   }
 
   .topbar .quality-switch {
-    width: 108px;
+    width: var(--quality-switch-width);
+  }
+
+  .topbar .quality-switch button {
+    padding: 0 var(--quality-switch-padding-x);
+    font-size: var(--quality-switch-font-size);
+    letter-spacing: var(--quality-switch-letter-spacing);
   }
 
   .topbar-controls .icon-button {

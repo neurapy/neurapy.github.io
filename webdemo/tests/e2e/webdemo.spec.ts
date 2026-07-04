@@ -599,6 +599,40 @@ async function expectTopbarControlsFit(page: Page): Promise<void> {
   });
   expect(leaks).toEqual([]);
 
+  const clippedButtons = await page.locator(".topbar").evaluate((topbar) => {
+    const buttons = topbar.querySelectorAll<HTMLElement>(".segmented button");
+    return Array.from(buttons)
+      .filter((button) => {
+        const style = getComputedStyle(button);
+        const rect = button.getBoundingClientRect();
+        return style.display !== "none" && rect.width > 0 && rect.height > 0;
+      })
+      .filter((button) => {
+        const rect = button.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(button);
+        const textRects = Array.from(range.getClientRects()).filter(
+          (textRect) => textRect.width > 0 && textRect.height > 0,
+        );
+        range.detach();
+        if (!textRects.length) return false;
+        const textLeft = Math.min(...textRects.map((textRect) => textRect.left));
+        const textRight = Math.max(...textRects.map((textRect) => textRect.right));
+        const textTop = Math.min(...textRects.map((textRect) => textRect.top));
+        const textBottom = Math.max(...textRects.map((textRect) => textRect.bottom));
+        return (
+          button.scrollWidth > button.clientWidth + 1 ||
+          button.scrollHeight > button.clientHeight + 1 ||
+          textLeft < rect.left - 1 ||
+          textRight > rect.right + 1 ||
+          textTop < rect.top - 1 ||
+          textBottom > rect.bottom + 1
+        );
+      })
+      .map((button) => button.textContent?.trim() || button.getAttribute("aria-label") || "button");
+  });
+  expect(clippedButtons).toEqual([]);
+
   const topbarBottom = await page
     .locator(".topbar")
     .evaluate((topbar) => topbar.getBoundingClientRect().bottom);
@@ -656,8 +690,8 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
         actionsBox !== null &&
         actionsBox.left > titleBox.right + 4 &&
         actionsBox.right < linkStackBox.left - 4);
-    const viewExpandsWhenWide =
-      topbarBox.width < 1200 || (viewSwitchBox !== null && viewSwitchBox.width > 300);
+    const viewKeepsUsableWidth =
+      topbarBox.width < 1200 || (viewSwitchBox !== null && viewSwitchBox.width >= 220);
     const dataControlsStayRight =
       !linksShareControlsRow ||
       (qualityControlBox !== null &&
@@ -686,7 +720,7 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
       titleFits,
       titleLineCount: lineCount(titleRects),
       viewCenteredBetweenTitleAndProblem,
-      viewExpandsWhenWide,
+      viewKeepsUsableWidth,
     };
   });
 
@@ -699,7 +733,7 @@ async function expectTopbarResponsiveFit(page: Page, maxHeight: number): Promise
   expect(metrics.dataControlsStayRight).toBe(true);
   expect(Math.abs(metrics.linkStackHeight - metrics.logoHeight)).toBeLessThanOrEqual(1);
   expect(metrics.viewCenteredBetweenTitleAndProblem).toBe(true);
-  expect(metrics.viewExpandsWhenWide).toBe(true);
+  expect(metrics.viewKeepsUsableWidth).toBe(true);
   expect(metrics.overflowX).toBeLessThanOrEqual(1);
 }
 
@@ -878,7 +912,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
     "Navier Stokes",
   ]);
   await expect(page.locator("button[data-model-quality='good']")).toHaveClass(/active/);
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Well-Trained · 4 candidate · 5 train/);
   await expect(page.locator("#modelMeta")).toBeHidden();
   await expectTopbarControlsFit(page);
   await expect(page.locator(".control-panel")).toHaveCount(0);
@@ -903,7 +937,7 @@ test("desktop renders two plots and continues background prefetching", async ({ 
   const goodMainSignature = await canvasSignature(page, "#mainCanvas");
   await page.locator("button[data-model-quality='bad']").click();
   await expect(page.locator("button[data-model-quality='bad']")).toHaveClass(/active/);
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Poorly-Trained · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
   await expect.poll(() => canvasSignature(page, "#mainCanvas")).not.toBe(goodMainSignature);
@@ -1064,7 +1098,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("#explainerWorkspace")).toBeVisible();
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Well-Trained · 4 candidate · 5 train/);
   await expect(page.locator("#problemSelect")).toBeDisabled();
   await expect(page.locator("button[data-model-quality='good']")).toBeDisabled();
   await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
@@ -1080,7 +1114,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
   await expect(page.locator("#playgroundWorkspace")).toBeHidden();
   await expect(page.locator("#explainerWorkspace")).toBeHidden();
   await expect(page.locator("#resetButton")).toHaveCount(0);
-  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Well-Trained · 4 candidate · 5 train/);
   await expect(page.locator("#resultsWorkspace .results-panel")).toHaveCount(3);
   await expect(page.locator("#resultsWorkspace [data-results-chart]")).toHaveCount(2);
   await expect(page.getByRole("heading", { name: "Loss Component Decomposition" })).toBeVisible();
@@ -1139,7 +1173,7 @@ test("indicators tab renders dashboard charts and preserves the Playground", asy
 
   const resultsBeforeQualitySwitch = await page.locator("#resultsWorkspace").innerHTML();
   await expect(page.locator("button[data-model-quality='bad']")).toBeDisabled();
-  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Well-Trained · 4 candidate · 5 train/);
   expect(await page.locator("#resultsWorkspace").innerHTML()).toBe(resultsBeforeQualitySwitch);
 
   await page.locator("button[data-app-view='playground']").click();
@@ -1291,7 +1325,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   const selectedBeforeModelSwitch = await page.locator("#selectedPoint").textContent();
 
   await page.locator("button[data-model-quality='bad']").click();
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Poorly-Trained · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_total");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
   await expect(page.locator("button[data-sign='neg']")).toHaveClass(/active/);
@@ -1302,7 +1336,7 @@ test("switching models and problems preserves comparison state", async ({ page }
   await expectNonblankCanvas(page, "#trainCanvas");
 
   await page.locator("#problemSelect").selectOption("shifted_fixture");
-  await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Bad · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Shifted Fixture · Poorly-Trained · 4 candidate · 5 train/);
   await expect(page.locator("#fieldSelect")).toHaveValue("loss_residual");
   await expect(page.locator("#matrixSelect")).toHaveValue("m_shifted");
   await expect(page.locator("button[data-background-mode='cell']")).toHaveClass(/active/);
@@ -1319,7 +1353,7 @@ test("drift diffusion uses a square physical pi axis", async ({ page }, testInfo
   await page.goto(FIXTURE_URL);
 
   await page.locator("#problemSelect").selectOption("drift_diffusion");
-  await expect(page.locator("#runMeta")).toHaveText(/Drift Diffusion · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Drift Diffusion · Well-Trained · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 
@@ -1392,7 +1426,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect((trainBox?.y ?? 0) + (trainBox?.height ?? 0)).toBeLessThanOrEqual(viewport!.height + 2);
 
   await page.locator("#problemSelect").selectOption("burgers");
-  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Burgers · Well-Trained · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const burgersFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(burgersFrame.frameWidth).toBeGreaterThan(310);
@@ -1400,7 +1434,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(burgersFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("navier_stokes_nd");
-  await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Navier Stokes · Well-Trained · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   const navierFrame = await plotFrameMetrics(page, "#modelPanel", "#mainSvg");
   expect(navierFrame.frameWidth).toBeGreaterThan(310);
@@ -1409,7 +1443,7 @@ test("mobile keeps Model and Train visible in the first viewport", async ({ page
   expect(navierFrame.colorbars).toBe(1);
 
   await page.locator("#problemSelect").selectOption("fixture");
-  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Good · 4 candidate · 5 train/);
+  await expect(page.locator("#runMeta")).toHaveText(/Fixture · Well-Trained · 4 candidate · 5 train/);
   await expectNonblankCanvas(page, "#mainCanvas");
   await expectNonblankCanvas(page, "#trainCanvas");
 

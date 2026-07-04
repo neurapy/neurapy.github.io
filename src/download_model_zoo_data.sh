@@ -30,8 +30,8 @@ MODEL_VARIANTS=(
   "bad"
 )
 
-# Good models use PROBLEMS from pinnfluence/utils/defaults.py.
-# Bad models use BAD_PROBLEMS from pinnfluence/utils/defaults.py.
+# Well-Trained models use PROBLEMS from pinnfluence/utils/defaults.py.
+# Poorly-Trained models use BAD_PROBLEMS from pinnfluence/utils/defaults.py.
 # Seed 0 is used for every problem except wave, which uses seed 2.
 declare -A PREFIXES=(
   ["good:allen_cahn_float64"]="allen_cahn_adam_100000_adam_25000_lbfgs_2500_domain_500_boundary_500_initial_3_x_64_hidden_float64_True_0_soft"

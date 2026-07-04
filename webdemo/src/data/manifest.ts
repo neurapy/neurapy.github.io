@@ -82,7 +82,7 @@ export function isModelQuality(value: unknown): value is ModelQuality {
 }
 
 export function qualityLabel(quality: ModelQuality): string {
-  return quality === "good" ? "Good" : "Bad";
+  return quality === "good" ? "Well-Trained" : "Poorly-Trained";
 }
 
 export function formatProblemLabel(problem: string): string {

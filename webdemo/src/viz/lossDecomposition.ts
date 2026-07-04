@@ -33,7 +33,7 @@ interface PanelDatum {
 }
 
 const QUALITY_LABELS: Record<ModelQuality, string> = {
-  good: "Well-trained",
+  good: "Well-Trained",
   bad: "Poorly-Trained",
 };
 const QUALITY_ORDER: ModelQuality[] = ["good", "bad"];
