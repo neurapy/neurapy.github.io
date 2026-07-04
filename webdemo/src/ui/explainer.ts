@@ -18,6 +18,19 @@ const CORE_FORMULA_LATEX = String.raw`
   \htmlData{explainer-token=grad-loss}{\nabla_{\theta} L(x;\theta_0)}
 `;
 
+const MOBILE_FORMULA_LHS_LATEX = String.raw`
+  \htmlData{explainer-token=score}{\operatorname{Inf}}_{\theta_0}^{\htmlData{explainer-token=loss}{L}\to\htmlData{explainer-token=quantity}{f}}
+  \left(\htmlData{explainer-token=train-point}{x},\htmlData{explainer-token=test-point}{z}\right)
+  =
+`;
+
+const MOBILE_FORMULA_RHS_LATEX = String.raw`
+  \htmlData{explainer-token=sign}{-}
+  \htmlData{explainer-token=grad-f}{\nabla_{\theta} f(z;\theta_0)}^{\htmlClass{explainer-transpose}{\top}}
+  \htmlData{explainer-token=hessian}{H_{\theta_0}^{-1}}
+  \htmlData{explainer-token=grad-loss}{\nabla_{\theta} L(x;\theta_0)}
+`;
+
 const MATH_X = inlineMath("x", "<mi>x</mi>");
 const MATH_Z = inlineMath("z", "<mi>z</mi>");
 const MATH_F = inlineMath("f", "<mi>f</mi>");
@@ -264,8 +277,16 @@ export class ExplainerView {
                 aria-hidden="true"
                 hidden
               >Read the product from right to left.</div>
-              <div class="explainer-formula" aria-describedby="explainer-token-body">
+              <div class="explainer-formula explainer-formula-desktop" aria-describedby="explainer-token-body">
                 ${latexMarkup(CORE_FORMULA_LATEX)}
+              </div>
+              <div class="explainer-formula explainer-formula-mobile" aria-describedby="explainer-token-body">
+                <span class="explainer-formula-mobile-line explainer-formula-mobile-lhs">
+                  ${latexMarkup(MOBILE_FORMULA_LHS_LATEX)}
+                </span>
+                <span class="explainer-formula-mobile-line explainer-formula-mobile-rhs">
+                  ${latexMarkup(MOBILE_FORMULA_RHS_LATEX)}
+                </span>
               </div>
             </div>
             <aside class="explainer-token-detail" aria-live="polite">

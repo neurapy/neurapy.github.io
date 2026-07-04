@@ -1068,23 +1068,36 @@ test("explainer tab renders an interactive formula guide", async ({ page }) => {
   await expect(page.locator("#resultsWorkspace")).toBeHidden();
   await expect(page.getByRole("heading", { name: "How one training point shapes a PINN prediction" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Influence as local sensitivity" })).toBeVisible();
-  await expect(page.locator("[data-explainer-token]")).toHaveCount(12);
-  await expect(page.locator("[data-explainer-token='score']")).toHaveText("Inf");
-  await expect(page.locator(".explainer-transpose")).toHaveText("⊤");
-  const formulaOverflow = await page.locator(".explainer-formula-scroll").evaluate((container) => {
-    const formula = container.querySelector<HTMLElement>(".explainer-formula .katex");
-    if (!formula) return ["missing-formula"];
+  await expect(page.locator("[data-explainer-token]:visible")).toHaveCount(12);
+  await expect(page.locator(".explainer-formula [data-explainer-token='score']:visible")).toHaveText("Inf");
+  await expect(page.locator(".explainer-transpose:visible")).toHaveText("⊤");
+  const formulaMetrics = await page.locator(".explainer-formula-scroll").evaluate((container) => {
     const containerBox = container.getBoundingClientRect();
-    const formulaBox = formula.getBoundingClientRect();
-    return [
-      formulaBox.left < containerBox.left - 1 ? "left" : "",
-      formulaBox.right > containerBox.right + 1 ? "right" : "",
-      formulaBox.top < containerBox.top - 1 ? "top" : "",
-      formulaBox.bottom > containerBox.bottom + 1 ? "bottom" : "",
+    const visibleFormula = Array.from(container.querySelectorAll<HTMLElement>(".explainer-formula")).find(
+      (formula) => getComputedStyle(formula).display !== "none" && formula.getBoundingClientRect().width > 0,
+    );
+    if (!visibleFormula) return { overflow: ["missing-formula"], mobileRhsUseRatio: null };
+    const formulaBoxes = Array.from(visibleFormula.querySelectorAll<HTMLElement>(".katex")).map((formula) =>
+      formula.getBoundingClientRect(),
+    );
+    const overflow = [
+      ...formulaBoxes.flatMap((formulaBox) => [
+        formulaBox.left < containerBox.left - 1 ? "left" : "",
+        formulaBox.right > containerBox.right + 1 ? "right" : "",
+        formulaBox.top < containerBox.top - 1 ? "top" : "",
+        formulaBox.bottom > containerBox.bottom + 1 ? "bottom" : "",
+      ]),
       container.scrollWidth > container.clientWidth + 1 ? "scroll-width" : "",
     ].filter(Boolean);
+    const rhs = visibleFormula.querySelector<HTMLElement>(".explainer-formula-mobile-rhs .katex");
+    const rhsBox = rhs?.getBoundingClientRect() ?? null;
+    return {
+      overflow,
+      mobileRhsUseRatio: rhsBox ? rhsBox.width / containerBox.width : null,
+    };
   });
-  expect(formulaOverflow).toEqual([]);
+  expect(formulaMetrics.overflow).toEqual([]);
+  if (formulaMetrics.mobileRhsUseRatio !== null) expect(formulaMetrics.mobileRhsUseRatio).toBeGreaterThanOrEqual(0.8);
   await expect(page.locator(".explainer-domain-point-pde").first()).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
   await expect(page.locator(".explainer-loss-fill-pde")).toHaveCSS("background-color", "rgba(197, 14, 31, 0.82)");
   await expect(page.locator(".explainer-domain-point-ic").first()).toHaveCSS("background-color", "rgba(31, 119, 180, 0.82)");
@@ -1107,19 +1120,19 @@ test("explainer tab renders an interactive formula guide", async ({ page }) => {
   await expect(page.locator("#explainer-token-body")).toContainText("locally sensitive");
   await expectNoDocumentHorizontalOverflow(page);
 
-  await page.locator("[data-explainer-token='hessian']").click();
+  await page.locator("[data-explainer-token='hessian']:visible").click();
   await expect(page.locator("#explainer-token-title")).toHaveText("Local Training Geometry");
   await expect(page.locator("#explainer-token-body")).toContainText("reverse map");
-  await expect(page.locator("[data-explainer-token='hessian']")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-explainer-token='hessian']:visible")).toHaveAttribute("aria-pressed", "true");
 
-  await page.locator("[data-explainer-token='train-point']").focus();
+  await page.locator("[data-explainer-token='train-point']:visible").focus();
   await expect(page.locator("#explainer-token-title")).toHaveText("Training Point x");
   await expect(page.locator("#explainer-token-body")).toContainText("participated in training");
 
-  await page.locator("[data-explainer-token='loss-fraction']").click();
+  await page.locator("[data-explainer-token='loss-fraction']:visible").click();
   await expect(page.locator("#explainer-token-title")).toHaveText("Loss-Term Fraction");
   await expect(page.locator("#explainer-token-body")).toContainText("one loss component");
-  await expect(page.locator("[data-explainer-token='loss-fraction']")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-explainer-token='loss-fraction']:visible")).toHaveAttribute("aria-pressed", "true");
   await expectNoDocumentHorizontalOverflow(page);
 });
 

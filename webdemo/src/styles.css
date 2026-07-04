@@ -1308,6 +1308,17 @@ canvas {
   white-space: nowrap;
 }
 
+.explainer-formula-mobile {
+  display: none;
+}
+
+.explainer-formula-mobile-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .explainer-transpose {
   color: var(--text-strong);
   font-style: normal;
@@ -1628,11 +1639,19 @@ canvas {
 
   .explainer-formula {
     min-height: clamp(112px, 30cqw, 166px);
-    flex-wrap: wrap;
-    align-content: center;
-    row-gap: 0.2em;
-    font-size: clamp(13px, 4.8cqw, 18px);
+    padding: 10px;
+    font-size: clamp(20px, 6.85cqw, 27px);
     white-space: normal;
+  }
+
+  .explainer-formula-desktop {
+    display: none;
+  }
+
+  .explainer-formula-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.38em;
   }
 
   .explainer-token-detail,
