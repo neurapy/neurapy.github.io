@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatDisplayLabel, formatFieldSelectLabel, formatInfluenceMatrixLabel } from "../src/ui/dom";
-import { formatResultsOutputLabel } from "../src/ui/results";
+import { formatDirectionalityIndicatorLabel, formatResultsOutputLabel } from "../src/ui/results";
 
 describe("UI display labels", () => {
   it("formats common manifest math labels without exposing raw LaTeX", () => {
@@ -47,5 +47,22 @@ describe("UI display labels", () => {
     expect(formatResultsOutputLabel({ id: "output_1", label: "$\\hat v$" })).toBe("v̂");
     expect(formatResultsOutputLabel({ id: "output_2", label: "$\\hat p$" })).toBe("p̂");
     expect(formatResultsOutputLabel({ id: "output_3", label: "" })).toBe("Output 3");
+  });
+
+  it("formats directional indicator table headings", () => {
+    expect(
+      formatDirectionalityIndicatorLabel({
+        problem: "navier_stokes_nd",
+        output_id: "output_0",
+        output_label: "x-velocity",
+      }),
+    ).toBe("x-velocity directional influence");
+    expect(
+      formatDirectionalityIndicatorLabel({
+        problem: "poisson_disk",
+        output_id: "output_0",
+        output_label: "u",
+      }),
+    ).toBe("|x| directional influence (distance from [0, 0])");
   });
 });

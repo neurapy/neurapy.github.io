@@ -333,7 +333,7 @@ function indicatorTable(data: ResultsData, problem: string, outputId: string | n
 }
 
 function temporalIndicatorTable(entry: TemporalIndicatorEntry): string {
-  return paperIndicatorTable("Temporal η", [
+  return paperIndicatorTable("Temporal influence", [
     ["Sampling baseline", formatScalar(entry.baseline)],
     ...(entry.bad_baseline == null ? [] : [["Poorly-Trained baseline", formatScalar(entry.bad_baseline)] as const]),
     ["Well-Trained", formatMeanStd(entry.values.good)],
@@ -342,11 +342,20 @@ function temporalIndicatorTable(entry: TemporalIndicatorEntry): string {
 }
 
 function directionalityIndicatorTable(entry: DirectionalityIndicatorEntry): string {
-  return paperIndicatorTable(`${escapeHtml(entry.output_label)} η`, [
+  return paperIndicatorTable(formatDirectionalityIndicatorLabel(entry), [
     ["Spatial baseline", formatScalar(entry.baseline)],
     ["Well-Trained", formatMeanStd(entry.values.good)],
     ["Poorly-Trained", formatMeanStd(entry.values.bad)],
   ]);
+}
+
+export function formatDirectionalityIndicatorLabel(
+  entry: Pick<DirectionalityIndicatorEntry, "problem" | "output_id" | "output_label">,
+): string {
+  if (entry.problem === "poisson_disk" && entry.output_id === "output_0") {
+    return "|x| directional influence (distance from [0, 0])";
+  }
+  return `${entry.output_label} directional influence`;
 }
 
 function paperIndicatorTable(label: string, rows: readonly (readonly [string, string])[]): string {
