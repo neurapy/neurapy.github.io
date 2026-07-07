@@ -67,8 +67,8 @@ export const EXPLAINER_TOKENS = [
     id: "score",
     title: "Influence Score",
     body:
-      "The score estimates how much a training point x changes the quantity f at location z when that point is perturbed. Large absolute values mean the trained PINN is locally sensitive to that training point.",
-    bodyHtml: `The score estimates how much a training point ${MATH_X} changes the quantity ${MATH_F} at location ${MATH_Z} when that point is perturbed. Large absolute values mean the trained PINN is locally sensitive to that training point.`,
+      "The score estimates how much a training point x changes the quantity f at location z when that point is removed. Large absolute values mean the trained PINN is locally sensitive to that training point.",
+    bodyHtml: `The score estimates how much a training point ${MATH_X} changes the quantity ${MATH_F} at location ${MATH_Z} when that point is removed. Large absolute values mean the trained PINN is locally sensitive to that training point.`,
   },
   {
     id: "loss",
@@ -88,8 +88,8 @@ export const EXPLAINER_TOKENS = [
     id: "train-point",
     title: "Training Point x",
     body:
-      "x is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were changed.",
-    bodyHtml: `${MATH_X} is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were changed.`,
+      "x is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were removed.",
+    bodyHtml: `${MATH_X} is a collocation, initial-condition, or boundary-condition point that participated in training. PINNfluence asks how the model would respond if this point were removed.`,
   },
   {
     id: "test-point",
@@ -220,7 +220,7 @@ export class ExplainerView {
             <p>
               A physics-informed neural network learns a solution by minimizing physics, initial-condition,
               and boundary-condition losses. PINNfluence estimates how a trained model would react if one
-              training point were perturbed, without running a full retraining experiment.
+              training point were removed, without running a full retraining experiment.
             </p>
           </div>
           <div class="explainer-domain" role="img" aria-label="PINN domain with PDE, initial-condition, and boundary-condition training points">
@@ -242,8 +242,8 @@ export class ExplainerView {
         <section class="explainer-flow-panel" aria-label="PINNfluence workflow">
           <ol class="explainer-flow">
             ${flowStep("1", "Train", "Fit the PINN on PDE, IC, and BC losses.")}
-            ${flowStep("2", "Perturb", "Ask what changes if one training point is upweighted or removed.")}
-            ${flowStep("3", "Diagnose", "Use local sensitivities to turn scores into maps, fractions, regions, and indicators.")}
+            ${flowStep("2", "Approximate Removal Effect", "Estimate how the trained model's output would change if one training point were removed — without retraining.")}
+            ${flowStep("3", "Interpret", "Read the trained PINN through its sensitivity to individual training points: attribution maps, loss-term fractions, and aggregate regional/temporal indicators.")}
           </ol>
         </section>
 
