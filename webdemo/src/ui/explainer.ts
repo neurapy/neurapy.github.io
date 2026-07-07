@@ -72,8 +72,8 @@ export const EXPLAINER_TOKENS = [
     id: "quantity",
     title: "Quantity f",
     body:
-      "f is what we inspect after training. In the demo this is usually a prediction field or a loss value at a candidate location.",
-    bodyHtml: `${MATH_F} is what we inspect after training. In the demo this is usually a prediction field or a loss value at a candidate location.`,
+      "f is what we inspect after training. In the demo this is a prediction field or a loss value at a candidate location.",
+    bodyHtml: `${MATH_F} is what we inspect after training. In the demo this is a prediction field or a loss value at a candidate location.`,
   },
   {
     id: "train-point",
@@ -323,7 +323,7 @@ export class ExplainerView {
           ${diagnosticTile("Point Map", "Fix z and color training points by |I(x,z)| to locate influential samples.")}
           ${diagnosticTile("Loss Split", "Compare PDE, IC, and BC shares to see which constraints dominate.")}
           ${diagnosticTile("Region Aggregate", "Sum over sets of points to compare how one domain region shapes another.")}
-          ${diagnosticTile("Temporal or Directional Influence Indicator", "Compress temporal or spatial directionality into a comparable diagnostic number.")}
+          ${diagnosticTile("Heuristic Indicators", "Compress temporal or spatial directionality into a comparable diagnostic number.")}
         </section>
 
         <section class="explainer-caveat" aria-label="Interpretation caveats">
