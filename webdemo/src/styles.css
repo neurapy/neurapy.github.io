@@ -1371,6 +1371,14 @@ canvas {
   cursor: pointer;
 }
 
+.explainer-formula [data-explainer-token="sign"],
+.explainer-formula [data-explainer-token="grad-f"],
+.explainer-formula [data-explainer-token="hessian"],
+.explainer-formula [data-explainer-token="grad-loss"] {
+  padding-top: 0.16em;
+  padding-bottom: 0.15em;
+}
+
 
 .explainer-formula-token:hover,
 .explainer-formula-token:focus-visible,
