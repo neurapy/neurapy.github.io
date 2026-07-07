@@ -46,15 +46,6 @@ const MATH_GRAD_LOSS = inlineMath(
     <mi>L</mi><mo>(</mo><mi>x</mi><mo>;</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>)</mo>
   </mrow>`,
 );
-const MATH_MINUS_H_INV_GRAD_LOSS = inlineMath(
-  "minus H inverse gradient theta L of x at theta zero",
-  `<mrow>
-    <mo>−</mo>
-    <msup><mi>H</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup>
-    <msub><mo>∇</mo><mi>θ</mi></msub>
-    <mi>L</mi><mo>(</mo><mi>x</mi><mo>;</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>)</mo>
-  </mrow>`,
-);
 const MATH_ABS_INF_I = inlineLatex("absolute influence Inf i", "\\left|\\operatorname{Inf}_i\\right|");
 const MATH_SUM_ABS_INF_J = inlineLatex(
   "sum over j of absolute influence Inf j",
@@ -95,15 +86,15 @@ export const EXPLAINER_TOKENS = [
     id: "test-point",
     title: "Evaluation Point z",
     body:
-      "z is the candidate location where we observe the trained model. One fixed z produces a map over influential training points.",
-    bodyHtml: `${MATH_Z} is the candidate location where we observe the trained model. One fixed ${MATH_Z} produces a map over influential training points.`,
+      "z is the candidate points at which we observe the model (which we can sample at will). PINNfluence approximates how f(z) changes upon removal of x. Fixing z produces an attribution map over how training points influence f(z).",
+    bodyHtml: `${MATH_Z} is the candidate points at which we observe the model (which we can sample at will). PINNfluence approximates how ${MATH_F}(${MATH_Z}) changes upon removal of ${MATH_X}. Fixing ${MATH_Z} produces an attribution map over how training points influence ${MATH_F}(${MATH_Z}).`,
   },
   {
     id: "sign",
-    title: "Why the Minus?",
+    title: "Sign Convention",
     body:
-      "If training point x is upweighted, it adds a small extra loss push on the parameters. To settle into a nearby optimum again, the model moves in the opposite response direction −H⁻¹∇θL(x; θ₀). That opposite response is the leading minus.",
-    bodyHtml: `If training point ${MATH_X} is upweighted, it adds a small extra loss push on the parameters. To settle into a nearby optimum again, the model moves in the opposite response direction ${MATH_MINUS_H_INV_GRAD_LOSS}. That opposite response is the leading minus.`,
+      "Enforces sign convention: A positive score means this training point pushes f(z) upward — removing it would decrease f(z).",
+    bodyHtml: `Enforces sign convention: A positive score means this training point pushes ${MATH_F}(${MATH_Z}) upward — removing it would decrease ${MATH_F}(${MATH_Z}).`,
   },
   {
     id: "grad-f",
